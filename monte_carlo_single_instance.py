@@ -35,8 +35,8 @@ def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_c
 
     print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
 
-    return (all_together_cross_fitting(x, treatment, outcome, eta_second_moment, eta_third_moment,
-                                      model_treatment=model_treatment, model_outcome=model_outcome), ica_treatment_effect_estimate)
+    return *all_together_cross_fitting(x, treatment, outcome, eta_second_moment, eta_third_moment,
+                                      model_treatment=model_treatment, model_outcome=model_outcome), ica_treatment_effect_estimate
 
 
 def main(args):
@@ -56,7 +56,7 @@ def main(args):
     parser.add_argument("--sigma_outcome", dest="sigma_outcome",
                         type=int, help='sigma_outcome', default=1)
     parser.add_argument("--covariate_pdf", dest="covariate_pdf",
-                        type=str, help='pdf of covariates', default="gauss")
+                        type=str, help='pdf of covariates', default="uniform")
     parser.add_argument("--output_dir", dest="output_dir", type=str, default=".")
     opts = parser.parse_args(args)
 
@@ -121,9 +121,9 @@ def main(args):
     Run  the experiments.
     '''
 
-    if opts.covariate_pdf is "gauss":
+    if opts.covariate_pdf == "gauss":
         x_sample = lambda n_samples, n_dim : np.random.normal(size=(n_samples, n_dim))
-    else:
+    elif opts.covariate_pdf == "uniform":
         x_sample = lambda n_samples, n_dim : np.random.uniform(size=(n_samples, n_dim))
 
 
@@ -146,11 +146,12 @@ def main(args):
 
     def plot_estimates(estimate_list, true_tau, title="Histogram of estimates"):
         # the histogram of the data
-        n, bins, patches = plt.hist(estimate_list, 40, normed=1, facecolor='green', alpha=0.75)
+        n, bins, patches = plt.hist(estimate_list, 40, facecolor='green', alpha=0.75)
         sigma = np.std(estimate_list)
         mu = np.mean(estimate_list)
         # add a 'best fit' line
-        y = mlab.normpdf(bins, mu, sigma)
+        from scipy.stats import norm
+        y = norm.pdf(bins, mu, sigma)
         l = plt.plot(bins, y, 'r--', linewidth=1)
         plt.plot([treatment_effect, treatment_effect], [0, np.max(y)], 'b--', label='true effect')
         plt.title("{}. mean: {:.2f}, sigma: {:.2f}".format(title, mu, sigma))
