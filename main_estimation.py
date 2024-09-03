@@ -73,8 +73,8 @@ def all_together_cross_fitting(x, p, q, second_p, cube_p,
     mult_p_est = np.zeros(x.shape[0])
     mult_p_est_split = np.zeros(x.shape[0])
 
-    kf = KFold(x.shape[0], n_folds=2)
-    for train_index, test_index in kf:
+    kf = KFold(n_splits=2)
+    for train_index, test_index in kf.split(x):
         # Split the data in half, train and test
         x_train, p_train, q_train = x[train_index], p[train_index], q[train_index]
         x_test, p_test, q_test = x[test_index], p[test_index], q[test_index]
@@ -101,8 +101,8 @@ def all_together_cross_fitting(x, p, q, second_p, cube_p,
         mult_p_est[test_index] = res_p[test_index] ** 3 - 3 * second_p_est * res_p[test_index] - cube_p_est
 
         # 3. Multiplier with estimated moments on further split and cross-fit of test data
-        nested_kf = KFold(len(test_index), n_folds=2)
-        for nested_train_index, nested_test_index in nested_kf:
+        nested_kf = KFold(n_splits=2)
+        for nested_train_index, nested_test_index in nested_kf.split(test_index):
             res_p_first = res_p[test_index[nested_train_index]]
             second_p_est = np.mean(res_p_first ** 2)
             cube_p_est = np.mean(res_p_first ** 3) - 3 * np.mean(res_p_first) * np.mean(res_p_first ** 2)
