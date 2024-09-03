@@ -13,6 +13,8 @@ import joblib
 import argparse
 from joblib import delayed, Parallel
 
+from ica import ica_treatment_effect_estimation
+
 
 def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef,
                eta_second_moment, eta_third_moment, lambda_reg):
@@ -22,8 +24,19 @@ def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_c
     outcome = treatment_effect * treatment + np.dot(x[:, outcome_support], outcome_coef) + epsilon
     model_treatment = Lasso(alpha=lambda_reg)
     model_outcome = Lasso(alpha=lambda_reg)
-    return all_together_cross_fitting(x, treatment, outcome, eta_second_moment, eta_third_moment,
-                                      model_treatment=model_treatment, model_outcome=model_outcome)
+
+    assert (treatment_support == outcome_support).all()
+    # print((x[:, treatment_support], treatment, outcome).shape)
+    # ica_treatment_effect_estimate = ica_treatment_effect_estimation((x[:, treatment_support], treatment, outcome), (x[:, treatment_support], eta, epsilon))
+    # ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), eta.reshape(-1,1), epsilon.reshape(-1,1))))
+    # ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), eta.reshape(-1,1), epsilon.reshape(-1,1))))
+    ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((x[:, treatment_support], treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((x[:, treatment_support], eta.reshape(-1,1), epsilon.reshape(-1,1))))
+
+
+    print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
+
+    return (all_together_cross_fitting(x, treatment, outcome, eta_second_moment, eta_third_moment,
+                                      model_treatment=model_treatment, model_outcome=model_outcome), ica_treatment_effect_estimate)
 
 
 def main(args):
@@ -33,15 +46,17 @@ def main(args):
     parser.add_argument("--n_samples", dest="n_samples",
                         type=int, help='n_samples', default=5000)
     parser.add_argument("--n_dim", dest="n_dim",
-                        type=int, help='n_dim', default=1000)
+                        type=int, help='n_dim', default=100)
     parser.add_argument("--n_experiments", dest="n_experiments",
-                        type=int, help='n_experiments', default=2000)
+                        type=int, help='n_experiments', default=20)
     parser.add_argument("--support_size", dest="support_size",
-                        type=int, help='support_size', default=400)
+                        type=int, help='support_size', default=10)
     parser.add_argument("--seed", dest="seed",
                         type=int, help='seed', default=12143)
     parser.add_argument("--sigma_outcome", dest="sigma_outcome",
                         type=int, help='sigma_outcome', default=1)
+    parser.add_argument("--covariate_pdf", dest="covariate_pdf",
+                        type=str, help='pdf of covariates', default="gauss")
     parser.add_argument("--output_dir", dest="output_dir", type=str, default=".")
     opts = parser.parse_args(args)
 
@@ -105,20 +120,27 @@ def main(args):
     '''
     Run  the experiments.
     '''
+
+    if opts.covariate_pdf is "gauss":
+        x_sample = lambda n_samples, n_dim : np.random.normal(size=(n_samples, n_dim))
+    else:
+        x_sample = lambda n_samples, n_dim : np.random.uniform(size=(n_samples, n_dim))
+
+
     # Coefficients recovered by orthogonal ML
     lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
     results = Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
-        np.random.normal(size=(n_samples, n_dim)),
+        x_sample(n_samples, n_dim),
         eta_sample(n_samples),
         epsilon_sample(n_samples),
         treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef, eta_second_moment,
         eta_third_moment, lambda_reg
-    ) for t in range(n_experiments))
+    ) for _ in range(n_experiments))
 
     ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] for
-                     ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _ in results]
-    first_stage_mse = [[np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome)] for
-                       _, _, _, _, coef_treatment, coef_outcome in results]
+                     ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, _ in results]
+    first_stage_mse = [[np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome), np.linalg.norm(ica_treatment_effect_estimate-treatment_effect)] for
+                       _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate in results]
 
     print("Done with experiments!")
 
@@ -162,12 +184,15 @@ def main(args):
     print("Second Order ML MSE: {}".format(bias_second ** 2 + sigma_ortho ** 2))
 
     plt.figure(figsize=(15, 5))
-    plt.subplot(1, 2, 1)
+    plt.subplot(1, 3, 1)
     plt.title("Model_treatment error")
     plt.hist(np.array(first_stage_mse)[:, 0].flatten())
-    plt.subplot(1, 2, 2)
+    plt.subplot(1, 3, 2)
     plt.hist(np.array(first_stage_mse)[:, 1].flatten())
     plt.title("Model_outcome error")
+    plt.subplot(1, 3, 3)
+    plt.hist(np.array(first_stage_mse)[:, 2].flatten())
+    plt.title("ICA error")
     plt.savefig(os.path.join(opts.output_dir,
                              'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.png'.format(n_samples,
                                                                                                             n_dim,
