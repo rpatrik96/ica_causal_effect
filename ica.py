@@ -37,7 +37,6 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
     ica = FastICA(n_components=X.shape[1], random_state=random_state, whiten=whiten)
     S_hat = ica.fit_transform(X)
     results = calc_disent_metrics(S, S_hat)
-    print(results["permutation_disentanglement_score"])
     # resolve the permutations
     permuted_mixing = ica.mixing_[:, results["munkres_sort_idx"].astype(int)]
     # normalize to get 1 at epsilon -> Y
@@ -45,7 +44,7 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
 
     treatment_effect_estimate = permuted_scaled_mixing[-1, -2]
 
-    return treatment_effect_estimate
+    return treatment_effect_estimate, results["permutation_disentanglement_score"]
 
 
 # treatment_effect_estimate = ica_treatment_effect_estimation(X, S)

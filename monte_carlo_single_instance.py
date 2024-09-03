@@ -30,13 +30,13 @@ def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_c
     # ica_treatment_effect_estimate = ica_treatment_effect_estimation((x[:, treatment_support], treatment, outcome), (x[:, treatment_support], eta, epsilon))
     # ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), eta.reshape(-1,1), epsilon.reshape(-1,1))))
     # ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), eta.reshape(-1,1), epsilon.reshape(-1,1))))
-    ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((x[:, treatment_support], treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((x[:, treatment_support], eta.reshape(-1,1), epsilon.reshape(-1,1))))
+    ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(np.hstack((x[:, treatment_support], treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((x[:, treatment_support], eta.reshape(-1,1), epsilon.reshape(-1,1))))
 
 
     print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
 
     return *all_together_cross_fitting(x, treatment, outcome, eta_second_moment, eta_third_moment,
-                                      model_treatment=model_treatment, model_outcome=model_outcome), ica_treatment_effect_estimate
+                                      model_treatment=model_treatment, model_outcome=model_outcome), ica_treatment_effect_estimate, ica_mcc
 
 
 def main(args):
@@ -138,9 +138,9 @@ def main(args):
     ) for _ in range(n_experiments))
 
     ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] for
-                     ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, _ in results]
-    first_stage_mse = [[np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome), np.linalg.norm(ica_treatment_effect_estimate-treatment_effect)] for
-                       _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate in results]
+                     ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, _, _ in results]
+    first_stage_mse = [[np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome), np.linalg.norm(ica_treatment_effect_estimate-treatment_effect), ica_mcc] for
+                       _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in results]
 
     print("Done with experiments!")
 
@@ -185,15 +185,18 @@ def main(args):
     print("Second Order ML MSE: {}".format(bias_second ** 2 + sigma_ortho ** 2))
 
     plt.figure(figsize=(15, 5))
-    plt.subplot(1, 3, 1)
+    plt.subplot(1, 4, 1)
     plt.title("Model_treatment error")
     plt.hist(np.array(first_stage_mse)[:, 0].flatten())
-    plt.subplot(1, 3, 2)
+    plt.subplot(1, 4, 2)
     plt.hist(np.array(first_stage_mse)[:, 1].flatten())
     plt.title("Model_outcome error")
-    plt.subplot(1, 3, 3)
+    plt.subplot(1, 4, 3)
     plt.hist(np.array(first_stage_mse)[:, 2].flatten())
     plt.title("ICA error")
+    plt.subplot(1, 4, 4)
+    plt.hist(np.array(first_stage_mse)[:, 3].flatten())
+    plt.title("ICA MCC")
     plt.savefig(os.path.join(opts.output_dir,
                              'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.png'.format(n_samples,
                                                                                                             n_dim,
