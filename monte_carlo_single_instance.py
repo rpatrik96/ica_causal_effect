@@ -40,8 +40,8 @@ def main(args):
                         type=int, help='support_size', default=400)
     parser.add_argument("--seed", dest="seed",
                         type=int, help='seed', default=12143)
-    parser.add_argument("--sigma_q", dest="sigma_q",
-                        type=int, help='sigma_q', default=1)
+    parser.add_argument("--sigma_outcome", dest="sigma_outcome",
+                        type=int, help='sigma_outcome', default=1)
     parser.add_argument("--output_dir", dest="output_dir", type=str, default=".")
     opts = parser.parse_args(args)
 
@@ -91,8 +91,8 @@ def main(args):
     print("Coefficients of outcome as function of co-variates: {}".format(outcome_coef))
 
     # Distribution of outcome residuals
-    sigma_q = opts.sigma_q
-    epsilon_sample = lambda x: np.random.uniform(-sigma_q, sigma_q, size=x)
+    sigma_outcome = opts.sigma_outcome
+    epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
 
     treatment_effect = 3.0
 
@@ -106,8 +106,6 @@ def main(args):
     Run  the experiments.
     '''
     # Coefficients recovered by orthogonal ML
-    ortho_rec_tau = []
-    first_stage_mse = []
     lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
     results = Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
         np.random.normal(size=(n_samples, n_dim)),
@@ -154,43 +152,43 @@ def main(args):
                                                title="Second order orthogonal with estimates on third sample")
     plt.tight_layout()
     plt.savefig(os.path.join(opts.output_dir,
-                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_q_{}.png'.format(
-                                 n_samples, n_dim, n_experiments, support_size, sigma_q)), dpi=300, bbox_inches='tight')
+                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.png'.format(
+                                 n_samples, n_dim, n_experiments, support_size, sigma_outcome)), dpi=300, bbox_inches='tight')
     plt.savefig(os.path.join(opts.output_dir,
-                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_q_{}.pdf'.format(
-                                 n_samples, n_dim, n_experiments, support_size, sigma_q)), dpi=300, bbox_inches='tight')
+                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.pdf'.format(
+                                 n_samples, n_dim, n_experiments, support_size, sigma_outcome)), dpi=300, bbox_inches='tight')
 
     print("Ortho ML MSE: {}".format(bias_ortho ** 2 + sigma_ortho ** 2))
     print("Second Order ML MSE: {}".format(bias_second ** 2 + sigma_ortho ** 2))
 
     plt.figure(figsize=(15, 5))
     plt.subplot(1, 2, 1)
-    plt.title("Model_p error")
+    plt.title("Model_treatment error")
     plt.hist(np.array(first_stage_mse)[:, 0].flatten())
     plt.subplot(1, 2, 2)
     plt.hist(np.array(first_stage_mse)[:, 1].flatten())
-    plt.title("Model_q error")
+    plt.title("Model_outcome error")
     plt.savefig(os.path.join(opts.output_dir,
-                             'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_q_{}.png'.format(n_samples,
+                             'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.png'.format(n_samples,
                                                                                                             n_dim,
                                                                                                             n_experiments,
                                                                                                             support_size,
-                                                                                                            sigma_q)),
+                                                                                                            sigma_outcome)),
                 dpi=300, bbox_inches='tight')
     plt.savefig(os.path.join(opts.output_dir,
-                             'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_q_{}.pdf'.format(n_samples,
+                             'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.pdf'.format(n_samples,
                                                                                                             n_dim,
                                                                                                             n_experiments,
                                                                                                             support_size,
-                                                                                                            sigma_q)),
+                                                                                                            sigma_outcome)),
                 dpi=300, bbox_inches='tight')
 
     joblib.dump(ortho_rec_tau, os.path.join(opts.output_dir,
-                                            'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_q_{}'.format(
-                                                n_samples, n_dim, n_experiments, support_size, sigma_q)))
+                                            'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}'.format(
+                                                n_samples, n_dim, n_experiments, support_size, sigma_outcome)))
     joblib.dump(first_stage_mse, os.path.join(opts.output_dir,
-                                              'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_q_{}'.format(
-                                                  n_samples, n_dim, n_experiments, support_size, sigma_q)))
+                                              'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}'.format(
+                                                  n_samples, n_dim, n_experiments, support_size, sigma_outcome)))
 
 
 if __name__ == "__main__":
