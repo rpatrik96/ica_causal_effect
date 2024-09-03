@@ -18,7 +18,7 @@ def experiment(x, eta, epsilon, tau, s_p, a_p, s_q, a_q, second_p, cube_p, lambd
     q = tau * p + np.dot(x[:, s_q], a_q) + epsilon
     model_p = Lasso(alpha=lambda_reg) 
     model_q = Lasso(alpha=lambda_reg)
-    return all_together_cross_fitting(x, p, q, second_p, cube_p, model_p=model_p, model_q=model_q)
+    return all_together_cross_fitting(x, p, q, second_p, cube_p, model_treatment=model_p, model_outcome=model_q)
 
 def main(args):
     os.environ['JOBLIB_TEMP_FOLDER'] = '/tmp'
