@@ -96,12 +96,12 @@ def main(args):
 
     treatment_effect = 3.0
 
-    true_coef_p = np.zeros(n_dim)
-    true_coef_p[treatment_support] = treatment_coef
-    true_coef_q = np.zeros(n_dim)
-    true_coef_q[outcome_support] = outcome_coef
-    true_coef_q[treatment_support] += treatment_effect * treatment_coef
-    print(true_coef_q[outcome_support])
+    true_coef_treatment = np.zeros(n_dim)
+    true_coef_treatment[treatment_support] = treatment_coef
+    true_coef_outcome = np.zeros(n_dim)
+    true_coef_outcome[outcome_support] = outcome_coef
+    true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
+    print(true_coef_outcome[outcome_support])
     '''
     Run  the experiments.
     '''
@@ -119,8 +119,8 @@ def main(args):
 
     ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] for
                      ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _ in results]
-    first_stage_mse = [[np.linalg.norm(true_coef_p - coef_p), np.linalg.norm(true_coef_q - coef_q)] for
-                       _, _, _, _, coef_p, coef_q in results]
+    first_stage_mse = [[np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome)] for
+                       _, _, _, _, coef_treatment, coef_outcome in results]
 
     print("Done with experiments!")
 
