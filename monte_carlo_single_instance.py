@@ -31,6 +31,7 @@ def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_c
     # ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), eta.reshape(-1,1), epsilon.reshape(-1,1))))
     # ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), eta.reshape(-1,1), epsilon.reshape(-1,1))))
     ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(np.hstack((x[:, treatment_support], treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((x[:, treatment_support], eta.reshape(-1,1), epsilon.reshape(-1,1))))
+    # ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(np.hstack(( treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack(( eta.reshape(-1,1), epsilon.reshape(-1,1))))
 
 
     print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
@@ -137,8 +138,8 @@ def main(args):
         eta_third_moment, lambda_reg
     ) for _ in range(n_experiments))
 
-    ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] for
-                     ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, _, _ in results]
+    ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, ica_treatment_effect_estimate] for
+                     ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _ in results]
     first_stage_mse = [[np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome), np.linalg.norm(ica_treatment_effect_estimate-treatment_effect), ica_mcc] for
                        _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in results]
 
@@ -162,17 +163,24 @@ def main(args):
     Plotting histograms
     '''
     plt.figure(figsize=(25, 5))
-    plt.subplot(1, 4, 1)
+    plt.subplot(1, 5, 1)
     bias_ortho, sigma_ortho = plot_estimates(np.array(ortho_rec_tau)[:, 0].flatten(), treatment_effect,
                                              title="Orthogonal estimates")
-    plt.subplot(1, 4, 2)
+    plt.subplot(1, 5, 2)
     plot_estimates(np.array(ortho_rec_tau)[:, 1].flatten(), treatment_effect, title="Second order orthogonal")
-    plt.subplot(1, 4, 3)
+    plt.subplot(1, 5, 3)
     plot_estimates(np.array(ortho_rec_tau)[:, 2].flatten(), treatment_effect,
                    title="Second order orthogonal with estimates")
-    plt.subplot(1, 4, 4)
+    plt.subplot(1, 5, 4)
     bias_second, sigma_second = plot_estimates(np.array(ortho_rec_tau)[:, 3].flatten(), treatment_effect,
                                                title="Second order orthogonal with estimates on third sample")
+
+    plt.subplot(1, 5, 5)
+    bias_ica, sigma_ica = plot_estimates(np.array(ortho_rec_tau)[:, 4].flatten(), treatment_effect,
+                                               title="ICA estimate")
+
+
+
     plt.tight_layout()
     plt.savefig(os.path.join(opts.output_dir,
                              'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.png'.format(
