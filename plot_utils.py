@@ -12,7 +12,7 @@ def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram o
     mu = np.mean(estimate_list)
     # add a 'best fit' line
     from scipy.stats import norm
-    y = norm.svg(bins, mu, sigma)
+    y = norm.pdf(bins, mu, sigma)
     l = plt.plot(bins, y, 'r--', linewidth=1)
     plt.plot([treatment_effect, treatment_effect], [0, np.max(y)], 'b--', label='true effect')
     plt.title("{}. mean: {:.2f}, sigma: {:.2f}".format(title, mu, sigma))
