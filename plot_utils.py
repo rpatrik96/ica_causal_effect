@@ -79,3 +79,33 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
         n_samples, n_dim, n_experiments, support_size, sigma_outcome)
     joblib.dump(ortho_rec_tau, os.path.join(output_dir, coef_filename))
     joblib.dump(first_stage_mse, os.path.join(output_dir, filename_base))
+
+
+def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect):
+    # Extract data for plotting
+    support_sizes = [result['support_size'] for result in all_results]
+    # Calculate mean errors for each method across experiments
+    ortho_ml_errors = [np.mean([abs(tau[0] - treatment_effect) for tau in result['ortho_rec_tau']]) for result in
+                       all_results]
+    robust_ortho_errors = [np.mean([abs(tau[1] - treatment_effect) for tau in result['ortho_rec_tau']]) for result in
+                           all_results]
+    robust_est_errors = [np.mean([abs(tau[2] - treatment_effect) for tau in result['ortho_rec_tau']]) for result in
+                         all_results]
+    robust_split_errors = [np.mean([abs(tau[3] - treatment_effect) for tau in result['ortho_rec_tau']]) for result in
+                           all_results]
+    ica_errors = [np.mean([abs(tau[4] - treatment_effect) for tau in result['ortho_rec_tau']]) for result in
+                  all_results]
+    plt.figure(figsize=(10, 6))
+    plt.plot(support_sizes, ortho_ml_errors, 'o-', label='Orthogonal ML')
+    plt.plot(support_sizes, robust_ortho_errors, 's-', label='Robust Orthogonal ML')
+    plt.plot(support_sizes, robust_est_errors, '^-', label='Robust Est ML')
+    plt.plot(support_sizes, robust_split_errors, 'v-', label='Robust Split ML')
+    plt.plot(support_sizes, ica_errors, 'D-', label='ICA')
+    plt.xlabel('Support Size')
+    plt.ylabel('Absolute Error')
+    plt.title('Method Errors vs Support Size')
+    plt.legend()
+    plt.grid(True)
+    # Save plot
+    plt.savefig(os.path.join(opts.output_dir, f'errors_vs_support_size_n{n_samples}_d{n_dim}.pdf'))
+    plt.close()

@@ -3,7 +3,7 @@ import sys
 
 import matplotlib
 
-from plot_utils import plot_method_comparison, plot_and_save_model_errors
+from plot_utils import plot_method_comparison, plot_and_save_model_errors, plot_error_vs_support
 
 matplotlib.use('Agg')
 import numpy as np
@@ -44,9 +44,9 @@ def main(args):
     parser = argparse.ArgumentParser(
         description="Second order orthogonal ML!")
     parser.add_argument("--n_samples", dest="n_samples",
-                        type=int, help='n_samples', default=150)
+                        type=int, help='n_samples', default=500)
     parser.add_argument("--n_dim", dest="n_dim",
-                        type=int, help='n_dim', default=5)
+                        type=int, help='n_dim', default=50)
     parser.add_argument("--n_experiments", dest="n_experiments",
                         type=int, help='n_experiments', default=20)
     # parser.add_argument("--support_size", dest="support_size",
@@ -73,7 +73,7 @@ def main(args):
     n_experiments = opts.n_experiments
     
     # Run experiments for different support sizes
-    support_sizes = [5]
+    support_sizes = np.logspace(np.log10(5), np.log10(n_dim), num=5, dtype=int)
     all_results = []
     
     for support_size in support_sizes:
@@ -167,8 +167,8 @@ def main(args):
 
     print("\nDone with all experiments!")
 
-
-
+    # Create plot comparing errors across support sizes
+    plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect)
 
 
 if __name__ == "__main__":
