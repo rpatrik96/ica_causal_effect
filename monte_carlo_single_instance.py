@@ -3,13 +3,12 @@ import sys
 
 import matplotlib
 
+from plot_utils import plot_method_comparison, plot_and_save_model_errors
+
 matplotlib.use('Agg')
 import numpy as np
 from sklearn.linear_model import Lasso
 from main_estimation import all_together_cross_fitting
-import matplotlib.mlab as mlab
-import matplotlib.pyplot as plt
-import joblib
 import argparse
 from joblib import delayed, Parallel
 
@@ -45,13 +44,13 @@ def main(args):
     parser = argparse.ArgumentParser(
         description="Second order orthogonal ML!")
     parser.add_argument("--n_samples", dest="n_samples",
-                        type=int, help='n_samples', default=5000)
+                        type=int, help='n_samples', default=150)
     parser.add_argument("--n_dim", dest="n_dim",
-                        type=int, help='n_dim', default=100)
+                        type=int, help='n_dim', default=5)
     parser.add_argument("--n_experiments", dest="n_experiments",
                         type=int, help='n_experiments', default=20)
-    parser.add_argument("--support_size", dest="support_size",
-                        type=int, help='support_size', default=10)
+    # parser.add_argument("--support_size", dest="support_size",
+    #                     type=int, help='support_size', default=10)
     parser.add_argument("--seed", dest="seed",
                         type=int, help='seed', default=12143)
     parser.add_argument("--sigma_outcome", dest="sigma_outcome",
@@ -72,160 +71,104 @@ def main(args):
     n_dim = opts.n_dim
     # How many experiments to run to see the distribution of the recovered coefficient between price and demand
     n_experiments = opts.n_experiments
-    support_size = opts.support_size
-    print("Support size of sparse functions: {}".format(support_size))
+    
+    # Run experiments for different support sizes
+    support_sizes = [5]
+    all_results = []
+    
+    for support_size in support_sizes:
+        print(f"\nRunning experiments with support size: {support_size}")
+        print("Support size of sparse functions: {}".format(support_size))
 
-    '''
-    True parameters
-    '''
+        '''
+        True parameters
+        '''
 
-    # Support and coefficients for treatment as function of co-variates
-    treatment_support = np.random.choice(range(n_dim), size=support_size, replace=False)
-    treatment_coef = np.random.uniform(0, 5, size=support_size)
-    print("Support of treatment as function of co-variates: {}".format(treatment_support))
-    print("Coefficients of treatment as function of co-variates: {}".format(treatment_coef))
+        # Support and coefficients for treatment as function of co-variates
+        treatment_support = np.random.choice(range(n_dim), size=support_size, replace=False)
+        treatment_coef = np.random.uniform(0, 5, size=support_size)
+        print("Support of treatment as function of co-variates: {}".format(treatment_support))
+        print("Coefficients of treatment as function of co-variates: {}".format(treatment_coef))
 
-    # Distribution of residuals of treatment
-    discounts = np.array([0, -.5, -2., -4.])
-    probs = np.array([.65, .2, .1, .05])
-    mean_discount = np.dot(discounts, probs)
-    eta_sample = lambda x: np.array(
-        [discounts[i] - mean_discount for i in np.argmax(np.random.multinomial(1, probs, x), axis=1)])
-    # Calculate moments of the residual distribution
-    eta_second_moment = np.dot(probs, (discounts - mean_discount) ** 2)
-    eta_third_moment = np.dot(probs, (discounts - mean_discount) ** 3)
-    eta_fourth_moment = np.dot(probs, (discounts - mean_discount) ** 4)
-    print("Second Moment of Eta: {:.2f}".format(eta_second_moment))
-    print("Third Moment of Eta: {:.2f}".format(eta_third_moment))
-    print("Non-Gaussianity Criterion, E[eta^4] - 3 E[eta^2]^2: {:.2f}".format(
-        eta_fourth_moment - 3 * eta_second_moment ** 2))
+        # Distribution of residuals of treatment
+        discounts = np.array([0, -.5, -2., -4.])
+        probs = np.array([.65, .2, .1, .05])
+        mean_discount = np.dot(discounts, probs)
+        eta_sample = lambda x: np.array(
+            [discounts[i] - mean_discount for i in np.argmax(np.random.multinomial(1, probs, x), axis=1)])
+        # Calculate moments of the residual distribution
+        eta_second_moment = np.dot(probs, (discounts - mean_discount) ** 2)
+        eta_third_moment = np.dot(probs, (discounts - mean_discount) ** 3)
+        eta_fourth_moment = np.dot(probs, (discounts - mean_discount) ** 4)
+        print("Second Moment of Eta: {:.2f}".format(eta_second_moment))
+        print("Third Moment of Eta: {:.2f}".format(eta_third_moment))
+        print("Non-Gaussianity Criterion, E[eta^4] - 3 E[eta^2]^2: {:.2f}".format(
+            eta_fourth_moment - 3 * eta_second_moment ** 2))
 
-    # Support and coefficients for outcome as function of co-variates
-    outcome_support = treatment_support  # np.random.choice(range(n_dim), size=support_size, replace=False)
-    outcome_coef = np.random.uniform(0, 5, size=support_size)
-    print("Support of outcome as function of co-variates: {}".format(outcome_support))
-    print("Coefficients of outcome as function of co-variates: {}".format(outcome_coef))
+        # Support and coefficients for outcome as function of co-variates
+        outcome_support = treatment_support  # np.random.choice(range(n_dim), size=support_size, replace=False)
+        outcome_coef = np.random.uniform(0, 5, size=support_size)
+        print("Support of outcome as function of co-variates: {}".format(outcome_support))
+        print("Coefficients of outcome as function of co-variates: {}".format(outcome_coef))
 
-    # Distribution of outcome residuals
-    sigma_outcome = opts.sigma_outcome
-    epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
+        # Distribution of outcome residuals
+        sigma_outcome = opts.sigma_outcome
+        epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
 
-    treatment_effect = 3.0
+        treatment_effect = 3.0
 
-    true_coef_treatment = np.zeros(n_dim)
-    true_coef_treatment[treatment_support] = treatment_coef
-    true_coef_outcome = np.zeros(n_dim)
-    true_coef_outcome[outcome_support] = outcome_coef
-    true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
-    print(true_coef_outcome[outcome_support])
-    '''
-    Run  the experiments.
-    '''
+        true_coef_treatment = np.zeros(n_dim)
+        true_coef_treatment[treatment_support] = treatment_coef
+        true_coef_outcome = np.zeros(n_dim)
+        true_coef_outcome[outcome_support] = outcome_coef
+        true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
+        print(true_coef_outcome[outcome_support])
+        '''
+        Run the experiments.
+        '''
 
-    if opts.covariate_pdf == "gauss":
-        x_sample = lambda n_samples, n_dim : np.random.normal(size=(n_samples, n_dim))
-    elif opts.covariate_pdf == "uniform":
-        x_sample = lambda n_samples, n_dim : np.random.uniform(size=(n_samples, n_dim))
+        if opts.covariate_pdf == "gauss":
+            x_sample = lambda n_samples, n_dim : np.random.normal(size=(n_samples, n_dim))
+        elif opts.covariate_pdf == "uniform":
+            x_sample = lambda n_samples, n_dim : np.random.uniform(size=(n_samples, n_dim))
 
+        # Coefficients recovered by orthogonal ML
+        lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
+        results = Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
+            x_sample(n_samples, n_dim),
+            eta_sample(n_samples),
+            epsilon_sample(n_samples),
+            treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef, eta_second_moment,
+            eta_third_moment, lambda_reg
+        ) for _ in range(n_experiments))
 
-    # Coefficients recovered by orthogonal ML
-    lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
-    results = Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
-        x_sample(n_samples, n_dim),
-        eta_sample(n_samples),
-        epsilon_sample(n_samples),
-        treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef, eta_second_moment,
-        eta_third_moment, lambda_reg
-    ) for _ in range(n_experiments))
+        ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, ica_treatment_effect_estimate] for
+                         ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _ in results]
+        first_stage_mse = [[np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome), np.linalg.norm(ica_treatment_effect_estimate-treatment_effect), ica_mcc] for
+                           _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in results]
 
-    ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, ica_treatment_effect_estimate] for
-                     ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _ in results]
-    first_stage_mse = [[np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome), np.linalg.norm(ica_treatment_effect_estimate-treatment_effect), ica_mcc] for
-                       _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in results]
+        all_results.append({
+            'support_size': support_size,
+            'ortho_rec_tau': ortho_rec_tau,
+            'first_stage_mse': first_stage_mse
+        })
 
-    print("Done with experiments!")
+        
+        print(f"Done with experiments for support size {support_size}!")
 
-    def plot_estimates(estimate_list, true_tau, title="Histogram of estimates"):
-        # the histogram of the data
-        n, bins, patches = plt.hist(estimate_list, 40, facecolor='green', alpha=0.75)
-        sigma = np.std(estimate_list)
-        mu = np.mean(estimate_list)
-        # add a 'best fit' line
-        from scipy.stats import norm
-        y = norm.pdf(bins, mu, sigma)
-        l = plt.plot(bins, y, 'r--', linewidth=1)
-        plt.plot([treatment_effect, treatment_effect], [0, np.max(y)], 'b--', label='true effect')
-        plt.title("{}. mean: {:.2f}, sigma: {:.2f}".format(title, mu, sigma))
-        plt.legend()
-        return np.abs(true_tau - mu), sigma
+        '''
+        Plotting histograms
+        '''
 
-    '''
-    Plotting histograms
-    '''
-    plt.figure(figsize=(25, 5))
-    plt.subplot(1, 5, 1)
-    bias_ortho, sigma_ortho = plot_estimates(np.array(ortho_rec_tau)[:, 0].flatten(), treatment_effect,
-                                             title="Orthogonal estimates")
-    plt.subplot(1, 5, 2)
-    plot_estimates(np.array(ortho_rec_tau)[:, 1].flatten(), treatment_effect, title="Second order orthogonal")
-    plt.subplot(1, 5, 3)
-    plot_estimates(np.array(ortho_rec_tau)[:, 2].flatten(), treatment_effect,
-                   title="Second order orthogonal with estimates")
-    plt.subplot(1, 5, 4)
-    bias_second, sigma_second = plot_estimates(np.array(ortho_rec_tau)[:, 3].flatten(), treatment_effect,
-                                               title="Second order orthogonal with estimates on third sample")
+        plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir, n_samples, n_dim, n_experiments, support_size,
+                               sigma_outcome)
+        plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples, n_dim, n_experiments, support_size,
+                                   sigma_outcome)
 
-    plt.subplot(1, 5, 5)
-    bias_ica, sigma_ica = plot_estimates(np.array(ortho_rec_tau)[:, 4].flatten(), treatment_effect,
-                                               title="ICA estimate")
+    print("\nDone with all experiments!")
 
 
 
-    plt.tight_layout()
-    plt.savefig(os.path.join(opts.output_dir,
-                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.png'.format(
-                                 n_samples, n_dim, n_experiments, support_size, sigma_outcome)), dpi=300, bbox_inches='tight')
-    plt.savefig(os.path.join(opts.output_dir,
-                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.pdf'.format(
-                                 n_samples, n_dim, n_experiments, support_size, sigma_outcome)), dpi=300, bbox_inches='tight')
-
-    print("Ortho ML MSE: {}".format(bias_ortho ** 2 + sigma_ortho ** 2))
-    print("Second Order ML MSE: {}".format(bias_second ** 2 + sigma_ortho ** 2))
-
-    plt.figure(figsize=(15, 5))
-    plt.subplot(1, 4, 1)
-    plt.title("Model_treatment error")
-    plt.hist(np.array(first_stage_mse)[:, 0].flatten())
-    plt.subplot(1, 4, 2)
-    plt.hist(np.array(first_stage_mse)[:, 1].flatten())
-    plt.title("Model_outcome error")
-    plt.subplot(1, 4, 3)
-    plt.hist(np.array(first_stage_mse)[:, 2].flatten())
-    plt.title("ICA error")
-    plt.subplot(1, 4, 4)
-    plt.hist(np.array(first_stage_mse)[:, 3].flatten())
-    plt.title("ICA MCC")
-    plt.savefig(os.path.join(opts.output_dir,
-                             'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.png'.format(n_samples,
-                                                                                                            n_dim,
-                                                                                                            n_experiments,
-                                                                                                            support_size,
-                                                                                                            sigma_outcome)),
-                dpi=300, bbox_inches='tight')
-    plt.savefig(os.path.join(opts.output_dir,
-                             'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.pdf'.format(n_samples,
-                                                                                                            n_dim,
-                                                                                                            n_experiments,
-                                                                                                            support_size,
-                                                                                                            sigma_outcome)),
-                dpi=300, bbox_inches='tight')
-
-    joblib.dump(ortho_rec_tau, os.path.join(opts.output_dir,
-                                            'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}'.format(
-                                                n_samples, n_dim, n_experiments, support_size, sigma_outcome)))
-    joblib.dump(first_stage_mse, os.path.join(opts.output_dir,
-                                              'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}'.format(
-                                                  n_samples, n_dim, n_experiments, support_size, sigma_outcome)))
 
 
 if __name__ == "__main__":
