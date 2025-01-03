@@ -12,7 +12,7 @@ def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram o
     mu = np.mean(estimate_list)
     # add a 'best fit' line
     from scipy.stats import norm
-    y = norm.pdf(bins, mu, sigma)
+    y = norm.svg(bins, mu, sigma)
     l = plt.plot(bins, y, 'r--', linewidth=1)
     plt.plot([treatment_effect, treatment_effect], [0, np.max(y)], 'b--', label='true effect')
     plt.title("{}. mean: {:.2f}, sigma: {:.2f}".format(title, mu, sigma))
@@ -43,7 +43,7 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
                              'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.png'.format(
                                  n_samples, n_dim, n_experiments, support_size, sigma_outcome)), dpi=300, bbox_inches='tight')
     plt.savefig(os.path.join(output_dir,
-                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.pdf'.format(
+                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.svg'.format(
                                  n_samples, n_dim, n_experiments, support_size, sigma_outcome)), dpi=300, bbox_inches='tight')
 
     print("Ortho ML MSE: {}".format(bias_ortho ** 2 + sigma_ortho ** 2))
@@ -71,7 +71,7 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
 
     plt.savefig(os.path.join(output_dir, filename_base + '.png'),
                 dpi=300, bbox_inches='tight')
-    plt.savefig(os.path.join(output_dir, filename_base + '.pdf'),
+    plt.savefig(os.path.join(output_dir, filename_base + '.svg'),
                 dpi=300, bbox_inches='tight')
 
     # Save the data
@@ -107,5 +107,5 @@ def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect)
     plt.legend()
     plt.grid(True)
     # Save plot
-    plt.savefig(os.path.join(opts.output_dir, f'errors_vs_support_size_n{n_samples}_d{n_dim}.pdf'))
+    plt.savefig(os.path.join(opts.output_dir, f'errors_vs_support_size_n{n_samples}_d{n_dim}.svg'))
     plt.close()
