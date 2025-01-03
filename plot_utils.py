@@ -40,9 +40,6 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir,
-                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.png'.format(
-                                 n_samples, n_dim, n_experiments, support_size, sigma_outcome)), dpi=300, bbox_inches='tight')
-    plt.savefig(os.path.join(output_dir,
                              'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.svg'.format(
                                  n_samples, n_dim, n_experiments, support_size, sigma_outcome)), dpi=300, bbox_inches='tight')
 
@@ -69,8 +66,6 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
     filename_base = 'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}'.format(
         n_samples, n_dim, n_experiments, support_size, sigma_outcome)
 
-    plt.savefig(os.path.join(output_dir, filename_base + '.png'),
-                dpi=300, bbox_inches='tight')
     plt.savefig(os.path.join(output_dir, filename_base + '.svg'),
                 dpi=300, bbox_inches='tight')
 
@@ -81,7 +76,7 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
     joblib.dump(first_stage_mse, os.path.join(output_dir, filename_base))
 
 
-def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect):
+def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect, n_experiments):
     # Extract data for plotting
     support_sizes = [result['support_size'] for result in all_results]
     # Calculate mean errors for each method across experiments
@@ -107,5 +102,5 @@ def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect)
     plt.legend()
     plt.grid(True)
     # Save plot
-    plt.savefig(os.path.join(opts.output_dir, f'errors_vs_support_size_n{n_samples}_d{n_dim}.svg'))
+    plt.savefig(os.path.join(opts.output_dir, f'errors_vs_support_size_n{n_samples}_d{n_dim}_exp{n_experiments}.svg'))
     plt.close()

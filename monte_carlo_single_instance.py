@@ -57,7 +57,7 @@ def main(args):
                         type=int, help='sigma_outcome', default=1)
     parser.add_argument("--covariate_pdf", dest="covariate_pdf",
                         type=str, help='pdf of covariates', default="uniform")
-    parser.add_argument("--output_dir", dest="output_dir", type=str, default=".")
+    parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
     opts = parser.parse_args(args)
 
     np.random.seed(opts.seed)
@@ -168,7 +168,7 @@ def main(args):
     print("\nDone with all experiments!")
 
     # Create plot comparing errors across support sizes
-    plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect)
+    plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect, n_experiments)
 
 
 if __name__ == "__main__":
