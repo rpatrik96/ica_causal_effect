@@ -97,12 +97,13 @@ def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect,
     ica_mse, ica_std = get_mse_stats(4)
 
     plt.figure(figsize=(10, 6))
-    
     # Plot MSE with error bars showing ±1 std dev
+    plt.xscale('log')
+    plt.yscale('log')
     plt.errorbar(support_sizes, ortho_ml_mse, yerr=ortho_ml_std, fmt='o-', label='Orthogonal ML')
     plt.errorbar(support_sizes, robust_ortho_mse, yerr=robust_ortho_std, fmt='s-', label='Robust Orthogonal ML')
     plt.errorbar(support_sizes, robust_est_mse, yerr=robust_est_std, fmt='^-', label='Robust Est ML')
-    # plt.errorbar(support_sizes, robust_split_mse, yerr=robust_split_std, fmt='v-', label='Robust Split ML')
+    plt.errorbar(support_sizes, robust_split_mse, yerr=robust_split_std, fmt='v-', label='Robust Split ML')
     plt.errorbar(support_sizes, ica_mse, yerr=ica_std, fmt='D-', label='ICA')
     
     plt.xlabel('Support Size')
