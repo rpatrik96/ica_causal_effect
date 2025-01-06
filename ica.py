@@ -34,8 +34,34 @@ def generate_ica_data(source_dim=3, batch_size=4096, theta=1.55):
 
 
 def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"):
-    ica = FastICA(n_components=X.shape[1], random_state=random_state, whiten=whiten)
-    S_hat = ica.fit_transform(X)
+    from warnings import catch_warnings, filterwarnings
+    from sklearn.exceptions import ConvergenceWarning
+
+    tol = 1e-4  # Initial tolerance
+    max_tol = 4e-2  # Maximum tolerance to try
+    
+    for attempt in range(10):
+        with catch_warnings(record=True) as w:
+            # filterwarnings('error')
+            
+            ica = FastICA(n_components=X.shape[1], random_state=random_state+attempt, 
+                        whiten=whiten, tol=tol)
+            S_hat = ica.fit_transform(X)
+            
+            if len(w) > 0:
+                print(f"warning at {attempt=}")
+                # Increase tolerance for next attempt
+                tol = min(tol * 2, max_tol)
+                if tol >= max_tol:  # Stop if max tolerance reached
+                    # Run one final time with max tolerance
+                    ica = FastICA(n_components=X.shape[1], random_state=random_state,
+                                whiten=whiten, tol=max_tol)
+                    S_hat = ica.fit_transform(X)
+                    break
+            else:
+                print(f"success at {attempt=}")
+                break
+
     results = calc_disent_metrics(S, S_hat)
     # resolve the permutations
     permuted_mixing = ica.mixing_[:, results["munkres_sort_idx"].astype(int)]
