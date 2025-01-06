@@ -79,28 +79,38 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
 def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect, n_experiments):
     # Extract data for plotting
     support_sizes = [result['support_size'] for result in all_results]
-    # Calculate mean errors for each method across experiments
-    ortho_ml_errors = [np.mean([abs(tau[0] - treatment_effect) for tau in result['ortho_rec_tau']]) for result in
-                       all_results]
-    robust_ortho_errors = [np.mean([abs(tau[1] - treatment_effect) for tau in result['ortho_rec_tau']]) for result in
-                           all_results]
-    robust_est_errors = [np.mean([abs(tau[2] - treatment_effect) for tau in result['ortho_rec_tau']]) for result in
-                         all_results]
-    robust_split_errors = [np.mean([abs(tau[3] - treatment_effect) for tau in result['ortho_rec_tau']]) for result in
-                           all_results]
-    ica_errors = [np.mean([abs(tau[4] - treatment_effect) for tau in result['ortho_rec_tau']]) for result in
-                  all_results]
+    
+    # Calculate mean MSE and std dev for each method across experiments
+    def get_mse_stats(method_idx):
+        mses = []
+        std_devs = []
+        for result in all_results:
+            errors = [(tau[method_idx] - treatment_effect)**2 for tau in result['ortho_rec_tau']]
+            mses.append(np.mean(errors))
+            std_devs.append(np.std(errors))
+        return np.array(mses), np.array(std_devs)
+
+    ortho_ml_mse, ortho_ml_std = get_mse_stats(0)
+    robust_ortho_mse, robust_ortho_std = get_mse_stats(1) 
+    robust_est_mse, robust_est_std = get_mse_stats(2)
+    robust_split_mse, robust_split_std = get_mse_stats(3)
+    ica_mse, ica_std = get_mse_stats(4)
+
     plt.figure(figsize=(10, 6))
-    plt.plot(support_sizes, ortho_ml_errors, 'o-', label='Orthogonal ML')
-    plt.plot(support_sizes, robust_ortho_errors, 's-', label='Robust Orthogonal ML')
-    plt.plot(support_sizes, robust_est_errors, '^-', label='Robust Est ML')
-    plt.plot(support_sizes, robust_split_errors, 'v-', label='Robust Split ML')
-    plt.plot(support_sizes, ica_errors, 'D-', label='ICA')
+    
+    # Plot MSE with error bars showing ±1 std dev
+    plt.errorbar(support_sizes, ortho_ml_mse, yerr=ortho_ml_std, fmt='o-', label='Orthogonal ML')
+    plt.errorbar(support_sizes, robust_ortho_mse, yerr=robust_ortho_std, fmt='s-', label='Robust Orthogonal ML')
+    plt.errorbar(support_sizes, robust_est_mse, yerr=robust_est_std, fmt='^-', label='Robust Est ML')
+    # plt.errorbar(support_sizes, robust_split_mse, yerr=robust_split_std, fmt='v-', label='Robust Split ML')
+    plt.errorbar(support_sizes, ica_mse, yerr=ica_std, fmt='D-', label='ICA')
+    
     plt.xlabel('Support Size')
-    plt.ylabel('Absolute Error')
-    plt.title('Method Errors vs Support Size')
+    plt.ylabel('Mean Squared Error')
+    plt.title('Method MSE vs Support Size')
     plt.legend()
     plt.grid(True)
+    
     # Save plot
-    plt.savefig(os.path.join(opts.output_dir, f'errors_vs_support_size_n{n_samples}_d{n_dim}_exp{n_experiments}.svg'))
+    plt.savefig(os.path.join(opts.output_dir, f'mse_vs_support_size_n{n_samples}_d{n_dim}_exp{n_experiments}.svg'))
     plt.close()
