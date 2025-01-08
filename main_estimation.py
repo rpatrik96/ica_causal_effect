@@ -64,7 +64,7 @@ def all_together(x, treatment, outcome, eta_second_moment, eta_third_moment,
     return ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml
 
 
-def all_together_cross_fitting(x, p, q, second_p, cube_p,
+def all_together_cross_fitting(x, treatment, outcome, treatment_second_moment, treatment_third_moment,
                                model_treatment=LassoCV(alphas=[0.01, 0.1, 0.3, 0.5, 0.9, 5, 10, 20, 100]),
                                model_outcome=LassoCV(alphas=[0.01, 0.1, 0.3, 0.5, 0.9, 5, 10, 20, 100])):
     res_p = np.zeros(x.shape[0])
@@ -76,8 +76,8 @@ def all_together_cross_fitting(x, p, q, second_p, cube_p,
     kf = KFold(n_splits=2)
     for train_index, test_index in kf.split(x):
         # Split the data in half, train and test
-        x_train, p_train, q_train = x[train_index], p[train_index], q[train_index]
-        x_test, p_test, q_test = x[test_index], p[test_index], q[test_index]
+        x_train, p_train, q_train = x[train_index], treatment[train_index], outcome[train_index]
+        x_test, p_test, q_test = x[test_index], treatment[test_index], outcome[test_index]
 
         # Fit with LassoCV the treatment as a function of x and the outcome as
         # a function of x, using only the train fold
@@ -91,7 +91,7 @@ def all_together_cross_fitting(x, p, q, second_p, cube_p,
         # Estimate multipliers for robust orthogonal methods 
 
         # 1. Multiplier with known moments
-        mult_p[test_index] = res_p[test_index] ** 3 - 3 * second_p * res_p[test_index] - cube_p
+        mult_p[test_index] = res_p[test_index] ** 3 - 3 * treatment_second_moment * res_p[test_index] - treatment_third_moment
 
         # 2. Multiplier with estimated moments on training data
         res_p_first = p_train - model_treatment.predict(x_train)
