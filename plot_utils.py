@@ -21,22 +21,23 @@ def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram o
 
 
 def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_samples, n_dim, n_experiments, support_size, sigma_outcome):
+    # First figure - histograms
     plt.figure(figsize=(25, 5))
     plt.subplot(1, 5, 1)
     bias_ortho, sigma_ortho = plot_estimates(np.array(ortho_rec_tau)[:, 0].flatten(), treatment_effect, treatment_effect,
                                              title="Orthogonal estimates")
     plt.subplot(1, 5, 2)
-    plot_estimates(np.array(ortho_rec_tau)[:, 1].flatten(), treatment_effect, treatment_effect, title="Second order orthogonal")
+    bias_robust, sigma_robust = plot_estimates(np.array(ortho_rec_tau)[:, 1].flatten(), treatment_effect, treatment_effect, 
+                                             title="Second order orthogonal")
     plt.subplot(1, 5, 3)
-    plot_estimates(np.array(ortho_rec_tau)[:, 2].flatten(), treatment_effect, treatment_effect,
-                   title="Second order orthogonal with estimates")
+    bias_est, sigma_est = plot_estimates(np.array(ortho_rec_tau)[:, 2].flatten(), treatment_effect, treatment_effect,
+                                       title="Second order orthogonal with estimates")
     plt.subplot(1, 5, 4)
     bias_second, sigma_second = plot_estimates(np.array(ortho_rec_tau)[:, 3].flatten(), treatment_effect, treatment_effect,
-                                               title="Second order orthogonal with estimates on third sample")
-
+                                             title="Second order orthogonal with estimates on third sample")
     plt.subplot(1, 5, 5)
-    bias_ica, sigma_ica = plot_estimates(np.array(ortho_rec_tau)[:, 4].flatten(), treatment_effect,treatment_effect,
-                                               title="ICA estimate")
+    bias_ica, sigma_ica = plot_estimates(np.array(ortho_rec_tau)[:, 4].flatten(), treatment_effect, treatment_effect,
+                                       title="ICA estimate")
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir,
@@ -114,4 +115,36 @@ def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect,
     
     # Save plot
     plt.savefig(os.path.join(opts.output_dir, f'mse_vs_support_size_n{n_samples}_d{n_dim}_exp{n_experiments}.svg'))
+    plt.close()
+
+
+def plot_error_bars_from_density_estimate(all_results, n_dim, n_experiments, n_samples, opts):
+    # Create error bar plot comparing errors across dimensions
+    plt.figure(figsize=(10, 5))
+    plt.xscale('log')
+    plt.yscale('log')
+    methods = ['Ortho ML', 'Robust Ortho', 'Robust Est', 'Robust Split', 'ICA']
+    # Extract biases and sigmas for each method across all experiments
+    method_biases = {method: [] for method in methods}
+    method_sigmas = {method: [] for method in methods}
+    dimensions = []
+    for result in all_results:
+        dimensions.append(result['support_size'])
+        for i, method in enumerate(methods):
+            method_biases[method].append(result['biases'][i])
+            method_sigmas[method].append(result['sigmas'][i])
+    # Plot error bars for each method
+    for method, color in zip(methods, ['b', 'g', 'r', 'c', 'm']):
+        plt.errorbar(dimensions, method_biases[method],
+                     yerr=method_sigmas[method],
+                     fmt='o-', label=method, color=color)
+    plt.xlabel('Dimension')
+    plt.ylabel('Error')
+    plt.title('Method Errors vs Dimension')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(opts.output_dir,
+                             'error_by_dimension_n_samples_{}_n_dim_{}_n_exp_{}.svg'.format(
+                                 n_samples, n_dim, n_experiments)), dpi=300, bbox_inches='tight')
     plt.close()

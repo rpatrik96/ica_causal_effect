@@ -3,7 +3,8 @@ import sys
 
 import matplotlib
 
-from plot_utils import plot_method_comparison, plot_and_save_model_errors, plot_error_vs_support
+from plot_utils import plot_method_comparison, plot_and_save_model_errors, plot_error_vs_support, \
+    plot_error_bars_from_density_estimate
 
 matplotlib.use('Agg')
 import numpy as np
@@ -171,14 +172,14 @@ def main(args):
 
             plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir, n_samples, n_dim, n_experiments, support_size,
                                    sigma_outcome)
+
             plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples, n_dim, n_experiments, support_size,
                                        sigma_outcome)
 
-        # Create plot comparing errors across support sizes
-        plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect, n_experiments)
+
+        plot_error_bars_from_density_estimate(all_results, n_dim, n_experiments, n_samples, opts)
+
     print("\nDone with all experiments!")
-
-
 
 
 if __name__ == "__main__":
