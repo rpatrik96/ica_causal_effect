@@ -16,7 +16,7 @@ from ica import ica_treatment_effect_estimation
 
 
 def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef,
-               eta_second_moment, eta_third_moment, lambda_reg):
+               eta_second_moment, eta_third_moment, lambda_reg, check_convergence=False):
     # Generate price as a function of co-variates
     treatment = np.dot(x[:, treatment_support], treatment_coef) + eta
     # Generate demand as a function of price and co-variates
@@ -29,7 +29,9 @@ def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_c
     # ica_treatment_effect_estimate = ica_treatment_effect_estimation((x[:, treatment_support], treatment, outcome), (x[:, treatment_support], eta, epsilon))
     # ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), eta.reshape(-1,1), epsilon.reshape(-1,1))))
     # ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), eta.reshape(-1,1), epsilon.reshape(-1,1))))
-    ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(np.hstack((x[:, treatment_support], treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((x[:, treatment_support], eta.reshape(-1,1), epsilon.reshape(-1,1))))
+    ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(
+        np.hstack((x[:, treatment_support], treatment.reshape(-1, 1), outcome.reshape(-1, 1))),
+        np.hstack((x[:, treatment_support], eta.reshape(-1, 1), epsilon.reshape(-1, 1))), check_convergence=check_convergence)
     # ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(np.hstack(( treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack(( eta.reshape(-1,1), epsilon.reshape(-1,1))))
 
 
@@ -58,6 +60,9 @@ def main(args):
     parser.add_argument("--covariate_pdf", dest="covariate_pdf",
                         type=str, help='pdf of covariates', default="uniform")
     parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
+    parser.add_argument("--check_convergence", dest="check_convergence", 
+                        type=bool, help='check convergence', default=False)
+
     opts = parser.parse_args(args)
 
     np.random.seed(opts.seed)
@@ -137,13 +142,13 @@ def main(args):
 
             # Coefficients recovered by orthogonal ML
             lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
-            results = Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
+            results = [r for r in Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
                 x_sample(n_samples, n_dim),
                 eta_sample(n_samples),
                 epsilon_sample(n_samples),
                 treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef, eta_second_moment,
                 eta_third_moment, lambda_reg
-            ) for _ in range(n_experiments))
+            ) for _ in range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
 
             ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, ica_treatment_effect_estimate] for
                              ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _ in results]
