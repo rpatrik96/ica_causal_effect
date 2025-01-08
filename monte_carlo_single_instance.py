@@ -170,8 +170,10 @@ def main(args):
             Plotting histograms
             '''
 
-            plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir, n_samples, n_dim, n_experiments, support_size,
+            biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir, n_samples, n_dim, n_experiments, support_size,
                                    sigma_outcome)
+            all_results[-1]['biases'] = biases
+            all_results[-1]['sigmas'] = sigmas
 
             plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples, n_dim, n_experiments, support_size,
                                        sigma_outcome)

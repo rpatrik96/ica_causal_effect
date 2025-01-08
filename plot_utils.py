@@ -47,6 +47,12 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
     print("Ortho ML MSE: {}".format(bias_ortho ** 2 + sigma_ortho ** 2))
     print("Second Order ML MSE: {}".format(bias_second ** 2 + sigma_ortho ** 2))
 
+    # Return lists of biases and standard deviations for each method
+    biases = [bias_ortho, bias_robust, bias_est, bias_second, bias_ica]
+    sigmas = [sigma_ortho, sigma_robust, sigma_est, sigma_second, sigma_ica]
+    
+    return biases, sigmas
+
 
 def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_samples, n_dim, n_experiments, support_size,
                                sigma_outcome):
@@ -75,6 +81,8 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
         n_samples, n_dim, n_experiments, support_size, sigma_outcome)
     joblib.dump(ortho_rec_tau, os.path.join(output_dir, coef_filename))
     joblib.dump(first_stage_mse, os.path.join(output_dir, filename_base))
+
+    
 
 
 def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect, n_experiments):
