@@ -4,7 +4,7 @@ import sys
 import matplotlib
 
 from plot_utils import plot_method_comparison, plot_and_save_model_errors, plot_error_vs_support, \
-    plot_error_bars_from_density_estimate
+    plot_error_bar_stats
 
 matplotlib.use('Agg')
 import numpy as np
@@ -179,7 +179,7 @@ def main(args):
                                        sigma_outcome)
 
 
-        plot_error_bars_from_density_estimate(all_results, n_dim, n_experiments, n_samples, opts)
+        plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts)
 
     print("\nDone with all experiments!")
 

@@ -126,7 +126,7 @@ def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect,
     plt.close()
 
 
-def plot_error_bars_from_density_estimate(all_results, n_dim, n_experiments, n_samples, opts):
+def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts):
     # Create error bar plot comparing errors across dimensions
     plt.figure(figsize=(10, 5))
     plt.xscale('log')
