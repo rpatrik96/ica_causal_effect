@@ -33,31 +33,27 @@ def generate_ica_data(source_dim=3, batch_size=4096, theta=1.55):
 # S, X, theta = generate_ica_data()
 
 
-def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"):
+def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance", check_convergence=False):
     from warnings import catch_warnings, filterwarnings
     from sklearn.exceptions import ConvergenceWarning
 
     tol = 1e-4  # Initial tolerance
-    max_tol = 4e-2  # Maximum tolerance to try
+    max_tol = 1e-2  # Maximum tolerance to try
     
     for attempt in range(10):
         with catch_warnings(record=True) as w:
             # filterwarnings('error')
             
-            ica = FastICA(n_components=X.shape[1], random_state=random_state+attempt, 
+            ica = FastICA(n_components=X.shape[1], random_state=random_state+attempt, max_iter=1000,
                         whiten=whiten, tol=tol)
             S_hat = ica.fit_transform(X)
             
-            if len(w) > 0:
+            if len(w) > 0 and check_convergence is True:
                 print(f"warning at {attempt=}")
                 # Increase tolerance for next attempt
                 tol = min(tol * 2, max_tol)
                 if tol >= max_tol:  # Stop if max tolerance reached
-                    # Run one final time with max tolerance
-                    ica = FastICA(n_components=X.shape[1], random_state=random_state,
-                                whiten=whiten, tol=max_tol)
-                    S_hat = ica.fit_transform(X)
-                    break
+                    return None, None
             else:
                 print(f"success at {attempt=}")
                 break
