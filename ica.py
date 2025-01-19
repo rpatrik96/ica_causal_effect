@@ -101,7 +101,7 @@ def main():
     
     sample_sizes = [100, 200, 500, 1000, 2000, 5000]  
     n_dims = [10, 20, 50]  
-    n_treatments = [ 2, 5]  
+    n_treatments = [1, 2, 5]
     n_seeds = 20
     
     # Initialize dictionary to store results
