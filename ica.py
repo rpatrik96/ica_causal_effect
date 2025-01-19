@@ -5,27 +5,48 @@ from torch.distributions import Laplace
 
 from mcc import calc_disent_metrics
 
-
-def generate_ica_data(source_dim=3, batch_size=4096, theta=1.55):
-    A = 1.6  # -0.8
-    B = 3.7
-    loc = 1.1
-    scale = .1
+def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, use_nonlinear=True, sparse_prob=0.4):
+    # Create sparse matrix of shape (n_treatments x n_covariates)
+    binary_mask = torch.bernoulli(torch.ones(n_treatments, n_covariates) * sparse_prob)
+    random_coeffs = torch.randn(n_treatments, n_covariates)
+    A_covariates = binary_mask * random_coeffs
+    
+    # A_treatments = torch.tensor([1.55, 1.75, 1.85, 2.0, 1.7])[:n_treatments]  # Coefficients for treatments
+    theta = torch.tensor([1.55, 0.65, -2.45, 1.75, -1.35])[:n_treatments]  # Vector of thetas matching n_treatments
+    B = torch.randn(n_covariates)  # Base effects on outcome per covariate
+    
+    loc = 4.1
+    scale = .5
     distribution = Laplace(loc, scale)
     # distribution = torch.distributions.Uniform(-1, 1)
 
+    source_dim = n_covariates + n_treatments + 1  # +1 for outcome
     S = distribution.sample(torch.Size([batch_size, source_dim]))
     X = S.clone()
-    X[:, 0] = S[:, 0]
-    X[:, 1] = S[:, 1] + A * F.leaky_relu(S[:, 0], negative_slope=.25)
-    X[:, 2] = S[:, 2] + theta * S[:, 1] + (theta * A + B) * F.leaky_relu(S[:, 0], negative_slope=.25)
-    # mixing = torch.tensor(
-    #     [
-    #         [1, 0, 0],
-    #         [A, 1, 0],
-    #         [C, B, 1],
-    #     ]
-    # )
+    
+    # Define activation function based on use_nonlinear flag
+    activation = lambda x: F.leaky_relu(x, negative_slope=.25) if use_nonlinear else x
+    
+    # Covariates remain independent
+    X[:, :n_covariates] = S[:, :n_covariates]
+    
+    # Treatments depend on all covariates
+    treatment_indices = torch.arange(n_covariates, n_covariates + n_treatments)
+    X[:, treatment_indices] = S[:, treatment_indices]
+    # Modified to use the sparse matrix multiplication
+    covariate_effects = activation(S[:, :n_covariates]) @ A_covariates.t()
+    X[:, treatment_indices] += covariate_effects
+    
+    # Outcome depends on all covariates and treatments
+    X[:, -1] = S[:, -1]
+    
+    # Add treatment effects 
+    X[:, -1] += (theta * X[:, treatment_indices]).sum(dim=1)
+    
+    # Add covariate effects 
+    
+    # Use the sum of all sparse connections for the outcome
+    X[:, -1] += (B * activation(S[:, :n_covariates])).sum(dim=1)
 
     return S, X, theta
 
@@ -33,7 +54,7 @@ def generate_ica_data(source_dim=3, batch_size=4096, theta=1.55):
 # S, X, theta = generate_ica_data()
 
 
-def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance", check_convergence=False):
+def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance", check_convergence=False, n_treatments=1):
     from warnings import catch_warnings, filterwarnings
     from sklearn.exceptions import ConvergenceWarning
 
@@ -64,11 +85,39 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
     # normalize to get 1 at epsilon -> Y
     permuted_scaled_mixing = permuted_mixing / permuted_mixing.diagonal()
 
-    treatment_effect_estimate = permuted_scaled_mixing[-1, -2]
+    n_covariates = X.shape[1] - 1 -n_treatments  # Assuming  and 1 outcome
+    treatment_effect_estimate = permuted_scaled_mixing[-1, n_covariates:-1]
+
+    print(permuted_scaled_mixing[-1,:])
 
     return treatment_effect_estimate, results["permutation_disentanglement_score"]
 
 
-# treatment_effect_estimate = ica_treatment_effect_estimation(X, S)
 
-# print(f"Estimated vs true treatment effect: {treatment_effect_estimate}, {theta}")
+
+
+def main():
+
+    n_samples = 20000
+    n_covariates = 15
+    n_treatments = 2
+    
+    S, X, true_params = generate_ica_data(batch_size=n_samples, 
+                                         n_covariates=n_covariates,
+                                         n_treatments=n_treatments, use_nonlinear=False, sparse_prob=0.4)
+    
+
+    treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
+                                                          check_convergence=False,n_treatments=n_treatments)
+    
+    
+    
+    
+    
+    print(f"True treatment effect: {true_params}")
+    print(f"Est treatment effect: {treatment_effects}")
+    print(f"Mean correlation coefficient: {mcc}")
+
+if __name__ == "__main__":
+    main()
+
