@@ -98,25 +98,93 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
 
 def main():
 
-    n_samples = 20000
-    n_covariates = 15
-    n_treatments = 2
     
-    S, X, true_params = generate_ica_data(batch_size=n_samples, 
-                                         n_covariates=n_covariates,
-                                         n_treatments=n_treatments, use_nonlinear=False, sparse_prob=0.4)
+    sample_sizes = [100, 200, 500, 1000, 2000, 5000]  
+    n_dims = [10, 20, 50]  
+    n_treatments = [ 2, 5]  
+    n_seeds = 20
     
+    # Initialize dictionary to store results
+    results_dict = {
+        'sample_sizes': [],
+        'n_covariates': [],
+        'n_treatments': [],
+        'true_params': [],
+        'treatment_effects': [],
+        'mccs': []
+    }
+    
+    for n_samples in sample_sizes:
+        for n_covariates in n_dims:
+            for n_treatment in n_treatments:
+                S, X, true_params = generate_ica_data(batch_size=n_samples,
+                                                    n_covariates=n_covariates, 
+                                                    n_treatments=n_treatment,
+                                                    use_nonlinear=False,
+                                                    sparse_prob=0.4)
+                for seed in range(n_seeds):
 
-    treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
-                                                          check_convergence=False,n_treatments=n_treatments)
-    
-    
-    
-    
-    
-    print(f"True treatment effect: {true_params}")
-    print(f"Est treatment effect: {treatment_effects}")
-    print(f"Mean correlation coefficient: {mcc}")
+                    treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
+                                                                          random_state=seed,
+                                                                          check_convergence=False,
+                                                                          n_treatments=n_treatment)
+                    
+                    # Store results in dictionary
+                    results_dict['sample_sizes'].append(n_samples)
+                    results_dict['n_covariates'].append(n_covariates)
+                    results_dict['n_treatments'].append(n_treatment)
+                    results_dict['true_params'].append(true_params)
+                    results_dict['treatment_effects'].append(treatment_effects)
+                    results_dict['mccs'].append(mcc)
+
+                    # print(f"\nResults for n_samples={n_samples}, n_covariates={n_covariates}, n_treatments={n_treatment}, seed={seed}")
+    # print(f"True treatment effect: {true_params}")
+    # print(f"Est treatment effect: {treatment_effects}")
+    # print(f"Mean correlation coefficient: {mcc}")
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Create plots for each sample size
+    for n_samples in set(results_dict['sample_sizes']):
+        plt.figure(figsize=(10, 6))
+        
+        # Plot curves for each number of treatments
+        for n_treatment in set(results_dict['n_treatments']):
+            # Filter results for this sample size and number of treatments
+            indices = [i for i, (s, t) in enumerate(zip(results_dict['sample_sizes'], results_dict['n_treatments'])) 
+                      if s == n_samples and t == n_treatment]
+            
+            dimensions = [results_dict['n_covariates'][i] for i in indices]
+            true_params = [results_dict['true_params'][i] for i in indices]
+            est_params = [results_dict['treatment_effects'][i] for i in indices]
+            
+            # Calculate MSE for each dimension
+            mse = {dim: [] for dim in set(dimensions)}
+            for dim, true_param, est_param in zip(dimensions, true_params, est_params):
+                if est_param is not None:  # Handle cases where estimation failed
+                    errors = [(est - true)**2 for est, true in zip(est_param, true_param)]
+                    mse[dim].append(np.mean(errors))
+                else:
+                    mse[dim].append(np.nan)
+
+            for dim, errors in mse.items():
+                mse[dim] = np.array(mse[dim])        
+
+        
+            plt.errorbar(mse.keys(), np.mean(list(mse.values()),axis=1), yerr=np.std(list(mse.values()),axis=1), fmt='o-', capsize=5,
+                            label=f'n_treatments={n_treatment}')
+            
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.xlabel('Number of Dimensions (Covariates)')
+        plt.ylabel('Mean Squared Error')
+        plt.title(f'ICA Treatment Effect MSE vs Dimensions\n(n_samples={n_samples})')
+        plt.grid(True)
+        plt.legend()
+        
+        plt.savefig(f'ica_mse_vs_dim_n{n_samples}.svg')
+        plt.close()
 
 if __name__ == "__main__":
     main()
