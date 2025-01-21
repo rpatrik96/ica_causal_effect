@@ -20,7 +20,7 @@ def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram o
     return np.abs(true_tau - mu), sigma
 
 
-def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_samples, n_dim, n_experiments, support_size, sigma_outcome):
+def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf):
     # First figure - histograms
     plt.figure(figsize=(25, 5))
     plt.subplot(1, 5, 1)
@@ -41,8 +41,8 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir,
-                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}.svg'.format(
-                                 n_samples, n_dim, n_experiments, support_size, sigma_outcome)), dpi=300, bbox_inches='tight')
+                             'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}.svg'.format(
+                                 n_samples, n_dim, n_experiments, support_size, sigma_outcome,covariate_pdf)), dpi=300, bbox_inches='tight')
 
     print("Ortho ML MSE: {}".format(bias_ortho ** 2 + sigma_ortho ** 2))
     print("Second Order ML MSE: {}".format(bias_second ** 2 + sigma_ortho ** 2))
@@ -55,7 +55,7 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
 
 
 def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_samples, n_dim, n_experiments, support_size,
-                               sigma_outcome):
+                               sigma_outcome, covariate_pdf):
     plt.figure(figsize=(15, 5))
     plt.subplot(1, 4, 1)
     plt.title("Model_treatment error")
@@ -70,15 +70,15 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
     plt.hist(np.array(first_stage_mse)[:, 3].flatten())
     plt.title("ICA MCC")
 
-    filename_base = 'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}'.format(
-        n_samples, n_dim, n_experiments, support_size, sigma_outcome)
+    filename_base = 'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}'.format(
+        n_samples, n_dim, n_experiments, support_size, sigma_outcome,covariate_pdf)
 
     plt.savefig(os.path.join(output_dir, filename_base + '.svg'),
                 dpi=300, bbox_inches='tight')
 
     # Save the data
-    coef_filename = 'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}'.format(
-        n_samples, n_dim, n_experiments, support_size, sigma_outcome)
+    coef_filename = 'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}'.format(
+        n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf)
     joblib.dump(ortho_rec_tau, os.path.join(output_dir, coef_filename))
     joblib.dump(first_stage_mse, os.path.join(output_dir, filename_base))
 
@@ -153,6 +153,6 @@ def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts):
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(os.path.join(opts.output_dir,
-                             'error_by_dimension_n_samples_{}_n_dim_{}_n_exp_{}.svg'.format(
-                                 n_samples, n_dim, n_experiments)), dpi=300, bbox_inches='tight')
+                             'error_by_dimension_n_samples_{}_n_dim_{}_n_exp_{}_pdf_{}.svg'.format(
+                                 n_samples, n_dim, n_experiments, opts.covariate_pdf)), dpi=300, bbox_inches='tight')
     plt.close()

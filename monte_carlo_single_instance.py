@@ -17,7 +17,7 @@ from ica import ica_treatment_effect_estimation
 
 
 def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef,
-               eta_second_moment, eta_third_moment, lambda_reg, check_convergence=False):
+               eta_second_moment, eta_third_moment, lambda_reg, check_convergence=False, verbose=False):
     # Generate price as a function of co-variates
     treatment = np.dot(x[:, treatment_support], treatment_coef) + eta
     # Generate demand as a function of price and co-variates
@@ -32,11 +32,11 @@ def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_c
     # ica_treatment_effect_estimate = ica_treatment_effect_estimation(np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack((np.dot(x[:, treatment_support], np.ones_like(treatment_coef)).reshape(-1, 1), eta.reshape(-1,1), epsilon.reshape(-1,1))))
     ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(
         np.hstack((x[:, treatment_support], treatment.reshape(-1, 1), outcome.reshape(-1, 1))),
-        np.hstack((x[:, treatment_support], eta.reshape(-1, 1), epsilon.reshape(-1, 1))), check_convergence=check_convergence)
+        np.hstack((x[:, treatment_support], eta.reshape(-1, 1), epsilon.reshape(-1, 1))), check_convergence=check_convergence, verbose=verbose)
     # ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(np.hstack(( treatment.reshape(-1, 1), outcome.reshape(-1, 1))), np.hstack(( eta.reshape(-1,1), epsilon.reshape(-1,1))))
 
-
-    print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
+    if verbose:
+        print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
 
     return *all_together_cross_fitting(x, treatment, outcome, eta_second_moment, eta_third_moment,
                                       model_treatment=model_treatment, model_outcome=model_outcome), ica_treatment_effect_estimate, ica_mcc
@@ -59,7 +59,7 @@ def main(args):
     parser.add_argument("--sigma_outcome", dest="sigma_outcome",
                         type=int, help='sigma_outcome', default=1)
     parser.add_argument("--covariate_pdf", dest="covariate_pdf",
-                        type=str, help='pdf of covariates', default="uniform")
+                        type=str, help='pdf of covariates', default="gauss")
     parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
     parser.add_argument("--check_convergence", dest="check_convergence", 
                         type=bool, help='check convergence', default=False)
@@ -171,12 +171,12 @@ def main(args):
             '''
 
             biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir, n_samples, n_dim, n_experiments, support_size,
-                                   sigma_outcome)
+                                   sigma_outcome, opts.covariate_pdf)
             all_results[-1]['biases'] = biases
             all_results[-1]['sigmas'] = sigmas
 
             plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples, n_dim, n_experiments, support_size,
-                                       sigma_outcome)
+                                       sigma_outcome, opts.covariate_pdf)
 
 
         plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts)
