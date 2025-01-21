@@ -59,7 +59,7 @@ def main(args):
     parser.add_argument("--sigma_outcome", dest="sigma_outcome",
                         type=int, help='sigma_outcome', default=1)
     parser.add_argument("--covariate_pdf", dest="covariate_pdf",
-                        type=str, help='pdf of covariates', default="gauss")
+                        type=str, help='pdf of covariates', default="uniform")
     parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
     parser.add_argument("--check_convergence", dest="check_convergence", 
                         type=bool, help='check convergence', default=False)
