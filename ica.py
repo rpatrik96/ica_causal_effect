@@ -2,7 +2,9 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from bartpy2.sklearnmodel import SklearnModel
+from causallib.estimation import Standardization, IPW
 from sklearn.decomposition import FastICA
+from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from sklearn.linear_model import LinearRegression
 from torch.distributions import Laplace
 
@@ -59,7 +61,7 @@ def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, use_nonli
 
 
 def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance", check_convergence=False,
-                                    n_treatments=1):
+                                    n_treatments=1, verbose=False):
     from warnings import catch_warnings
 
     tol = 1e-4  # Initial tolerance
@@ -74,13 +76,15 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
             S_hat = ica.fit_transform(X)
 
             if len(w) > 0 and check_convergence is True:
-                print(f"warning at {attempt=}")
+                if verbose:
+                    print(f"warning at {attempt=}")
                 # Increase tolerance for next attempt
                 tol = min(tol * 2, max_tol)
                 if tol >= max_tol:  # Stop if max tolerance reached
                     return None, None
             else:
-                print(f"success at {attempt=}")
+                if verbose:
+                    print(f"success at {attempt=}")
                 break
 
     results = calc_disent_metrics(S, S_hat)
@@ -92,7 +96,9 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
     n_covariates = X.shape[1] - 1 - n_treatments  # Assuming  and 1 outcome
     treatment_effect_estimate = permuted_scaled_mixing[-1, n_covariates:-1]
 
-    print(permuted_scaled_mixing[-1, :])
+    # print(permuted_scaled_mixing[-1, :])
+    if n_treatments ==1:
+        treatment_effect_estimate = treatment_effect_estimate[0]
 
     return treatment_effect_estimate, results["permutation_disentanglement_score"]
 
@@ -100,7 +106,7 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
 def main():
     sample_sizes = [100, 200, 500, 1000, 2000, 5000]
     n_dims = [10, 20, 50]
-    n_treatments = [1, 2, 5]
+    n_treatments = [1]#, 2, 5]
     n_seeds = 20
 
     # Initialize dictionary to store results
@@ -118,17 +124,72 @@ def main():
             for n_treatment in n_treatments:
 
                 # n_treatment = 2
+                # n_samples = 500
+                # n_dims = 10
                 S, X, true_params = generate_ica_data(batch_size=n_samples,
                                                       n_covariates=n_covariates,
                                                       n_treatments=n_treatment,
                                                       use_nonlinear=False,
                                                       sparse_prob=0.4)
 
-                bart_treatment_effects = bart_treatment_effect_estimation(X, n_covariates, n_treatment)
+                # from econml.dml import LinearDML
+                # from sklearn.linear_model import LassoCV
+                # from sklearn.ensemble import RandomForestRegressor
+                #
+                # treatment_indices = torch.arange(n_covariates, n_covariates + n_treatment)
+                #
+                # est = LinearDML(model_y=RandomForestRegressor(),
+                #                 model_t=RandomForestRegressor(),
+                #                 linear_first_stages=True)
+                # est.fit(Y=X[:, -1].reshape(1,-1),T= X[:, treatment_indices], X=X[:, :n_covariates], W=None)
+                # treatment_effect = est.effect(X=X[:, :n_covariates], T0=X[:, treatment_indices], T1=torch.zeros_like(X[:, treatment_indices]).numpy())
+                #
+                # print(treatment_effect, true_params)
+                # exit(0)
 
-                print(f"{true_params=} vs {bart_treatment_effects=}")
+                # from sklearn.linear_model import LinearRegression
+                # import numpy as np
+                #
+                # treatment_indices = torch.arange(n_covariates, n_covariates + n_treatment)
+                #
+                # # Step 1: Fit initial outcome model Q(T, X)
+                # outcome_model = LinearRegression()
+                #
+                # outcome_model.fit(X[:, :-1].numpy(), X[:, -1].numpy())
+                # Q_hat = outcome_model.predict(X[:, :-1].numpy())
+                #
+                # # Step 2: Fit treatment model g(T | X)
+                # treatment_model = LinearRegression()
+                # T = X[:, treatment_indices].numpy()
+                # Y = X[:, -1].numpy()
+                # treatment_model.fit(X[:, :n_covariates].numpy(), T)
+                # T_hat = treatment_model.predict(X[:, :n_covariates].numpy())
+                #
+                #
+                #
+                # # Step 3: Compute clever covariate h(T | X)
+                # h = 1. / (T - T_hat)
+                #
+                # # Step 4: Update outcome model
+                # epsilon = np.sum(h * (Y - Q_hat)) / np.sum(h ** 2)
+                # Q_star = Q_hat + epsilon * h
+                #
+                # # Step 5: Estimate the causal effect
+                # causal_effect = np.mean(Q_star)
+                # print(f"{true_params} vs {causal_effect=}")
+                #
+                # tmle = TMLE(
+                #     Standardization(GradientBoostingRegressor()),
+                #     IPW(GradientBoostingClassifier()),
+                # )
+                #
+                # tmle.fit(X[:, :n_covariates].numpy(), T, Y)
 
-                continue
+                # bart_treatment_effects = bart_treatment_effect_estimation(X, n_covariates, n_treatment)
+
+                # print(f"{true_params=} vs {bart_treatment_effects=}")
+
+                # exit(0)
 
                 for seed in range(n_seeds):
                     treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
@@ -194,13 +255,24 @@ def main():
         plt.close()
 
 
+# from bartpy2.extensions.baseestimator import ResidualBART
+# from sklearn.linear_model import LinearRegression
+
+from causallib.estimation import TMLE
+
+
 def bart_treatment_effect_estimation(X, n_covariates, n_treatment):
     treatment_indices = torch.arange(n_covariates, n_covariates + n_treatment)
     # Train the BART model
-    bart_model = SklearnModel()
+    bart_model = SklearnModel(
+        n_trees=(n_covariates + n_treatment),
+        n_chains=3,
+        n_burn=2000,
+        n_samples=5000
+    )
+    # bart_model = ResidualBART(base_estimator=LinearRegression())
     # input is all X and T
     bart_model.fit(X[:, :-1].numpy(), X[:, -1].numpy())
-
 
     # Create a range of treatment values
     treatment_range = np.linspace(X[:, treatment_indices].min(axis=0)[0], X[:, treatment_indices].max(axis=0)[0], 100)
@@ -211,14 +283,10 @@ def bart_treatment_effect_estimation(X, n_covariates, n_treatment):
     predicted_Y = bart_model.predict(X_pred.numpy())
 
     # Fit a linear regression model to estimate the slope of predicted_Y vs treatment
-    X_treatment = treatment_range.reshape(-1, 1)  # Convert to column vector
-    Y_pred = predicted_Y.reshape(-1, 1)  # Convert to column vector
     model = LinearRegression()
     model.fit(treatment_range, predicted_Y)
     # Extract the slope from the model
     treatment_effects = model.coef_
-
-
 
     return treatment_effects
 
