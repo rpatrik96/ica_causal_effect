@@ -71,8 +71,6 @@ def main(args):
     '''
     We will work with a sparse linear model with high dimensional co-variates
     '''
-    # Number of (price, demand, co-variate) samples
-    n_samples = opts.n_samples
     # Dimension of co-variates
     n_dim = opts.n_dim
     # How many experiments to run to see the distribution of the recovered coefficient between price and demand
