@@ -97,8 +97,8 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
     treatment_effect_estimate = permuted_scaled_mixing[-1, n_covariates:-1]
 
     # print(permuted_scaled_mixing[-1, :])
-    if n_treatments ==1:
-        treatment_effect_estimate = treatment_effect_estimate[0]
+    # if n_treatments ==1:
+    #     treatment_effect_estimate = treatment_effect_estimate[0]
 
     return treatment_effect_estimate, results["permutation_disentanglement_score"]
 
@@ -106,7 +106,7 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
 def main():
     sample_sizes = [100, 200, 500, 1000, 2000, 5000]
     n_dims = [10, 20, 50]
-    n_treatments = [1]#, 2, 5]
+    n_treatments = [1, 2, 5]
     n_seeds = 20
 
     # Initialize dictionary to store results
@@ -116,6 +116,7 @@ def main():
         'n_treatments': [],
         'true_params': [],
         'treatment_effects': [],
+        'treatment_effects_iv': [],
         'mccs': []
     }
 
@@ -132,11 +133,33 @@ def main():
                                                       use_nonlinear=False,
                                                       sparse_prob=0.4)
 
+
+
+
                 # from econml.dml import LinearDML
                 # from sklearn.linear_model import LassoCV
                 # from sklearn.ensemble import RandomForestRegressor
                 #
-                # treatment_indices = torch.arange(n_covariates, n_covariates + n_treatment)
+                treatment_indices = torch.arange(n_covariates, n_covariates + n_treatment).numpy()
+                T = X[:, treatment_indices]
+                X_cov = X[:, :n_covariates]
+                Y = X[:, -1].reshape(-1,)
+
+                import pandas as pd
+
+                # Create a pandas dataframe with separate columns for Y, each column of T, and each column of X
+                data = {
+                    'Y': Y,
+                    **{f'T{k}': T[:, k] for k in range(T.shape[1])},
+                    **{f'X{l}': X_cov[:, l] for l in range(X_cov.shape[1])}
+                }
+
+                T_names = [f'T{k}' for k in range(T.shape[1])]
+
+                iv_df = pd.DataFrame(data)
+
+                formula = 'Y ~ 1 + ' + ' + '.join([f'T{k}' for k in range(T.shape[1])]) + ' + ' + ' + '.join([f'X{l}' for l in range(X_cov.shape[1])])
+                
                 #
                 # est = LinearDML(model_y=RandomForestRegressor(),
                 #                 model_t=RandomForestRegressor(),
@@ -197,12 +220,20 @@ def main():
                                                                              check_convergence=False,
                                                                              n_treatments=n_treatment)
 
+                    
+
+                    # Fit the IV regression model
+                    from linearmodels.iv import IV2SLS
+                    iv_model = IV2SLS.from_formula(formula, iv_df).fit()
+                    treatment_effects_iv = iv_model.params[T_names]
+
                     # Store results in dictionary
                     results_dict['sample_sizes'].append(n_samples)
                     results_dict['n_covariates'].append(n_covariates)
                     results_dict['n_treatments'].append(n_treatment)
                     results_dict['true_params'].append(true_params)
                     results_dict['treatment_effects'].append(treatment_effects)
+                    results_dict['treatment_effects_iv'].append(treatment_effects_iv)
                     results_dict['mccs'].append(mcc)
 
                     # print(f"\nResults for n_samples={n_samples}, n_covariates={n_covariates}, n_treatments={n_treatment}, seed={seed}")
@@ -225,33 +256,46 @@ def main():
 
             dimensions = [results_dict['n_covariates'][i] for i in indices]
             true_params = [results_dict['true_params'][i] for i in indices]
-            est_params = [results_dict['treatment_effects'][i] for i in indices]
+            est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
+            est_params_iv = [results_dict['treatment_effects_iv'][i] for i in indices]
 
             # Calculate MSE for each dimension
             mse = {dim: [] for dim in set(dimensions)}
-            for dim, true_param, est_param in zip(dimensions, true_params, est_params):
+            mse_iv = {dim: [] for dim in set(dimensions)}
+            for dim, true_param, est_param, est_param_iv in zip(dimensions, true_params, est_params_ica, est_params_iv):
                 if est_param is not None:  # Handle cases where estimation failed
                     errors = [(est - true) ** 2 for est, true in zip(est_param, true_param)]
                     mse[dim].append(np.mean(errors))
                 else:
                     mse[dim].append(np.nan)
 
+                if est_param_iv is not None:  # Handle cases where estimation failed
+                    errors_iv = [(est - true) ** 2 for est, true in zip(est_param_iv, true_param)]
+                    mse_iv[dim].append(np.mean(errors_iv))
+                else:
+                    mse_iv[dim].append(np.nan)
+
             for dim, errors in mse.items():
                 mse[dim] = np.array(mse[dim])
+                mse_iv[dim] = np.array(mse_iv[dim])
 
             plt.errorbar(mse.keys(), np.mean(list(mse.values()), axis=1), yerr=np.std(list(mse.values()), axis=1),
                          fmt='o-', capsize=5,
                          label=f'n_treatments={n_treatment}')
 
+            plt.errorbar(mse_iv.keys(), np.mean(list(mse_iv.values()), axis=1), yerr=np.std(list(mse_iv.values()), axis=1),
+                         fmt='o-', capsize=5,
+                         label=f'n_treatments={n_treatment}_IV')
+
         plt.xscale('log')
         plt.yscale('log')
         plt.xlabel('Number of Dimensions (Covariates)')
         plt.ylabel('Mean Squared Error')
-        plt.title(f'ICA Treatment Effect MSE vs Dimensions\n(n_samples={n_samples})')
+        plt.title(f'Treatment Effect MSE vs Dimensions\n(n_samples={n_samples})')
         plt.grid(True)
         plt.legend()
 
-        plt.savefig(f'ica_mse_vs_dim_n{n_samples}.svg')
+        plt.savefig(f'ica_iv_mse_vs_dim_n{n_samples}.svg')
         plt.close()
 
 
