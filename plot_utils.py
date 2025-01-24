@@ -86,46 +86,6 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
     
 
 
-def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect, n_experiments):
-    # Extract data for plotting
-    support_sizes = [result['support_size'] for result in all_results]
-    
-    # Calculate mean MSE and std dev for each method across experiments
-    def get_mse_stats(method_idx):
-        mses = []
-        std_devs = []
-        for result in all_results:
-            errors = [(tau[method_idx] - treatment_effect)**2 for tau in result['ortho_rec_tau']]
-            mses.append(np.mean(errors))
-            std_devs.append(np.std(errors))
-        return np.array(mses), np.array(std_devs)
-
-    ortho_ml_mse, ortho_ml_std = get_mse_stats(0)
-    robust_ortho_mse, robust_ortho_std = get_mse_stats(1) 
-    robust_est_mse, robust_est_std = get_mse_stats(2)
-    robust_split_mse, robust_split_std = get_mse_stats(3)
-    ica_mse, ica_std = get_mse_stats(4)
-
-    plt.figure(figsize=(10, 6))
-    # Plot MSE with error bars showing ±1 std dev
-    # plt.xscale('log')
-    # plt.yscale('log')
-    plt.errorbar(support_sizes, ortho_ml_mse, yerr=ortho_ml_std, fmt='o-', label='Orthogonal ML')
-    plt.errorbar(support_sizes, robust_ortho_mse, yerr=robust_ortho_std, fmt='s-', label='Robust Orthogonal ML')
-    plt.errorbar(support_sizes, robust_est_mse, yerr=robust_est_std, fmt='^-', label='Robust Est ML')
-    plt.errorbar(support_sizes, robust_split_mse, yerr=robust_split_std, fmt='v-', label='Robust Split ML')
-    plt.errorbar(support_sizes, ica_mse, yerr=ica_std, fmt='D-', label='ICA')
-    
-    plt.xlabel('Support Size')
-    plt.ylabel('Mean Squared Error')
-    plt.title('Method MSE vs Support Size')
-    plt.legend()
-    plt.grid(True)
-    
-    # Save plot
-    plt.savefig(os.path.join(opts.output_dir, f'mse_vs_support_size_n{n_samples}_d{n_dim}_exp{n_experiments}.svg'))
-    plt.close()
-
 
 def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts):
     # Create error bar plot comparing errors across dimensions
