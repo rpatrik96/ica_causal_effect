@@ -337,4 +337,8 @@ def bart_treatment_effect_estimation(X, n_covariates, n_treatment):
 
 
 if __name__ == "__main__":
+    print("Running multiple treatment effect estimation with ICA...")
+    main()
+
+    print("Running treatment effect estimation with ICA in nonlinear PLR...")
     main_nonlinear()
