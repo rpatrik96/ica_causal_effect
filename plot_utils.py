@@ -8,11 +8,11 @@ from matplotlib import pyplot as plt
 def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram of estimates"):
     # the histogram of the data
     n, bins, patches = plt.hist(estimate_list, 40, facecolor='green', alpha=0.75)
-    sigma = np.std(estimate_list)
-    mu = np.mean(estimate_list)
+    sigma = float(np.std(estimate_list))
+    mu = float(np.mean(estimate_list))
     # add a 'best fit' line
     from scipy.stats import norm
-    y = norm.pdf(bins, mu, sigma)
+    y = norm.pdf(bins.astype(float), mu, sigma)
     l = plt.plot(bins, y, 'r--', linewidth=1)
     plt.plot([treatment_effect, treatment_effect], [0, np.max(y)], 'b--', label='true effect')
     plt.title("{}. mean: {:.2f}, sigma: {:.2f}".format(title, mu, sigma))
@@ -46,6 +46,7 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
 
     print("Ortho ML MSE: {}".format(bias_ortho ** 2 + sigma_ortho ** 2))
     print("Second Order ML MSE: {}".format(bias_second ** 2 + sigma_ortho ** 2))
+    print(f"ICA: {bias_ica=}, {sigma_ica=}")
 
     # Return lists of biases and standard deviations for each method
     biases = [bias_ortho, bias_robust, bias_est, bias_second, bias_ica]
@@ -107,8 +108,8 @@ def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect,
 
     plt.figure(figsize=(10, 6))
     # Plot MSE with error bars showing ±1 std dev
-    plt.xscale('log')
-    plt.yscale('log')
+    # plt.xscale('log')
+    # plt.yscale('log')
     plt.errorbar(support_sizes, ortho_ml_mse, yerr=ortho_ml_std, fmt='o-', label='Orthogonal ML')
     plt.errorbar(support_sizes, robust_ortho_mse, yerr=robust_ortho_std, fmt='s-', label='Robust Orthogonal ML')
     plt.errorbar(support_sizes, robust_est_mse, yerr=robust_est_std, fmt='^-', label='Robust Est ML')
@@ -129,8 +130,8 @@ def plot_error_vs_support(all_results, n_dim, n_samples, opts, treatment_effect,
 def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts):
     # Create error bar plot comparing errors across dimensions
     plt.figure(figsize=(10, 5))
-    plt.xscale('log')
-    plt.yscale('log')
+    # plt.xscale('log')
+    # plt.yscale('log')
     methods = ['Ortho ML', 'Robust Ortho', 'Robust Est', 'Robust Split', 'ICA']
     # Extract biases and sigmas for each method across all experiments
     method_biases = {method: [] for method in methods}
