@@ -123,7 +123,7 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
 
 def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts):
     # Create a high-quality error bar plot comparing errors across dimensions
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(10, 6))
     methods = ['OML', 'HOML', 'HOML (Est.)', 'HOML (Split)', 'ICA']
     method_biases = {method: [] for method in methods}
     method_sigmas = {method: [] for method in methods}
@@ -150,9 +150,9 @@ def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts):
     plt.xlabel(r'$\dim X$')
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     # plt.title('Method Errors vs Dimension', fontsize=14, fontweight='bold')
-    plt.legend(title='Methods')
-    plt.grid(True, which="both", linestyle='.-', linewidth=0.5)
-    plt.xticks()
+    plt.legend()
+    plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
+    plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
     plt.yticks()
     plt.tight_layout()
 
