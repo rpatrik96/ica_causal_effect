@@ -1,18 +1,17 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 from bartpy2.sklearnmodel import SklearnModel
 from sklearn.decomposition import FastICA
 from sklearn.linear_model import LinearRegression
 from torch.distributions import Laplace
+from tueplots import bundles
 
 from mcc import calc_disent_metrics
-
-import matplotlib.pyplot as plt
-
 from plot_utils import plot_typography
 
-from tueplots import bundles, figsizes
+
 
 
 def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4):
@@ -99,13 +98,14 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
 
 
 def main():
+    import matplotlib.pyplot as plt
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
 
     sample_sizes = [100, 200, 500, 1000, 2000, 5000]
-    n_dims = [10, 20, 50]
+    n_dims = [2,5,10,20, 50]
     n_treatments = [1, 2, 5]
-    n_seeds = 20
+    n_seeds = 2
 
     # Initialize dictionary to store results
     results_dict = {
@@ -192,36 +192,41 @@ def main():
             mse_iv = {dim: [] for dim in set(dimensions)}
             for dim, true_param, est_param, est_param_iv in zip(dimensions, true_params, est_params_ica, est_params_iv):
                 if est_param is not None:  # Handle cases where estimation failed
-                    errors = [(est - true) ** 2 for est, true in zip(est_param, true_param)]
+                    errors = [np.linalg.norm(est - true) for est, true in zip(est_param, true_param)]
                     mse[dim].append(np.mean(errors))
                 else:
                     mse[dim].append(np.nan)
 
                 if est_param_iv is not None:  # Handle cases where estimation failed
-                    errors_iv = [(est - true) ** 2 for est, true in zip(est_param_iv, true_param)]
+                    errors_iv = [np.linalg.norm(est - true) for est, true in zip(est_param_iv, true_param)]
                     mse_iv[dim].append(np.mean(errors_iv))
                 else:
                     mse_iv[dim].append(np.nan)
 
-            for dim, errors in mse.items():
+            for dim in sorted(mse.keys()):
                 mse[dim] = np.array(mse[dim])
                 mse_iv[dim] = np.array(mse_iv[dim])
 
-            plt.errorbar(mse.keys(), np.mean(list(mse.values()), axis=1), yerr=np.std(list(mse.values()), axis=1),
-                         fmt='o-', capsize=5,
-                         label=f'n_treatments={n_treatment}')
+            # Plot ICA error bars
+            sorted_mse_keys = sorted(mse.keys())
+            ica_handle = plt.errorbar(sorted_mse_keys, np.mean([mse[key] for key in sorted_mse_keys], axis=1), 
+                                      yerr=np.std([mse[key] for key in sorted_mse_keys], axis=1),
+                                      fmt='o-', capsize=5, label=f'{n_treatment} (ICA)')
 
-            plt.errorbar(mse_iv.keys(), np.mean(list(mse_iv.values()), axis=1),
-                         yerr=np.std(list(mse_iv.values()), axis=1),
-                         fmt='o-', capsize=5,
-                         label=f'n_treatments={n_treatment}_IV')
+            # Plot IV error bars
+            sorted_mse_iv_keys = sorted(mse_iv.keys())
+            iv_handle = plt.errorbar(sorted_mse_iv_keys, np.mean([mse_iv[key] for key in sorted_mse_iv_keys], axis=1),
+                                     yerr=np.std([mse_iv[key] for key in sorted_mse_iv_keys], axis=1),
+                                     fmt='o-', capsize=5, label=f'{n_treatment}')
 
-        plt.xscale('log')
+
+        plt.legend(loc='lower center', ncol=int(n_treatment/2), bbox_to_anchor=(0.5, -0.15))
+
+        # plt.xscale('log')
         plt.yscale('log')
-        plt.xlabel('Number of Dimensions (Covariates)')
-        plt.ylabel('Mean Squared Error')
-        plt.title(f'Treatment Effect MSE vs Dimensions\n(n_samples={n_samples})')
-        plt.grid(True)
+        plt.xlabel(r'$\dim X$')
+        plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+        plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
         plt.legend()
 
         plt.savefig(f'ica_iv_mse_vs_dim_n{n_samples}.svg')
@@ -229,8 +234,9 @@ def main():
 
 
 def main_nonlinear():
+    import matplotlib.pyplot as plt
     sample_sizes = [100, 200, 500, 1000, 2000, 5000]
-    n_dims = [10, 20, 50]
+    n_dims = [2,5,10, 20, 50]
     slopes = [0, .1, .2, .5, 1.]
     n_seeds = 20
 
@@ -299,20 +305,23 @@ def main_nonlinear():
                 else:
                     mse[dim].append(np.nan)
 
-            for dim, errors in mse.items():
+
+            for dim in sorted(mse.keys()):
                 mse[dim] = np.array(mse[dim])
+
 
             plt.errorbar(mse.keys(), np.mean(list(mse.values()), axis=1), yerr=np.std(list(mse.values()), axis=1),
                          fmt='o-', capsize=5,
-                         label=f'slope={slope}')
+                         label=f'{slope}')
 
-        # plt.xscale('log')
-        # plt.yscale('log')
-        plt.xlabel('Number of Dimensions (Covariates)')
-        plt.ylabel('Mean Squared Error')
-        plt.title(f'Treatment Effect MSE vs Dimensions\n(n_samples={n_samples})')
-        plt.grid(True)
-        plt.legend()
+        plt.rcParams.update(bundles.icml2022(usetex=True))
+        plot_typography()
+        plt.yscale('log')
+        plt.xlabel(r'$\dim X$')
+        plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+        plt.grid(True, which="both", linestyle='.-', linewidth=0.5)
+        plt.legend(title='Slopes')
+        plt.tight_layout()
 
         plt.savefig(f'ica_nonlinear_mse_vs_dim_n{n_samples}.svg')
         plt.close()
