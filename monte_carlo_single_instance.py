@@ -2,8 +2,9 @@ import os
 import sys
 
 import matplotlib
+import matplotlib.pyplot as plt
 
-from plot_utils import plot_method_comparison, plot_and_save_model_errors, plot_error_bar_stats
+from plot_utils import plot_method_comparison, plot_and_save_model_errors, plot_error_bar_stats, plot_typography
 
 matplotlib.use('Agg')
 import numpy as np
@@ -13,6 +14,8 @@ import argparse
 from joblib import delayed, Parallel
 
 from ica import ica_treatment_effect_estimation
+
+from tueplots import bundles, figsizes
 
 
 def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef,
@@ -61,6 +64,9 @@ def main(args):
     opts = parser.parse_args(args)
 
     np.random.seed(opts.seed)
+
+    plt.rcParams.update(bundles.icml2022(usetex=True))
+    plot_typography()
 
     '''
     We will work with a sparse linear model with high dimensional co-variates
