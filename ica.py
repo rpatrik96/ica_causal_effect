@@ -320,9 +320,10 @@ def main_nonlinear():
         plt.yscale('log')
         plt.xlabel(r'$\dim X$')
         plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
-        plt.grid(True, which="both", linestyle='.-', linewidth=0.5)
-        plt.legend(title='Slopes')
+        plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
         plt.tight_layout()
+        plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
+        plt.legend()
 
         plt.savefig(f'ica_nonlinear_mse_vs_dim_n{n_samples}.svg')
         plt.close()
