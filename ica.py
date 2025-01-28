@@ -59,7 +59,7 @@ def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1.,
 
 
 def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance", check_convergence=False,
-                                    n_treatments=1, verbose=False):
+                                    n_treatments=1, verbose=False, fun="logcosh"):
     from warnings import catch_warnings
 
     tol = 1e-4  # Initial tolerance
@@ -70,7 +70,7 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
             # filterwarnings('error')
 
             ica = FastICA(n_components=X.shape[1], random_state=random_state + attempt, max_iter=1000,
-                          whiten=whiten, tol=tol)
+                          whiten=whiten, tol=tol,fun=fun)
             S_hat = ica.fit_transform(X)
 
             if len(w) > 0 and check_convergence is True:
