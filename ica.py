@@ -311,7 +311,9 @@ def main_nonlinear():
                 mse[dim] = np.array(mse[dim])
 
 
-            plt.errorbar(mse.keys(), np.mean(list(mse.values()), axis=1), yerr=np.std(list(mse.values()), axis=1),
+            sorted_keys = sorted(mse.keys())
+            plt.errorbar(sorted_keys, np.mean([mse[key] for key in sorted_keys], axis=1), 
+                         yerr=np.std([mse[key] for key in sorted_keys], axis=1),
                          fmt='o-', capsize=5,
                          label=f'{slope}')
 
