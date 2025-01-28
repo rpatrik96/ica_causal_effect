@@ -59,13 +59,13 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
     plt.figure(figsize=(25, 5))
     plt.subplot(1, 5, 1)
     bias_ortho, sigma_ortho = plot_estimates(np.array(ortho_rec_tau)[:, 0].flatten(), treatment_effect, treatment_effect,
-                                             title="Orthogonal estimates")
+                                             title="OML")
     plt.subplot(1, 5, 2)
     bias_robust, sigma_robust = plot_estimates(np.array(ortho_rec_tau)[:, 1].flatten(), treatment_effect, treatment_effect, 
-                                             title="Second order orthogonal")
+                                             title="HOML")
     plt.subplot(1, 5, 3)
     bias_est, sigma_est = plot_estimates(np.array(ortho_rec_tau)[:, 2].flatten(), treatment_effect, treatment_effect,
-                                       title="Second order orthogonal with estimates")
+                                       title="HOML (Est.)")
     plt.subplot(1, 5, 4)
     bias_second, sigma_second = plot_estimates(np.array(ortho_rec_tau)[:, 3].flatten(), treatment_effect, treatment_effect,
                                              title="Second order orthogonal with estimates on third sample")
