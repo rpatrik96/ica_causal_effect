@@ -105,7 +105,7 @@ def main():
     sample_sizes = [100, 200, 500, 1000, 2000, 5000]
     n_dims = [2,5,10,20, 50]
     n_treatments = [1, 2, 5]
-    n_seeds = 2
+    n_seeds = 20
 
     # Initialize dictionary to store results
     results_dict = {
@@ -228,6 +228,7 @@ def main():
         plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
         plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
         plt.legend()
+        plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
 
         plt.savefig(f'ica_iv_mse_vs_dim_n{n_samples}.svg')
         plt.close()
@@ -300,7 +301,7 @@ def main_nonlinear():
 
             for dim, true_param, est_param in zip(dimensions, true_params, est_params_ica):
                 if est_param is not None:  # Handle cases where estimation failed
-                    errors = [(est - true) ** 2 for est, true in zip(est_param, true_param)]
+                    errors = [np.linalg.norm(est - true) for est, true in zip(est_param, true_param)]
                     mse[dim].append(np.mean(errors))
                 else:
                     mse[dim].append(np.nan)
