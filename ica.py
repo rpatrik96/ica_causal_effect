@@ -8,6 +8,12 @@ from torch.distributions import Laplace
 
 from mcc import calc_disent_metrics
 
+import matplotlib.pyplot as plt
+
+from plot_utils import plot_typography
+
+from tueplots import bundles, figsizes
+
 
 def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4):
     # Create sparse matrix of shape (n_treatments x n_covariates)
@@ -93,6 +99,9 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
 
 
 def main():
+    plt.rcParams.update(bundles.icml2022(usetex=True))
+    plot_typography()
+
     sample_sizes = [100, 200, 500, 1000, 2000, 5000]
     n_dims = [10, 20, 50]
     n_treatments = [1, 2, 5]
@@ -235,6 +244,9 @@ def main_nonlinear():
         'slopes': [],
         'mccs': []
     }
+
+    plt.rcParams.update(bundles.icml2022(usetex=True))
+    plot_typography()
 
     for n_samples in sample_sizes:
         for n_covariates in n_dims:
