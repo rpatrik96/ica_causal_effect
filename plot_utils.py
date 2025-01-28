@@ -128,23 +128,36 @@ def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts):
     method_biases = {method: [] for method in methods}
     method_sigmas = {method: [] for method in methods}
     dimensions = []
+
     for result in all_results:
         dimensions.append(result['support_size'])
         for i, method in enumerate(methods):
             method_biases[method].append(result['biases'][i])
             method_sigmas[method].append(result['sigmas'][i])
-    # Plot error bars for each method
-    for method, color in zip(methods, ['b', 'g', 'r', 'c', 'm']):
+
+    # Define a color palette for better visual distinction
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
+
+    # Plot error bars for each method with enhanced styling
+    for method, color in zip(methods, colors):
         plt.errorbar(dimensions, method_biases[method],
                      yerr=method_sigmas[method],
-                     fmt='o-', label=method, color=color)
-    plt.xlabel('Dimension')
-    plt.ylabel('Error')
-    plt.title('Method Errors vs Dimension')
-    plt.legend()
-    plt.grid(True)
+                     fmt='o-', label=method, color=color, capsize=4, elinewidth=2, markeredgewidth=2)
+
+    # Use a logarithmic scale for the y-axis to handle large error magnitudes and variances
+    plt.yscale('log')
+
+    plt.xlabel(r'$\dim X$')
+    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    # plt.title('Method Errors vs Dimension', fontsize=14, fontweight='bold')
+    plt.legend(title='Methods')
+    plt.grid(True, which="both", linestyle='.-', linewidth=0.5)
+    plt.xticks()
+    plt.yticks()
     plt.tight_layout()
+
+    # Save the plot with a high resolution suitable for conferences
     plt.savefig(os.path.join(opts.output_dir,
                              'error_by_dimension_n_samples_{}_n_dim_{}_n_exp_{}_pdf_{}.svg'.format(
-                                 n_samples, n_dim, n_experiments, opts.covariate_pdf)), dpi=300, bbox_inches='tight')
+                                 n_samples, n_dim, n_experiments, opts.covariate_pdf)), dpi=600, bbox_inches='tight')
     plt.close()
