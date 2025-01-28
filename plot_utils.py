@@ -68,10 +68,10 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
                                        title="HOML (Est.)")
     plt.subplot(1, 5, 4)
     bias_second, sigma_second = plot_estimates(np.array(ortho_rec_tau)[:, 3].flatten(), treatment_effect, treatment_effect,
-                                             title="Second order orthogonal with estimates on third sample")
+                                             title="HOML (Split)")
     plt.subplot(1, 5, 5)
     bias_ica, sigma_ica = plot_estimates(np.array(ortho_rec_tau)[:, 4].flatten(), treatment_effect, treatment_effect,
-                                       title="ICA estimate")
+                                       title="ICA")
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir,
