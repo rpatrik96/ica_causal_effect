@@ -51,7 +51,7 @@ def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram o
     plt.plot([treatment_effect, treatment_effect], [0, np.max(y)], 'b--', label='true effect')
     plt.title("{}. mean: {:.2f}, sigma: {:.2f}".format(title, mu, sigma))
     plt.legend()
-    return np.abs(true_tau - mu), sigma
+    return np.linalg.norm(true_tau - mu), sigma
 
 
 def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf):
