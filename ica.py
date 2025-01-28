@@ -361,9 +361,203 @@ def bart_treatment_effect_estimation(X, n_covariates, n_treatment):
     return treatment_effects
 
 
+
+def main_fun():
+    import matplotlib.pyplot as plt
+    plt.rcParams.update(bundles.icml2022(usetex=True))
+    plot_typography()
+
+    n_samples = 5000
+    n_covariates = 50
+    n_treatment = 1
+    n_seeds = 20
+
+    # Initialize dictionary to store results
+    results_dict = {
+        'sample_sizes': [],
+        'n_covariates': [],
+        'n_treatments': [],
+        'true_params': [],
+        'treatment_effects': [],
+        'treatment_effects_iv': [],
+        'mccs': [],
+        'fun_options' : []
+    }
+
+
+
+    S, X, true_params = generate_ica_data(batch_size=n_samples,
+                                            n_covariates=n_covariates,
+                                            n_treatments=n_treatment,
+                                            slope=1.,
+                                            sparse_prob=0.4)
+    fun_options = ["logcosh", "exp", "cube"]
+
+    for fun in fun_options:
+        for seed in range(n_seeds):
+            treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
+                                                                     random_state=seed,
+                                                                     check_convergence=False,
+                                                                     n_treatments=n_treatment,
+                                                                     fun=fun)
+
+            # Store results in dictionary
+            results_dict['sample_sizes'].append(n_samples)
+            results_dict['n_covariates'].append(n_covariates)
+            results_dict['n_treatments'].append(n_treatment)
+            results_dict['true_params'].append(true_params)
+            results_dict['treatment_effects'].append(treatment_effects)
+            results_dict['mccs'].append(mcc)
+            results_dict['fun_options'].append(fun)
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    plt.figure(figsize=(10, 6))
+
+
+    # Process data based on 'fun' and calculate MSE
+    mse_by_fun = {fun: [] for fun in set(fun_options)}
+    for true_param, est_param, fun_label in zip(results_dict['true_params'], results_dict['treatment_effects'], results_dict['fun_options']):
+        if est_param is not None:  # Handle cases where estimation failed
+            errors = [np.linalg.norm(est - true) for est, true in zip(est_param, true_param)]
+            mse_by_fun[fun_label].append(np.mean(errors))
+        else:
+            mse_by_fun[fun_label].append(np.nan)
+
+    # Create a bar plot for each 'fun' on the x-axis
+    bar_width = 0.2
+    bar_positions = np.arange(len(fun_options))
+
+    # Calculate mean and standard deviation for each 'fun'
+    means = [np.mean(mse_by_fun[fun]) for fun in fun_options]
+    std_devs = [np.std(mse_by_fun[fun]) for fun in fun_options]
+
+    plt.bar(
+        bar_positions,
+        means,
+        yerr=std_devs,
+        width=bar_width,
+        capsize=5,
+        tick_label=fun_options,
+        label=f'{n_treatment} (ICA)'
+    )
+    plt.xlabel('FastICA objective function')
+
+    # plt.legend(loc='lower center', ncol=int(n_treatment/2), bbox_to_anchor=(0.5, -0.15))
+
+    # # plt.xscale('log')
+    # plt.yscale('log')
+    # plt.xlabel(r'$\dim X$')
+    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    # plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
+    # plt.legend()
+    # plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
+
+    plt.savefig(f'ica_mse_fun.svg')
+    plt.close()
+
+
+def main_sparsity():
+    import matplotlib.pyplot as plt
+    plt.rcParams.update(bundles.icml2022(usetex=True))
+    plot_typography()
+
+    n_samples = 5000
+    n_covariates = 50
+    n_treatment = 1
+    n_seeds = 20
+    sparsities = [0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
+
+    # Initialize dictionary to store results
+    results_dict = {
+        'sample_sizes': [],
+        'n_covariates': [],
+        'n_treatments': [],
+        'true_params': [],
+        'treatment_effects': [],
+        'treatment_effects_iv': [],
+        'mccs': [],
+        'sparsities' : []
+    }
+
+    for sparsity in sparsities:
+        S, X, true_params = generate_ica_data(batch_size=n_samples,
+                                              n_covariates=n_covariates,
+                                              n_treatments=n_treatment,
+                                              slope=1.,
+                                              sparse_prob=sparsity)
+
+        for seed in range(n_seeds):
+            treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
+                                                                     random_state=seed,
+                                                                     check_convergence=False,
+                                                                     n_treatments=n_treatment)
+
+            # Store results in dictionary
+            results_dict['sample_sizes'].append(n_samples)
+            results_dict['n_covariates'].append(n_covariates)
+            results_dict['n_treatments'].append(n_treatment)
+            results_dict['true_params'].append(true_params)
+            results_dict['treatment_effects'].append(treatment_effects)
+            results_dict['mccs'].append(mcc)
+            results_dict['sparsities'].append(sparsity)
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    plt.figure(figsize=(10, 6))
+
+
+    # Process data based on 'sparsity' and calculate MSE
+    mse_by_sparsity = {sparsity: [] for sparsity in set(results_dict['sparsities'])}
+    for true_param, est_param, sparsity_label in zip(results_dict['true_params'], results_dict['treatment_effects'], results_dict['sparsities']):
+        if est_param is not None:  # Handle cases where estimation failed
+            errors = [np.linalg.norm(est - true) for est, true in zip(est_param, true_param)]
+            mse_by_sparsity[sparsity_label].append(np.mean(errors))
+        else:
+            mse_by_sparsity[sparsity_label].append(np.nan)
+
+    # Calculate mean and standard deviation for each 'sparsity'
+    sorted_sparsities = sorted(set(results_dict['sparsities']))
+    means = [np.mean(mse_by_sparsity[sparsity]) for sparsity in sorted_sparsities]
+    std_devs = [np.std(mse_by_sparsity[sparsity]) for sparsity in sorted_sparsities]
+
+    # Create an error bar plot for each 'sparsity' on the x-axis
+    bar_positions = np.arange(len(sorted_sparsities))
+
+    plt.errorbar(
+        bar_positions,
+        means,
+        yerr=std_devs,
+        fmt='o',
+        capsize=5,
+        label=f'{n_treatment} (ICA)'
+    )
+    plt.xticks(bar_positions, sorted_sparsities)
+    plt.xlabel(r'Sparsity of $\mathrm{\mathbf{A}}$')
+
+    # plt.legend(loc='lower center', ncol=int(n_treatment/2), bbox_to_anchor=(0.5, -0.15))
+
+    # # plt.xscale('log')
+    # plt.yscale('log')
+    # plt.xlabel(r'$\dim X$')
+    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    # plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
+    # plt.legend()
+    # plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
+
+    plt.savefig(f'ica_mse_vs_dim_sparsity.svg')
+    plt.close()
+
+
 if __name__ == "__main__":
+
+    # main_fun()
+    main_sparsity()
+
     print("Running multiple treatment effect estimation with ICA...")
-    main()
+    # main()
 
     print("Running treatment effect estimation with ICA in nonlinear PLR...")
-    main_nonlinear()
+    # main_nonlinear()
+
+
