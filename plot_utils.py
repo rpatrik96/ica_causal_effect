@@ -122,12 +122,9 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
 
 
 def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts):
-    # Create error bar plot comparing errors across dimensions
-    plt.figure(figsize=(10, 5))
-    # plt.xscale('log')
-    # plt.yscale('log')
-    methods = ['Ortho ML', 'Robust Ortho', 'Robust Est', 'Robust Split', 'ICA']
-    # Extract biases and sigmas for each method across all experiments
+    # Create a high-quality error bar plot comparing errors across dimensions
+    plt.figure(figsize=(12, 6))
+    methods = ['OML', 'HOML', 'HOML (Est.)', 'HOML (Split)', 'ICA']
     method_biases = {method: [] for method in methods}
     method_sigmas = {method: [] for method in methods}
     dimensions = []
