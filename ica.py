@@ -551,13 +551,18 @@ def main_sparsity():
 
 if __name__ == "__main__":
 
-    # main_fun()
-    main_sparsity()
+
 
     print("Running multiple treatment effect estimation with ICA...")
-    # main()
+    main()
 
     print("Running treatment effect estimation with ICA in nonlinear PLR...")
-    # main_nonlinear()
+    main_nonlinear()
+
+    print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
+    main_sparsity()
+
+    print("Running the loss function ablation for treatment effect estimation with ICA in linear PLR...")
+    main_fun()
 
 
