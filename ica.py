@@ -6,15 +6,16 @@ from bartpy2.sklearnmodel import SklearnModel
 from sklearn.decomposition import FastICA
 from sklearn.linear_model import LinearRegression
 from torch.distributions import Laplace
+from scipy.stats import gennorm
 from tueplots import bundles
 
 from mcc import calc_disent_metrics
 from plot_utils import plot_typography
 
+import numpy as np
 
 
-
-def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4):
+def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4, beta=1.):
     # Create sparse matrix of shape (n_treatments x n_covariates)
     binary_mask = torch.bernoulli(torch.ones(n_treatments, n_covariates) * sparse_prob)
     random_coeffs = torch.randn(n_treatments, n_covariates)
@@ -23,12 +24,17 @@ def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1.,
     theta = torch.tensor([1.55, 0.65, -2.45, 1.75, -1.35])[:n_treatments]  # Vector of thetas matching n_treatments
     B = torch.randn(n_covariates)  # Base effects on outcome per covariate
 
+    
+
     loc = 4.1
     scale = .5
-    distribution = Laplace(loc, scale)
+    distribution = gennorm(beta, loc=loc, scale=scale)
+
+
 
     source_dim = n_covariates + n_treatments + 1  # +1 for outcome
-    S = distribution.sample(torch.Size([batch_size, source_dim]))
+    S = torch.tensor(distribution.rvs(size=(batch_size, source_dim))).float()
+    # S = distribution.sample(torch.Size([batch_size, source_dim]))
     X = S.clone()
 
     # Define activation function based on use_nonlinear flag
@@ -549,20 +555,118 @@ def main_sparsity():
     plt.close()
 
 
+
+def main_gennorm():
+    import matplotlib.pyplot as plt
+    plt.rcParams.update(bundles.icml2022(usetex=True))
+    plot_typography()
+
+    n_samples = 5000
+    n_covariates = 50
+    n_treatment = 1
+    n_seeds = 20
+
+    # Initialize dictionary to store results
+    results_dict = {
+        'sample_sizes': [],
+        'n_covariates': [],
+        'n_treatments': [],
+        'true_params': [],
+        'treatment_effects': [],
+        'treatment_effects_iv': [],
+        'mccs': [],
+        'beta_values': []
+    }
+    import numpy as np
+    beta_values = np.linspace(0.5, 5, num=10)  # Generate beta values from 0.5 to 5
+
+    for beta in beta_values:
+        S, X, true_params = generate_ica_data(batch_size=n_samples,
+                                              n_covariates=n_covariates,
+                                              n_treatments=n_treatment,
+                                              slope=1.,
+                                              sparse_prob=0.4,
+                                              beta=beta)
+
+        for seed in range(n_seeds):
+            treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
+                                                                     random_state=seed,
+                                                                     check_convergence=False,
+                                                                     n_treatments=n_treatment,
+                                                                     )
+
+            # Store results in dictionary
+            results_dict['sample_sizes'].append(n_samples)
+            results_dict['n_covariates'].append(n_covariates)
+            results_dict['n_treatments'].append(n_treatment)
+            results_dict['true_params'].append(true_params)
+            results_dict['treatment_effects'].append(treatment_effects)
+            results_dict['mccs'].append(mcc)
+            results_dict['beta_values'].append(beta)
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    plt.figure(figsize=(10, 6))
+
+
+
+
+    # Plot curves for each beta value
+    for beta in set(results_dict['beta_values']):
+        # Filter results for this beta value
+        indices = [i for i, b in enumerate(results_dict['beta_values']) if b == beta]
+
+        true_params = [results_dict['true_params'][i] for i in indices]
+        est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
+
+        # Calculate MSE for each beta
+        mse = []
+
+        for true_param, est_param in zip(true_params, est_params_ica):
+            if est_param is not None:  # Handle cases where estimation failed
+                errors = [np.linalg.norm(est - true) for est, true in zip(est_param, true_param)]
+                mse.append(np.mean(errors))
+            else:
+                mse.append(np.nan)
+
+        mse = np.array(mse)
+
+        plt.errorbar(beta, np.mean(mse), 
+                     yerr=np.std(mse),
+                     fmt='o-', capsize=5,
+                     label=f'Beta {beta:.2f}')
+
+    plt.rcParams.update(bundles.icml2022(usetex=True))
+    plot_typography()
+    plt.yscale('log')
+    plt.xlabel(r'$\beta$')
+    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
+    plt.tight_layout()
+    plt.legend()
+
+    plt.savefig(f'ica_mse_vs_beta_n{n_samples}.svg')
+    plt.close()
+
+
+
 if __name__ == "__main__":
 
 
 
-    print("Running multiple treatment effect estimation with ICA...")
-    main()
+    # print("Running multiple treatment effect estimation with ICA...")
+    # main()
 
-    print("Running treatment effect estimation with ICA in nonlinear PLR...")
-    main_nonlinear()
+    # print("Running treatment effect estimation with ICA in nonlinear PLR...")
+    # main_nonlinear()
 
-    print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
-    main_sparsity()
+    # print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
+    # main_sparsity()
 
-    print("Running the loss function ablation for treatment effect estimation with ICA in linear PLR...")
-    main_fun()
+    # print("Running the loss function ablation for treatment effect estimation with ICA in linear PLR...")
+    # main_fun()
+
+    print("Running the gennorm ablation for treatment effect estimation with ICA...")
+    main_gennorm()
 
 
