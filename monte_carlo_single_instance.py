@@ -56,7 +56,9 @@ def main(args):
     parser.add_argument("--sigma_outcome", dest="sigma_outcome",
                         type=int, help='sigma_outcome', default=1)
     parser.add_argument("--covariate_pdf", dest="covariate_pdf",
-                        type=str, help='pdf of covariates', default="uniform")
+                        type=str, help='pdf of covariates', default="gennorm")
+    parser.add_argument("--beta", dest="beta",
+                        type=float, help='beta parameter for generalized normal', default=1.0)
     parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
     parser.add_argument("--check_convergence", dest="check_convergence",
                         type=bool, help='check convergence', default=False)
@@ -138,6 +140,12 @@ def main(args):
                 x_sample = lambda n_samples, n_dim: np.random.normal(size=(n_samples, n_dim))
             elif opts.covariate_pdf == "uniform":
                 x_sample = lambda n_samples, n_dim: np.random.uniform(size=(n_samples, n_dim))
+            if opts.covariate_pdf == "gennorm":
+                from scipy.stats import gennorm
+                beta = opts.beta if hasattr(opts, 'beta') else 1.0
+                loc = 0
+                scale = 1
+                x_sample = lambda n_samples, n_dim: gennorm.rvs(beta, size=(n_samples, n_dim))
 
             # Coefficients recovered by orthogonal ML
             lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
@@ -173,13 +181,13 @@ def main(args):
 
             biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir, n_samples, n_dim,
                                                     n_experiments, support_size,
-                                                    sigma_outcome, opts.covariate_pdf)
+                                                    sigma_outcome, opts.covariate_pdf, opts.beta)
             all_results[-1]['biases'] = biases
             all_results[-1]['sigmas'] = sigmas
 
             plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples, n_dim, n_experiments,
                                        support_size,
-                                       sigma_outcome, opts.covariate_pdf)
+                                       sigma_outcome, opts.covariate_pdf,  opts.beta)
 
         plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts)
 
