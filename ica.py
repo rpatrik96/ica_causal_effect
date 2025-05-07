@@ -15,7 +15,7 @@ from plot_utils import plot_typography
 import numpy as np
 
 
-def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4, beta=1.):
+def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4, beta=1., loc=0, scale=1):
     # Create sparse matrix of shape (n_treatments x n_covariates)
     binary_mask = torch.bernoulli(torch.ones(n_treatments, n_covariates) * sparse_prob)
     random_coeffs = torch.randn(n_treatments, n_covariates)
@@ -24,17 +24,10 @@ def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1.,
     theta = torch.tensor([1.55, 0.65, -2.45, 1.75, -1.35])[:n_treatments]  # Vector of thetas matching n_treatments
     B = torch.randn(n_covariates)  # Base effects on outcome per covariate
 
-    
-
-    loc = 4.1
-    scale = .5
     distribution = gennorm(beta, loc=loc, scale=scale)
-
-
 
     source_dim = n_covariates + n_treatments + 1  # +1 for outcome
     S = torch.tensor(distribution.rvs(size=(batch_size, source_dim))).float()
-    # S = distribution.sample(torch.Size([batch_size, source_dim]))
     X = S.clone()
 
     # Define activation function based on use_nonlinear flag
@@ -62,7 +55,6 @@ def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1.,
     X[:, -1] += (B * activation(S[:, :n_covariates])).sum(dim=1)
 
     return S, X, theta
-
 
 def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance", check_convergence=False,
                                     n_treatments=1, verbose=False, fun="logcosh"):
@@ -634,7 +626,7 @@ def main_gennorm():
         plt.errorbar(beta, np.mean(mse), 
                      yerr=np.std(mse),
                      fmt='o-', capsize=5,
-                     label=f'Beta {beta:.2f}')
+                     label=f'{beta:.2f}')
 
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
@@ -642,10 +634,75 @@ def main_gennorm():
     plt.xlabel(r'$\beta$')
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
-    plt.tight_layout()
+    plt.xticks(ticks=plt.xticks()[0], labels=[f'{x:.1f}' for x in plt.xticks()[0]])
+    # plt.tight_layout()
     plt.legend()
 
     plt.savefig(f'ica_mse_vs_beta_n{n_samples}.svg')
+    plt.close()
+
+
+
+def main_loc_scale():
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import seaborn as sns
+    plt.rcParams.update(bundles.icml2022(usetex=True))
+    plot_typography()
+
+    n_samples = 5000
+    n_covariates = 50
+    n_treatment = 1
+    n_seeds = 20
+
+    # Initialize dictionary to store results
+    results_dict = {
+        'loc_values': [],
+        'scale_values': [],
+        'mse_values': []
+    }
+
+    loc_values = np.linspace(-5, 5, num=10)
+    scale_values = np.linspace(0.5, 5, num=10)
+
+    for loc in loc_values:
+        for scale in scale_values:
+            mse_list = []
+            for seed in range(n_seeds):
+                S, X, true_params = generate_ica_data(batch_size=n_samples,
+                                                      n_covariates=n_covariates,
+                                                      n_treatments=n_treatment,
+                                                      slope=1.,
+                                                      sparse_prob=0.4,
+                                                      beta=1.0,
+                                                      loc=loc,
+                                                      scale=scale)
+
+                treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
+                                                                         random_state=seed,
+                                                                         check_convergence=False,
+                                                                         n_treatments=n_treatment)
+
+                if treatment_effects is not None:
+                    errors = [np.linalg.norm(est - true) for est, true in zip(treatment_effects, true_params)]
+                    mse_list.append(np.mean(errors))
+
+            # Store average MSE for this loc and scale
+            avg_mse = np.nanmean(mse_list)
+            results_dict['loc_values'].append(loc)
+            results_dict['scale_values'].append(scale)
+            results_dict['mse_values'].append(avg_mse)
+
+    # Create a heatmap of MSE values
+    mse_matrix = np.array(results_dict['mse_values']).reshape(len(loc_values), len(scale_values))
+    plt.figure(figsize=(12, 9))  # Increased figure size
+    sns.heatmap(mse_matrix, xticklabels=scale_values, yticklabels=loc_values, cmap="viridis", annot=True, annot_kws={"size": 8})  # Decreased annotation text size
+    plt.xlabel('Scale')
+    plt.ylabel('Location')
+    plt.yticks(ticks=plt.yticks()[0], labels=[f'{x:.1f}' for x in plt.yticks()[0]])
+    # plt.title('MSE Heatmap for Loc and Scale')
+    # plt.tight_layout()
+    plt.savefig(f'ica_mse_heatmap_loc_scale_n{n_samples}.svg')
     plt.close()
 
 
@@ -668,5 +725,8 @@ if __name__ == "__main__":
 
     print("Running the gennorm ablation for treatment effect estimation with ICA...")
     main_gennorm()
+
+    print("Running the loc scale ablation for treatment effect estimation with ICA...")
+    main_loc_scale()
 
 
