@@ -120,7 +120,7 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
 
 
 
-def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts):
+def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, beta):
     # Create a high-quality error bar plot comparing errors across dimensions
     plt.figure(figsize=(10, 6))
     methods = ['OML', 'HOML', 'HOML (Est.)', 'HOML (Split)', 'ICA']
@@ -158,5 +158,5 @@ def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts):
     # Save the plot with a high resolution suitable for conferences
     plt.savefig(os.path.join(opts.output_dir,
                              'error_by_dimension_n_samples_{}_n_dim_{}_n_exp_{}_pdf_{}_beta_{}.svg'.format(
-                                 n_samples, n_dim, n_experiments, opts.covariate_pdf, opts.beta)), dpi=600, bbox_inches='tight')
+                                 n_samples, n_dim, n_experiments, opts.covariate_pdf, beta)), dpi=600, bbox_inches='tight')
     plt.close()
