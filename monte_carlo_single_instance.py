@@ -99,17 +99,17 @@ def main(args):
     # Define the output file path
     results_file_path = os.path.join(opts.output_dir, f'all_results_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}.npy')
 
+    all_results = []
     for n_samples in data_samples:
 
         # Check if the results file already exists
         if os.path.exists(results_file_path):
             print(f"Results file {results_file_path} already exists. Loading data instead of rerunning experiments.")
-            structured_results = np.load(results_file_path, allow_pickle=True).item()
-            all_results = structured_results['results']
+            structured_results = np.load(results_file_path, allow_pickle=True)#.item()
+            all_results = structured_results
             break
 
         print(f"\nRunning experiments with sample size: {n_samples}")
-        all_results = []
 
         for beta in beta_values:
             print(f"\nRunning experiments with beta: {beta}")
@@ -234,7 +234,7 @@ def main(args):
 
     # Prepare data for heatmap: sample size vs dim
     bias_diff_matrix_dim = np.zeros((len(set([res['n_samples'] for res in all_results])), len(set([res['support_size'] for res in all_results]))))
-    sample_sizes = sorted(set([res['n_samples'] for res in all_results]))
+    sample_sizes = sorted(set([res['n_samples'] for res in all_results]), reverse=True)
     support_sizes = sorted(set([res['support_size'] for res in all_results]))
 
     for i, n_samples in enumerate(sample_sizes):
@@ -246,9 +246,9 @@ def main(args):
 
     plt.figure(figsize=(10, 8))
     sns.heatmap(bias_diff_matrix_dim, xticklabels=support_sizes, yticklabels=sample_sizes, cmap="coolwarm", annot=True)
-    plt.xlabel('Support Size (Dim)')
+    plt.xlabel('Support Size')
     plt.ylabel('Sample Size')
-    plt.title('Bias Difference (ICA - HOML Split): Sample Size vs Dim')
+    # plt.title('Bias Difference (ICA - HOML Split): Sample Size vs Dim')
     plt.savefig(os.path.join(opts.output_dir, 'bias_diff_heatmap_sample_size_vs_dim.svg'), dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -267,7 +267,7 @@ def main(args):
     sns.heatmap(bias_diff_matrix_beta, xticklabels=betas, yticklabels=sample_sizes, cmap="coolwarm", annot=True)
     plt.xlabel('Beta')
     plt.ylabel('Sample Size')
-    plt.title('Bias Difference (ICA - HOML Split): Sample Size vs Beta')
+    # plt.title('Bias Difference (ICA - HOML Split): Sample Size vs Beta')
     plt.savefig(os.path.join(opts.output_dir, 'bias_diff_heatmap_sample_size_vs_beta.svg'), dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -282,7 +282,7 @@ def main(args):
     plt.colorbar(scatter, label='Beta')
     plt.xlabel('Non-Gaussian Condition')
     plt.ylabel('Sigma Difference (ICA - HOML Split)')
-    plt.title('Scatter Plot: Non-Gaussian Condition vs Sigma Difference')
+    # plt.title('Scatter Plot: Non-Gaussian Condition vs Sigma Difference')
     plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_non_gauss_vs_sigma_diff.svg'), dpi=300, bbox_inches='tight')
     plt.close()
     
