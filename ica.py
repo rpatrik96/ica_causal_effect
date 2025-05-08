@@ -13,7 +13,7 @@ from mcc import calc_disent_metrics
 from plot_utils import plot_typography
 
 import numpy as np
-
+import os
 
 
 
@@ -286,105 +286,140 @@ def main_multi():
       
 
 def main_nonlinear():
-    import matplotlib.pyplot as plt
-    sample_sizes = [100, 200, 500, 1000, 2000, 5000]
-    n_dims = [2,5,10, 20, 50]
+    # import matplotlib.pyplot as plt
+    # import numpy as np
+
+    sample_sizes = [5000]
+    n_dims = [2, 5, 10, 20, 50]
     slopes = [0, .1, .2, .5, 1.]
     n_seeds = 20
+    nonlinearities = ['leaky_relu', 'relu', 'sigmoid', 'tanh']
+    results_file = 'results_main_nonlinear.npy'
 
     # Initialize dictionary to store results
     results_dict = {
         'sample_sizes': [],
         'n_covariates': [],
-        'n_treatments': [],
         'true_params': [],
         'treatment_effects': [],
         'slopes': [],
-        'mccs': []
+        'mccs': [],
+        'nonlinearities': []
     }
+    # import os
+    if os.path.exists(results_file):
+        print(f"Results file '{results_file}' already exists. Loading data.")
+        results_dict = np.load(results_file, allow_pickle=True).item()
+    else:
 
-    plt.rcParams.update(bundles.icml2022(usetex=True))
-    plot_typography()
-
-    for n_samples in sample_sizes:
-        for n_covariates in n_dims:
-            for slope in slopes:
-
-                S, X, true_params = generate_ica_data(batch_size=n_samples,
-                                                      n_covariates=n_covariates,
-                                                      n_treatments=1,
-                                                      slope=slope,
-                                                      sparse_prob=0.4)
-
-                for seed in range(n_seeds):
-                    treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
-                                                                             random_state=seed,
-                                                                             check_convergence=False,
-                                                                             n_treatments=1)
-
-                    # Store results in dictionary
-                    results_dict['sample_sizes'].append(n_samples)
-                    results_dict['n_covariates'].append(n_covariates)
-                    results_dict['true_params'].append(true_params)
-                    results_dict['treatment_effects'].append(treatment_effects)
-                    results_dict['slopes'].append(slope)
-                    results_dict['mccs'].append(mcc)
-
-    # Save results dictionary
-    import numpy as np
-    np.save('results_main_nonlinear.npy', results_dict)
-
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    # Create plots for each sample size
-    for n_samples in set(results_dict['sample_sizes']):
-        plt.figure(figsize=(10, 6))
-
-        # Plot curves for each number of slope
-        for slope in set(results_dict['slopes']):
-            # Filter results for this sample size and number of treatments
-            indices = [i for i, (s, t) in enumerate(zip(results_dict['sample_sizes'], results_dict['slopes']))
-                       if s == n_samples and t == slope]
-
-            dimensions = [results_dict['n_covariates'][i] for i in indices]
-            true_params = [results_dict['true_params'][i] for i in indices]
-            est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
-
-            # Calculate MSE for each dimension
-            mse = {dim: [] for dim in set(dimensions)}
-
-            for dim, true_param, est_param in zip(dimensions, true_params, est_params_ica):
-                if est_param is not None:  # Handle cases where estimation failed
-                    errors = [np.linalg.norm(est - true) for est, true in zip(est_param, true_param)]
-                    mse[dim].append(np.mean(errors))
-                else:
-                    mse[dim].append(np.nan)
-
-
-            for dim in sorted(mse.keys()):
-                mse[dim] = np.array(mse[dim])
-
-
-            sorted_keys = sorted(mse.keys())
-            plt.errorbar(sorted_keys, np.mean([mse[key] for key in sorted_keys], axis=1), 
-                         yerr=np.std([mse[key] for key in sorted_keys], axis=1),
-                         fmt='o-', capsize=5,
-                         label=f'{slope}')
 
         plt.rcParams.update(bundles.icml2022(usetex=True))
         plot_typography()
-        plt.yscale('log')
-        plt.xlabel(r'$\dim X$')
-        plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
-        plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
-        plt.tight_layout()
-        plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
-        plt.legend()
 
-        plt.savefig(f'ica_nonlinear_mse_vs_dim_n{n_samples}.svg')
-        plt.close()
+        for n_samples in sample_sizes:
+            for n_covariates in n_dims:
+                for nonlinearity in nonlinearities:
+                    if nonlinearity == 'leaky_relu':
+                        for slope in slopes:
+                            S, X, true_params = generate_ica_data(batch_size=n_samples,
+                                                                  n_covariates=n_covariates,
+                                                                  n_treatments=1,
+                                                                  slope=slope,
+                                                                  sparse_prob=0.4,
+                                                                  nonlinearity=nonlinearity)
 
+                            for seed in range(n_seeds):
+                                treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
+                                                                                         random_state=seed,
+                                                                                         check_convergence=False,
+                                                                                         n_treatments=1)
+
+                                # Store results in dictionary
+                                
+                                results_dict['slopes'].append(slope)
+
+                                results_dict['sample_sizes'].append(n_samples)
+                                results_dict['n_covariates'].append(n_covariates)
+                                results_dict['true_params'].append(true_params)
+                                results_dict['treatment_effects'].append(treatment_effects)
+                                results_dict['mccs'].append(mcc)
+                                results_dict['nonlinearities'].append(nonlinearity)
+                    else:
+                        S, X, true_params = generate_ica_data(batch_size=n_samples,
+                                                              n_covariates=n_covariates,
+                                                              n_treatments=1,
+                                                              slope=1.0,  # Default slope for other nonlinearities
+                                                              sparse_prob=0.4,
+                                                              nonlinearity=nonlinearity)
+
+                        for seed in range(n_seeds):
+                            treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
+                                                                                     random_state=seed,
+                                                                                     check_convergence=False,
+                                                                                     n_treatments=1)
+
+                            # Store results in dictionary
+                            results_dict['slopes'].append(1.0)  # Default slope for other nonlinearitiesmcc)
+
+                    
+                            results_dict['sample_sizes'].append(n_samples)
+                            results_dict['n_covariates'].append(n_covariates)
+                            results_dict['true_params'].append(true_params)
+                            results_dict['treatment_effects'].append(treatment_effects)
+                            results_dict['mccs'].append(mcc)
+                            results_dict['nonlinearities'].append(nonlinearity)
+
+        # Save results dictionary
+        np.save(results_file, results_dict)
+    # Filter the data
+    filtered_indices = [i for i, nonlinearity in enumerate(results_dict['nonlinearities']) 
+                        if (nonlinearity == 'leaky_relu' and results_dict['slopes'][i] == 0.2)
+                        or (nonlinearity != 'leaky_relu')]
+    filtered_results = {key: [results_dict[key][i] for i in filtered_indices] for key in results_dict}
+
+    # Prepare data for heatmap
+    dimensions = sorted(set(filtered_results['n_covariates']), reverse=True)
+    nonlinearities = sorted(set(filtered_results['nonlinearities']))
+    heatmap_data = np.zeros((len(dimensions), len(nonlinearities)))
+
+    for i, dim in enumerate(dimensions):
+        for j, nonlinearity in enumerate(nonlinearities):
+            relevant_indices = [index for index, (d, n) in enumerate(zip(filtered_results['n_covariates'], filtered_results['nonlinearities'])) if d == dim and n == nonlinearity]
+            if relevant_indices:
+                heatmap_data[i, j] = np.mean([calculate_mse(filtered_results['true_params'][index], filtered_results['treatment_effects'][index]) for index in relevant_indices])
+
+    # Plot heatmap
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(heatmap_data, xticklabels=nonlinearities, yticklabels=dimensions, cmap="coolwarm", annot=True)
+    plt.xlabel('Nonlinearity')
+    plt.ylabel(r'$\dim X$')
+    # plt.title('Heatmap of MSEs: Dimension vs Nonlinearity')
+    plt.savefig('heatmap_dimension_vs_nonlinearity.svg', dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # Filter the data to only include 'leaky_relu' nonlinearity
+    filtered_indices_leaky_relu = [index for index, nonlinearity in enumerate(results_dict['nonlinearities']) if nonlinearity == 'leaky_relu']
+    filtered_results_leaky_relu = {key: [results_dict[key][i] for i in filtered_indices_leaky_relu] for key in results_dict}
+
+    # Prepare data for heatmap
+    dimensions = sorted(set(filtered_results_leaky_relu['n_covariates']),reverse=True)
+    slopes = sorted(set(filtered_results_leaky_relu['slopes']))
+    heatmap_data = np.zeros((len(dimensions), len(slopes)))
+
+    for i, dim in enumerate(dimensions):
+        for j, slope in enumerate(slopes):
+            relevant_indices = [index for index, (d, s) in enumerate(zip(filtered_results_leaky_relu['n_covariates'], filtered_results_leaky_relu['slopes'])) if d == dim and s == slope]
+            if relevant_indices:
+                heatmap_data[i, j] = np.mean([calculate_mse(filtered_results_leaky_relu['true_params'][index], filtered_results_leaky_relu['treatment_effects'][index]) for index in relevant_indices])
+
+    # Plot heatmap
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(heatmap_data, xticklabels=slopes, yticklabels=dimensions, cmap="coolwarm", annot=True)
+    plt.xlabel('Slope')
+    plt.ylabel(r'$\dim X$')
+    # plt.title('Heatmap of MCCs: Dimension vs Slope for Leaky ReLU')
+    plt.savefig('heatmap_dimension_vs_slope_leaky_relu.svg', dpi=300, bbox_inches='tight')
+    plt.close()
 
 
 def main_fun():
@@ -520,7 +555,7 @@ def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, x_ticks
 
 def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename):
     plt.figure(figsize=(12, 9))
-    sns.heatmap(data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap="viridis", annot=True, annot_kws={"size": 8})
+    sns.heatmap(data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap="coolwarm", annot=True, annot_kws={"size": 8})
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.yticks(ticks=plt.yticks()[0], labels=[f'{x:.1f}' for x in plt.yticks()[0]])
@@ -609,13 +644,13 @@ def main_loc_scale():
     setup_plot()
     results_file = 'results_main_loc_scale.npy'
     import os
+    n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+    loc_values = np.linspace(-5, 5, num=10)
+    scale_values = np.linspace(0.5, 5, num=10)
     if os.path.exists(results_file):
         print(f"Results file '{results_file}' already exists. Loading data.")
         results_dict = np.load(results_file, allow_pickle=True).item()
     else:
-        n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
-        loc_values = np.linspace(-5, 5, num=10)
-        scale_values = np.linspace(0.5, 5, num=10)
         results_dict = initialize_results_dict(['loc_values', 'scale_values', 'mse_values'])
 
         for loc in loc_values:
@@ -634,7 +669,7 @@ def main_loc_scale():
         save_results(results_file, results_dict)
 
     mse_matrix = np.array(results_dict['mse_values']).reshape(len(loc_values), len(scale_values))
-    plot_heatmap(mse_matrix, scale_values, loc_values, 'Scale', 'Location', f'ica_mse_heatmap_loc_scale_n{n_samples}.svg')
+    plot_heatmap(mse_matrix, scale_values,loc_values, 'Scale', 'Location', f'ica_mse_heatmap_loc_scale_n{n_samples}.svg')
 
 
 
@@ -645,8 +680,8 @@ if __name__ == "__main__":
     # print("Running multiple treatment effect estimation with ICA...")
     # main_multi()
 
-    # print("Running treatment effect estimation with ICA in nonlinear PLR...")
-    # main_nonlinear()
+    print("Running treatment effect estimation with ICA in nonlinear PLR...")
+    main_nonlinear()
 
     # print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
     # main_sparsity()
@@ -657,6 +692,6 @@ if __name__ == "__main__":
     # print("Running the gennorm ablation for treatment effect estimation with ICA...")
     # main_gennorm()
 
-    print("Running the loc scale ablation for treatment effect estimation with ICA...")
-    main_loc_scale()
+    # print("Running the loc scale ablation for treatment effect estimation with ICA...")
+    # main_loc_scale()
 
