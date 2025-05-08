@@ -15,7 +15,11 @@ from plot_utils import plot_typography
 import numpy as np
 
 
-def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4, beta=1., loc=0, scale=1):
+
+
+
+
+def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4, beta=1., loc=0, scale=1, nonlinearity='leaky_relu'):
     # Create sparse matrix of shape (n_treatments x n_covariates)
     binary_mask = torch.bernoulli(torch.ones(n_treatments, n_covariates) * sparse_prob)
     random_coeffs = torch.randn(n_treatments, n_covariates)
@@ -30,8 +34,18 @@ def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1.,
     S = torch.tensor(distribution.rvs(size=(batch_size, source_dim))).float()
     X = S.clone()
 
-    # Define activation function based on use_nonlinear flag
-    activation = lambda x: F.leaky_relu(x, negative_slope=.25) if slope != 1. else x
+    # Define activation function based on the nonlinearity parameter
+    activation_functions = {
+        'leaky_relu': lambda x: F.leaky_relu(x, negative_slope=slope),
+        'relu': lambda x: F.relu(x),
+        'sigmoid': lambda x: torch.sigmoid(x),
+        'tanh': lambda x: torch.tanh(x)
+    }
+
+    if nonlinearity not in activation_functions.keys():
+        raise ValueError(f"Unsupported nonlinearity: {nonlinearity}")
+
+    activation = activation_functions[nonlinearity]
 
     # Covariates remain independent
     X[:, :n_covariates] = S[:, :n_covariates]
@@ -95,6 +109,7 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
     return treatment_effect_estimate, results["permutation_disentanglement_score"]
 
 
+
 def main_multi():
     import matplotlib.pyplot as plt
     plt.rcParams.update(bundles.icml2022(usetex=True))
@@ -116,26 +131,25 @@ def main_multi():
         'mccs': []
     }
     import os
+    import numpy as np
 
     results_file = 'results_multi_treatment.npy'
-
-    for n_samples in sample_sizes:
-        for n_covariates in n_dims:
-            for n_treatment in n_treatments:
-                if os.path.exists(results_file):
-                    print(f"Results file '{results_file}' already exists. Loading data.")
-                    loaded_results = np.load(results_file, allow_pickle=True).item()
-                    results_dict['sample_sizes'].extend(loaded_results['sample_sizes'])
-                    results_dict['n_covariates'].extend(loaded_results['n_covariates'])
-                    results_dict['n_treatments'].extend(loaded_results['n_treatments'])
-                    results_dict['true_params'].extend(loaded_results['true_params'])
-                    results_dict['treatment_effects'].extend(loaded_results['treatment_effects'])
-                    results_dict['treatment_effects_iv'].extend(loaded_results['treatment_effects_iv'])
-                    results_dict['mccs'].extend(loaded_results['mccs'])
-                    break
-
-                S, X, true_params = generate_ica_data(batch_size=n_samples,
-                                                      n_covariates=n_covariates,
+    if os.path.exists(results_file):
+        print(f"Results file '{results_file}' already exists. Loading data.")
+        loaded_results = np.load(results_file, allow_pickle=True).item()
+        results_dict['sample_sizes'].extend(loaded_results['sample_sizes'])
+        results_dict['n_covariates'].extend(loaded_results['n_covariates'])
+        results_dict['n_treatments'].extend(loaded_results['n_treatments'])
+        results_dict['true_params'].extend(loaded_results['true_params'])
+        results_dict['treatment_effects'].extend(loaded_results['treatment_effects'])
+        results_dict['treatment_effects_iv'].extend(loaded_results['treatment_effects_iv'])
+        results_dict['mccs'].extend(loaded_results['mccs'])
+    else:
+        for n_samples in sample_sizes:
+            for n_covariates in n_dims:
+                for n_treatment in n_treatments:
+                    S, X, true_params = generate_ica_data(batch_size=n_samples,
+                                                          n_covariates=n_covariates,
                                                       n_treatments=n_treatment,
                                                       slope=1.,
                                                       sparse_prob=0.4)
@@ -189,13 +203,13 @@ def main_multi():
 
     import seaborn as sns
 
-    def plot_heatmap(data, x_labels, y_labels, x_label, y_label, title, filename):
+    def plot_heatmap(data, x_labels, y_labels, x_label, y_label, title, filename,  center=0):
         plt.figure(figsize=(10, 8))
-        sns.heatmap(data, xticklabels=x_labels, yticklabels=y_labels, cmap="coolwarm", annot=True, fmt=".2f")
+        sns.heatmap(data, xticklabels=x_labels, yticklabels=y_labels, cmap="coolwarm", annot=True, fmt=".2f",  center=center)
         plt.xlabel(x_label)
         plt.ylabel(y_label)
         # plt.title(title)
-        plt.tight_layout()
+        # plt.tight_layout()
         plt.savefig(filename)
         plt.close()
     # Refactored data filtering for heatmap preparation
@@ -214,37 +228,61 @@ def main_multi():
     # Prepare data for heatmap: x-axis is number of treatments, y-axis is sample size, covariate dimension is 10
     covariate_dimension = 10
     treatment_effect_diff = {}
+    treatment_effect_ica = {}
     for n_samples in set(results_dict['sample_sizes']):
         for n_treatment in set(results_dict['n_treatments']):
             indices = filter_indices(results_dict, n_samples, n_treatment, covariate_dimension)
             if indices:
                 diff = calculate_treatment_effect_diff(results_dict, indices)
                 treatment_effect_diff[(n_samples, n_treatment)] = diff
+                # Calculate ICA error only
+                est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
+                true_params = [results_dict['true_params'][i] for i in indices]
+                ica_error = np.nanmean([np.linalg.norm(est_ica - true.numpy()) for est_ica, true in zip(est_params_ica, true_params)])
+                treatment_effect_ica[(n_samples, n_treatment)] = ica_error
 
-    # Create heatmap data
-    sample_sizes = sorted(set(results_dict['sample_sizes']))
+    # Create heatmap data for difference
+    sample_sizes = sorted(set(results_dict['sample_sizes']), reverse=True)
     num_treatments = sorted(set(results_dict['n_treatments']))
     heatmap_data = np.array([[treatment_effect_diff.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
 
-    plot_heatmap(heatmap_data, num_treatments, sample_sizes, 'Number of Treatments', 'Sample Size',
-                 'Difference in Treatment Effects (Covariate Dimension = 10)', 'heatmap_multi_treatments_vs_samples.svg')
+    plot_heatmap(heatmap_data, num_treatments, sample_sizes, r'$|T|$', r'$n$',
+                 'Difference in Treatment Effects (Covariate Dimension = 10)', 'heatmap_multi_treatments_vs_samples.svg', center=0)
+
+    # Create heatmap data for ICA error only
+    heatmap_data_ica = np.array([[treatment_effect_ica.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
+
+    plot_heatmap(heatmap_data_ica, num_treatments, sample_sizes, r'$|T|$', r'$n$',
+                 'ICA Error (Covariate Dimension = 10)', 'heatmap_ica_treatments_vs_samples.svg', center=None)
 
     # Prepare data for heatmap: x-axis is dimension, y-axis is sample size, number of treatments is 2
     num_treatments_fixed = 2
     treatment_effect_diff_dim = {}
+    treatment_effect_ica_dim = {}
     for n_samples in set(results_dict['sample_sizes']):
         for dimension in set(results_dict['n_covariates']):
             indices = filter_indices(results_dict, n_samples, num_treatments_fixed, dimension)
             if indices:
                 diff = calculate_treatment_effect_diff(results_dict, indices)
                 treatment_effect_diff_dim[(n_samples, dimension)] = diff
+                # Calculate ICA error only
+                est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
+                true_params = [results_dict['true_params'][i] for i in indices]
+                ica_error = np.nanmean([np.linalg.norm(est_ica - true.numpy()) for est_ica, true in zip(est_params_ica, true_params)])
+                treatment_effect_ica_dim[(n_samples, dimension)] = ica_error
 
-    # Create heatmap data
+    # Create heatmap data for difference
     dimensions = sorted(set(results_dict['n_covariates']))
     heatmap_data_dim = np.array([[treatment_effect_diff_dim.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
 
-    plot_heatmap(heatmap_data_dim, dimensions, sample_sizes, 'Covariate Dimension', 'Sample Size',
-                 'Difference in Treatment Effects (Number of Treatments = 2)', 'heatmap_multi_dimensions_vs_samples.svg')
+    plot_heatmap(heatmap_data_dim, dimensions, sample_sizes, r'$\dim X$', r'$n$',
+                 'Difference in Treatment Effects (Number of Treatments = 2)', 'heatmap_multi_dimensions_vs_samples.svg', center=0)
+
+    # Create heatmap data for ICA error only
+    heatmap_data_ica_dim = np.array([[treatment_effect_ica_dim.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
+
+    plot_heatmap(heatmap_data_ica_dim, dimensions, sample_sizes, r'$\dim X$', r'$n$',
+                 'ICA Error (Number of Treatments = 2)', 'heatmap_ica_dimensions_vs_samples.svg', center=None)
       
 
 def main_nonlinear():
@@ -293,6 +331,7 @@ def main_nonlinear():
                     results_dict['mccs'].append(mcc)
 
     # Save results dictionary
+    import numpy as np
     np.save('results_main_nonlinear.npy', results_dict)
 
     import matplotlib.pyplot as plt
@@ -347,36 +386,6 @@ def main_nonlinear():
         plt.close()
 
 
-def bart_treatment_effect_estimation(X, n_covariates, n_treatment):
-    treatment_indices = torch.arange(n_covariates, n_covariates + n_treatment)
-    # Train the BART model
-    bart_model = SklearnModel(
-        n_trees=(n_covariates + n_treatment),
-        n_chains=3,
-        n_burn=2000,
-        n_samples=5000
-    )
-    # bart_model = ResidualBART(base_estimator=LinearRegression())
-    # input is all X and T
-    bart_model.fit(X[:, :-1].numpy(), X[:, -1].numpy())
-
-    # Create a range of treatment values
-    treatment_range = np.linspace(X[:, treatment_indices].min(axis=0)[0], X[:, treatment_indices].max(axis=0)[0], 100)
-    X_pred = torch.zeros((100, n_covariates + n_treatment))
-    X_pred[:, :n_covariates] = X[:, :n_covariates].mean()
-    X_pred[:, treatment_indices] = torch.from_numpy(treatment_range).reshape(-1, n_treatment).float()
-    # Predict outcomes for the treatment range
-    predicted_Y = bart_model.predict(X_pred.numpy())
-
-    # Fit a linear regression model to estimate the slope of predicted_Y vs treatment
-    model = LinearRegression()
-    model.fit(treatment_range, predicted_Y)
-    # Extract the slope from the model
-    treatment_effects = model.coef_
-
-    return treatment_effects
-
-
 
 def main_fun():
     import matplotlib.pyplot as plt
@@ -427,6 +436,7 @@ def main_fun():
             results_dict['fun_options'].append(fun)
 
     # Save results dictionary
+    import numpy as np
     np.save('results_main_fun.npy', results_dict)
 
     import matplotlib.pyplot as plt
@@ -476,264 +486,155 @@ def main_fun():
     plt.close()
 
 
-def main_sparsity():
-    import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
+def setup_plot():
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
 
-    n_samples = 5000
-    n_covariates = 50
-    n_treatment = 1
-    n_seeds = 20
-    sparsities = [0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
+def initialize_results_dict(keys):
+    return {key: [] for key in keys}
 
-    # Initialize dictionary to store results
-    results_dict = {
-        'sample_sizes': [],
-        'n_covariates': [],
-        'n_treatments': [],
-        'true_params': [],
-        'treatment_effects': [],
-        'treatment_effects_iv': [],
-        'mccs': [],
-        'sparsities' : []
-    }
+def save_results(filename, results_dict):
+    np.save(filename, results_dict)
 
-    for sparsity in sparsities:
-        S, X, true_params = generate_ica_data(batch_size=n_samples,
-                                              n_covariates=n_covariates,
-                                              n_treatments=n_treatment,
-                                              slope=1.,
-                                              sparse_prob=sparsity)
+def calculate_mse(true_params, est_params):
+    if est_params is not None:
+        errors = [np.linalg.norm(est - true) for est, true in zip(est_params, true_params)]
+        return np.mean(errors)
+    return np.nan
 
-        for seed in range(n_seeds):
-            treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
-                                                                     random_state=seed,
-                                                                     check_convergence=False,
-                                                                     n_treatments=n_treatment)
-
-            # Store results in dictionary
-            results_dict['sample_sizes'].append(n_samples)
-            results_dict['n_covariates'].append(n_covariates)
-            results_dict['n_treatments'].append(n_treatment)
-            results_dict['true_params'].append(true_params)
-            results_dict['treatment_effects'].append(treatment_effects)
-            results_dict['mccs'].append(mcc)
-            results_dict['sparsities'].append(sparsity)
-
-    # Save results dictionary
-    np.save('results_main_sparsity.npy', results_dict)
-
-    import matplotlib.pyplot as plt
-    import numpy as np
+def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, x_ticks=None):
     plt.figure(figsize=(10, 6))
+    bar_positions = np.arange(len(x_values))
+    plt.errorbar(bar_positions, means, yerr=std_devs, fmt='o', capsize=5)
+    plt.xticks(bar_positions, x_ticks if x_ticks else x_values)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.yscale('log')
+    plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
+    plt.savefig(filename)
+    plt.close()
 
+def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename):
+    plt.figure(figsize=(12, 9))
+    sns.heatmap(data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap="viridis", annot=True, annot_kws={"size": 8})
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.yticks(ticks=plt.yticks()[0], labels=[f'{x:.1f}' for x in plt.yticks()[0]])
+    plt.savefig(filename)
+    plt.close()
 
-    # Process data based on 'sparsity' and calculate MSE
+def main_sparsity():
+    setup_plot()
+    results_file = 'results_main_sparsity.npy'
+    import os
+    if os.path.exists(results_file):
+        print(f"Results file '{results_file}' already exists. Loading data.")
+        results_dict = np.load(results_file, allow_pickle=True).item()
+    else:
+        n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+        sparsities = np.linspace(0, 0.95, num=11)
+        results_dict = initialize_results_dict(['sample_sizes', 'n_covariates', 'n_treatments', 'true_params', 'treatment_effects', 'mccs', 'sparsities'])
+
+        for sparsity in sparsities:
+            S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=1., sparse_prob=sparsity)
+            for seed in range(n_seeds):
+                treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment)
+                results_dict['sample_sizes'].append(n_samples)
+                results_dict['n_covariates'].append(n_covariates)
+                results_dict['n_treatments'].append(n_treatment)
+                results_dict['true_params'].append(true_params)
+                results_dict['treatment_effects'].append(treatment_effects)
+                results_dict['mccs'].append(mcc)
+                results_dict['sparsities'].append(sparsity)
+
+        save_results(results_file, results_dict)
+
     mse_by_sparsity = {sparsity: [] for sparsity in set(results_dict['sparsities'])}
     for true_param, est_param, sparsity_label in zip(results_dict['true_params'], results_dict['treatment_effects'], results_dict['sparsities']):
-        if est_param is not None:  # Handle cases where estimation failed
-            errors = [np.linalg.norm(est - true) for est, true in zip(est_param, true_param)]
-            mse_by_sparsity[sparsity_label].append(np.mean(errors))
-        else:
-            mse_by_sparsity[sparsity_label].append(np.nan)
+        mse_by_sparsity[sparsity_label].append(calculate_mse(true_param, est_param))
 
-    # Calculate mean and standard deviation for each 'sparsity'
     sorted_sparsities = sorted(set(results_dict['sparsities']))
     means = [np.mean(mse_by_sparsity[sparsity]) for sparsity in sorted_sparsities]
     std_devs = [np.std(mse_by_sparsity[sparsity]) for sparsity in sorted_sparsities]
 
-    # Create an error bar plot for each 'sparsity' on the x-axis
-    bar_positions = np.arange(len(sorted_sparsities))
-
-    plt.errorbar(
-        bar_positions,
-        means,
-        yerr=std_devs,
-        fmt='o',
-        capsize=5,
-        label=f'{n_treatment} (ICA)'
-    )
-    plt.xticks(bar_positions, sorted_sparsities)
-    plt.xlabel(r'Sparsity of $\mathrm{\mathbf{A}}$')
-
-    # plt.legend(loc='lower center', ncol=int(n_treatment/2), bbox_to_anchor=(0.5, -0.15))
-
-    # # plt.xscale('log')
-    # plt.yscale('log')
-    # plt.xlabel(r'$\dim X$')
-    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
-    # plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
-    # plt.legend()
-    # plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
-
-    plt.savefig(f'ica_mse_vs_dim_sparsity.svg')
-    plt.close()
-
-
+    plot_error_bars(sorted_sparsities, means, std_devs, r'Sparsity of $\mathrm{\mathbf{A}}$', r'$\Vert\theta-\hat{\theta} \Vert_2$', 'ica_mse_vs_dim_sparsity.svg')
 
 def main_gennorm():
-    import matplotlib.pyplot as plt
-    plt.rcParams.update(bundles.icml2022(usetex=True))
-    plot_typography()
+    setup_plot()
+    results_file = 'results_main_gennorm.npy'
+    import os
+    if os.path.exists(results_file):
+        print(f"Results file '{results_file}' already exists. Loading data.")
+        results_dict = np.load(results_file, allow_pickle=True).item()
+    else:
+        n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+        beta_values = np.linspace(0.5, 5, num=10)
+        results_dict = initialize_results_dict(['sample_sizes', 'n_covariates', 'n_treatments', 'true_params', 'treatment_effects', 'mccs', 'beta_values'])
 
-    n_samples = 5000
-    n_covariates = 50
-    n_treatment = 1
-    n_seeds = 20
+        for beta in beta_values:
+            S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=1., sparse_prob=0.4, beta=beta)
+            for seed in range(n_seeds):
+                treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment)
+                results_dict['sample_sizes'].append(n_samples)
+                results_dict['n_covariates'].append(n_covariates)
+                results_dict['n_treatments'].append(n_treatment)
+                results_dict['true_params'].append(true_params)
+                results_dict['treatment_effects'].append(treatment_effects)
+                results_dict['mccs'].append(mcc)
+                results_dict['beta_values'].append(beta)
 
-    # Initialize dictionary to store results
-    results_dict = {
-        'sample_sizes': [],
-        'n_covariates': [],
-        'n_treatments': [],
-        'true_params': [],
-        'treatment_effects': [],
-        'treatment_effects_iv': [],
-        'mccs': [],
-        'beta_values': []
-    }
-    import numpy as np
-    beta_values = np.linspace(0.5, 5, num=10)  # Generate beta values from 0.5 to 5
+        save_results(results_file, results_dict)
 
-    for beta in beta_values:
-        S, X, true_params = generate_ica_data(batch_size=n_samples,
-                                              n_covariates=n_covariates,
-                                              n_treatments=n_treatment,
-                                              slope=1.,
-                                              sparse_prob=0.4,
-                                              beta=beta)
-
-        for seed in range(n_seeds):
-            treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
-                                                                     random_state=seed,
-                                                                     check_convergence=False,
-                                                                     n_treatments=n_treatment,
-                                                                     )
-
-            # Store results in dictionary
-            results_dict['sample_sizes'].append(n_samples)
-            results_dict['n_covariates'].append(n_covariates)
-            results_dict['n_treatments'].append(n_treatment)
-            results_dict['true_params'].append(true_params)
-            results_dict['treatment_effects'].append(treatment_effects)
-            results_dict['mccs'].append(mcc)
-            results_dict['beta_values'].append(beta)
-
-    # Save results dictionary
-    np.save('results_main_gennorm.npy', results_dict)
-
-    import matplotlib.pyplot as plt
-    import numpy as np
-    plt.figure(figsize=(10, 6))
-
-
-
-
-    # Plot curves for each beta value
     for beta in set(results_dict['beta_values']):
-        # Filter results for this beta value
         indices = [i for i, b in enumerate(results_dict['beta_values']) if b == beta]
-
         true_params = [results_dict['true_params'][i] for i in indices]
         est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
+        mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
+        plt.errorbar(beta, np.nanmean(mse), yerr=np.nanstd(mse), fmt='o-', capsize=5, label=f'{beta:.2f}')
 
-        # Calculate MSE for each beta
-        mse = []
-
-        for true_param, est_param in zip(true_params, est_params_ica):
-            if est_param is not None:  # Handle cases where estimation failed
-                errors = [np.linalg.norm(est - true) for est, true in zip(est_param, true_param)]
-                mse.append(np.mean(errors))
-            else:
-                mse.append(np.nan)
-
-        mse = np.array(mse)
-
-        plt.errorbar(beta, np.mean(mse), 
-                     yerr=np.std(mse),
-                     fmt='o-', capsize=5,
-                     label=f'{beta:.2f}')
-
-    plt.rcParams.update(bundles.icml2022(usetex=True))
-    plot_typography()
     plt.yscale('log')
     plt.xlabel(r'$\beta$')
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=plt.xticks()[0], labels=[f'{x:.1f}' for x in plt.xticks()[0]])
-    # plt.tight_layout()
     plt.legend()
-
     plt.savefig(f'ica_mse_vs_beta_n{n_samples}.svg')
     plt.close()
 
-
-
 def main_loc_scale():
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import seaborn as sns
-    plt.rcParams.update(bundles.icml2022(usetex=True))
-    plot_typography()
+    setup_plot()
+    results_file = 'results_main_loc_scale.npy'
+    import os
+    if os.path.exists(results_file):
+        print(f"Results file '{results_file}' already exists. Loading data.")
+        results_dict = np.load(results_file, allow_pickle=True).item()
+    else:
+        n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+        loc_values = np.linspace(-5, 5, num=10)
+        scale_values = np.linspace(0.5, 5, num=10)
+        results_dict = initialize_results_dict(['loc_values', 'scale_values', 'mse_values'])
 
-    n_samples = 5000
-    n_covariates = 50
-    n_treatment = 1
-    n_seeds = 20
+        for loc in loc_values:
+            for scale in scale_values:
+                mse_list = []
+                for seed in range(n_seeds):
+                    S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=1., sparse_prob=0.4, beta=1.0, loc=loc, scale=scale)
+                    treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment)
+                    mse_list.append(calculate_mse(true_params, treatment_effects))
 
-    # Initialize dictionary to store results
-    results_dict = {
-        'loc_values': [],
-        'scale_values': [],
-        'mse_values': []
-    }
+                avg_mse = np.nanmean(mse_list)
+                results_dict['loc_values'].append(loc)
+                results_dict['scale_values'].append(scale)
+                results_dict['mse_values'].append(avg_mse)
 
-    loc_values = np.linspace(-5, 5, num=10)
-    scale_values = np.linspace(0.5, 5, num=10)
+        save_results(results_file, results_dict)
 
-    for loc in loc_values:
-        for scale in scale_values:
-            mse_list = []
-            for seed in range(n_seeds):
-                S, X, true_params = generate_ica_data(batch_size=n_samples,
-                                                      n_covariates=n_covariates,
-                                                      n_treatments=n_treatment,
-                                                      slope=1.,
-                                                      sparse_prob=0.4,
-                                                      beta=1.0,
-                                                      loc=loc,
-                                                      scale=scale)
-
-                treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
-                                                                         random_state=seed,
-                                                                         check_convergence=False,
-                                                                         n_treatments=n_treatment)
-
-                if treatment_effects is not None:
-                    errors = [np.linalg.norm(est - true) for est, true in zip(treatment_effects, true_params)]
-                    mse_list.append(np.mean(errors))
-
-            # Store average MSE for this loc and scale
-            avg_mse = np.nanmean(mse_list)
-            results_dict['loc_values'].append(loc)
-            results_dict['scale_values'].append(scale)
-            results_dict['mse_values'].append(avg_mse)
-
-    # Save results dictionary
-    np.save('results_main_loc_scale.npy', results_dict)
-
-    # Create a heatmap of MSE values
     mse_matrix = np.array(results_dict['mse_values']).reshape(len(loc_values), len(scale_values))
-    plt.figure(figsize=(12, 9))  # Increased figure size
-    sns.heatmap(mse_matrix, xticklabels=scale_values, yticklabels=loc_values, cmap="viridis", annot=True, annot_kws={"size": 8})  # Decreased annotation text size
-    plt.xlabel('Scale')
-    plt.ylabel('Location')
-    plt.yticks(ticks=plt.yticks()[0], labels=[f'{x:.1f}' for x in plt.yticks()[0]])
-    # plt.title('MSE Heatmap for Loc and Scale')
-    # plt.tight_layout()
-    plt.savefig(f'ica_mse_heatmap_loc_scale_n{n_samples}.svg')
-    plt.close()
+    plot_heatmap(mse_matrix, scale_values, loc_values, 'Scale', 'Location', f'ica_mse_heatmap_loc_scale_n{n_samples}.svg')
 
 
 
@@ -741,8 +642,8 @@ if __name__ == "__main__":
 
 
 
-    print("Running multiple treatment effect estimation with ICA...")
-    main_multi()
+    # print("Running multiple treatment effect estimation with ICA...")
+    # main_multi()
 
     # print("Running treatment effect estimation with ICA in nonlinear PLR...")
     # main_nonlinear()
@@ -756,6 +657,6 @@ if __name__ == "__main__":
     # print("Running the gennorm ablation for treatment effect estimation with ICA...")
     # main_gennorm()
 
-    # print("Running the loc scale ablation for treatment effect estimation with ICA...")
-    # main_loc_scale()
+    print("Running the loc scale ablation for treatment effect estimation with ICA...")
+    main_loc_scale()
 
