@@ -232,80 +232,42 @@ def main(args):
     import seaborn as sns
     import matplotlib.pyplot as plt
 
+    def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename, output_dir, cmap="coolwarm"):
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap=cmap, annot=True)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches='tight')
+        plt.close()
 
-    # Prepare data for heatmap: sample size vs dim
-    bias_diff_matrix_dim = np.zeros((len(set([res['n_samples'] for res in all_results])), len(set([res['support_size'] for res in all_results]))))
-    sample_sizes = sorted(set([res['n_samples'] for res in all_results]), reverse=True)
-    support_sizes = sorted(set([res['support_size'] for res in all_results]))
+    def prepare_heatmap_data(all_results, x_key, y_key, value_key, diff_index=None):
+        x_values = sorted(set([res[x_key] for res in all_results]))
+        y_values = sorted(set([res[y_key] for res in all_results]), reverse=True)
+        data_matrix = np.zeros((len(y_values), len(x_values)))
 
-    for i, n_samples in enumerate(sample_sizes):
-        for j, support_size in enumerate(support_sizes):
-            # ICA - 'HOML (Split)'
-            bias_diffs = [res['biases'][-1] - res['biases'][3] for res in all_results if res['n_samples'] == n_samples and res['support_size'] == support_size]
-            if bias_diffs:
-                bias_diff_matrix_dim[i, j] = np.mean(bias_diffs)
+        for i, x_val in enumerate(x_values):
+            for j, y_val in enumerate(y_values):
+                if diff_index is not None:
+                    diffs = [res[value_key][-1] - res[value_key][diff_index] for res in all_results if res[x_key] == x_val and res[y_key] == y_val]
+                else:
+                    diffs = [res[value_key][-1] for res in all_results if res[x_key] == x_val and res[y_key] == y_val]
+                if diffs:
+                    data_matrix[j, i] = np.mean(diffs)
 
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(bias_diff_matrix_dim, xticklabels=support_sizes, yticklabels=sample_sizes, cmap="coolwarm", annot=True)
-    plt.xlabel(r'$\dim X$')
-    plt.ylabel(r'$n$')
-    # plt.title('Bias Difference (ICA - HOML Split): Sample Size vs Dim')
-    plt.savefig(os.path.join(opts.output_dir, 'bias_diff_heatmap_sample_size_vs_dim.svg'), dpi=300, bbox_inches='tight')
-    plt.close()
+        return data_matrix, x_values, y_values
 
-    # Prepare data for heatmap: sample size vs beta
-    bias_diff_matrix_beta = np.zeros((len(sample_sizes), len(set([res['beta'] for res in all_results]))))
-    betas = sorted(set([res['beta'] for res in all_results]))
+    # Plot heatmaps
+    bias_diff_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(all_results,'support_size', 'n_samples',  'biases', diff_index=3)
+    plot_heatmap(bias_diff_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim.svg', opts.output_dir)
 
-    for i, n_samples in enumerate(sample_sizes):
-        for j, beta in enumerate(betas):
-            # ICA - 'HOML (Split)'
-            bias_diffs = [res['biases'][-1] - res['biases'][3] for res in all_results if res['n_samples'] == n_samples and res['beta'] == beta]
-            if bias_diffs:
-                bias_diff_matrix_beta[i, j] = np.mean(bias_diffs)
+    bias_diff_matrix_beta, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta','n_samples',  'biases', diff_index=3)
+    plot_heatmap(bias_diff_matrix_beta, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta.svg', opts.output_dir)
 
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(bias_diff_matrix_beta, xticklabels=betas, yticklabels=sample_sizes, cmap="coolwarm", annot=True)
-    plt.xlabel(r'$\beta$')
-    plt.ylabel(r'$n$')
-    # plt.title('Bias Difference (ICA - HOML Split): Sample Size vs Beta')
-    plt.savefig(os.path.join(opts.output_dir, 'bias_diff_heatmap_sample_size_vs_beta.svg'), dpi=300, bbox_inches='tight')
-    plt.close()
+    ica_bias_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(all_results,  'support_size', 'n_samples', 'biases')
+    plot_heatmap(ica_bias_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim.svg', opts.output_dir)
 
-    # Prepare data for ICA bias heatmap: sample size vs dim
-    ica_bias_matrix_dim = np.zeros(
-        (len(set([res['n_samples'] for res in all_results])), len(set([res['support_size'] for res in all_results]))))
-
-    for i, n_samples in enumerate(sample_sizes):
-        for j, support_size in enumerate(support_sizes):
-            ica_biases = [res['biases'][-1] for res in all_results if
-                          res['n_samples'] == n_samples and res['support_size'] == support_size]
-            if ica_biases:
-                ica_bias_matrix_dim[i, j] = np.mean(ica_biases)
-
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(ica_bias_matrix_dim, xticklabels=support_sizes, yticklabels=sample_sizes, cmap="coolwarm", annot=True)
-    plt.xlabel(r'$\dim X$')
-    plt.ylabel(r'$n$')
-    plt.savefig(os.path.join(opts.output_dir, 'ica_bias_heatmap_sample_size_vs_dim.svg'), dpi=300, bbox_inches='tight')
-    plt.close()
-
-    # Prepare data for ICA bias heatmap: sample size vs beta
-    ica_bias_matrix_beta = np.zeros((len(sample_sizes), len(set([res['beta'] for res in all_results]))))
-
-    for i, n_samples in enumerate(sample_sizes):
-        for j, beta in enumerate(betas):
-            ica_biases = [res['biases'][-1] for res in all_results if
-                          res['n_samples'] == n_samples and res['beta'] == beta]
-            if ica_biases:
-                ica_bias_matrix_beta[i, j] = np.mean(ica_biases)
-
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(ica_bias_matrix_beta, xticklabels=betas, yticklabels=sample_sizes, cmap="coolwarm", annot=True)
-    plt.xlabel(r'$\beta$')
-    plt.ylabel(r'$n$')
-    plt.savefig(os.path.join(opts.output_dir, 'ica_bias_heatmap_sample_size_vs_beta.svg'), dpi=300, bbox_inches='tight')
-    plt.close()
+    ica_bias_matrix_beta, betas, sample_sizes = prepare_heatmap_data(all_results,  'beta', 'n_samples', 'biases')
+    plot_heatmap(ica_bias_matrix_beta, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta.svg', opts.output_dir)
 
     # Prepare data for scatter plot
     filtered_results = all_results
