@@ -232,42 +232,50 @@ def main(args):
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename, output_dir, cmap="coolwarm"):
+    def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename, output_dir, cmap="coolwarm", center=None):
         plt.figure(figsize=(10, 8))
-        sns.heatmap(data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap=cmap, annot=True)
+        # Set the midpoint of the color scale to the specified center if provided
+        sns.heatmap(data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap=cmap, annot=True, center=center)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches='tight')
         plt.close()
 
-    def prepare_heatmap_data(all_results, x_key, y_key, value_key, diff_index=None):
-        x_values = sorted(set([res[x_key] for res in all_results]))
-        y_values = sorted(set([res[y_key] for res in all_results]), reverse=True)
+    def prepare_heatmap_data(all_results, x_key, y_key, value_key, diff_index=None, beta_filter=None, support_size_filter=None):
+        x_values = sorted(set([res[x_key] for res in all_results if (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter)]))
+        y_values = sorted(set([res[y_key] for res in all_results if (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter)]), reverse=True)
         data_matrix = np.zeros((len(y_values), len(x_values)))
 
         for i, x_val in enumerate(x_values):
             for j, y_val in enumerate(y_values):
                 if diff_index is not None:
-                    diffs = [res[value_key][-1] - res[value_key][diff_index] for res in all_results if res[x_key] == x_val and res[y_key] == y_val]
+                    diffs = [res[value_key][-1] - res[value_key][diff_index] for res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter))]
                 else:
-                    diffs = [res[value_key][-1] for res in all_results if res[x_key] == x_val and res[y_key] == y_val]
+                    diffs = [res[value_key][-1] for res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter))]
                 if diffs:
                     data_matrix[j, i] = np.mean(diffs)
 
         return data_matrix, x_values, y_values
 
-    # Plot heatmaps
-    bias_diff_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(all_results,'support_size', 'n_samples',  'biases', diff_index=3)
-    plot_heatmap(bias_diff_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim.svg', opts.output_dir)
+    # Plot heatmaps for comparison with HOML Split, filtered for beta=1
+    bias_diff_matrix_dim_homl, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=3, beta_filter=1)
+    plot_heatmap(bias_diff_matrix_dim_homl, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl.svg', opts.output_dir, center=0)
 
-    bias_diff_matrix_beta, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta','n_samples',  'biases', diff_index=3)
-    plot_heatmap(bias_diff_matrix_beta, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta.svg', opts.output_dir)
+    bias_diff_matrix_beta_homl, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=3, support_size_filter=10)
+    plot_heatmap(bias_diff_matrix_beta_homl, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl.svg', opts.output_dir, center=0)
 
-    ica_bias_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(all_results,  'support_size', 'n_samples', 'biases')
-    plot_heatmap(ica_bias_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim.svg', opts.output_dir)
+    # Plot heatmaps for comparison with OML, filtered for beta=1
+    bias_diff_matrix_dim_oml, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=0, beta_filter=1)
+    plot_heatmap(bias_diff_matrix_dim_oml, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml.svg', opts.output_dir, center=0)
 
-    ica_bias_matrix_beta, betas, sample_sizes = prepare_heatmap_data(all_results,  'beta', 'n_samples', 'biases')
-    plot_heatmap(ica_bias_matrix_beta, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta.svg', opts.output_dir)
+    bias_diff_matrix_beta_oml, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=0, support_size_filter=10)
+    plot_heatmap(bias_diff_matrix_beta_oml, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_oml.svg', opts.output_dir, center=0)
+
+    ica_bias_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', beta_filter=1)
+    plot_heatmap(ica_bias_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim.svg', opts.output_dir, center=None)
+
+    ica_bias_matrix_beta, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', support_size_filter=10)
+    plot_heatmap(ica_bias_matrix_beta, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta.svg', opts.output_dir, center=None)
 
     # Prepare data for scatter plot
     filtered_results = all_results
@@ -284,17 +292,12 @@ def main(args):
     plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_non_gauss_vs_sigma_diff.svg'), dpi=300, bbox_inches='tight')
     plt.close()
     
-    # Save all results in a structured format using numpy, including noise parameters
+
     import numpy as np
     import os
 
     # Define the output file path
     results_file_path = os.path.join(opts.output_dir, f'all_results_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}.npy')
-
-
-
-
-    # Save the results as a numpy file
     np.save(results_file_path, all_results)
 
     print(f"All results with noise parameters have been saved to {results_file_path}")
