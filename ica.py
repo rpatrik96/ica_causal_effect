@@ -95,7 +95,7 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
     return treatment_effect_estimate, results["permutation_disentanglement_score"]
 
 
-def main():
+def main_multi():
     import matplotlib.pyplot as plt
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
@@ -115,10 +115,24 @@ def main():
         'treatment_effects_iv': [],
         'mccs': []
     }
+    import os
+
+    results_file = 'results_multi_treatment.npy'
 
     for n_samples in sample_sizes:
         for n_covariates in n_dims:
             for n_treatment in n_treatments:
+                if os.path.exists(results_file):
+                    print(f"Results file '{results_file}' already exists. Loading data.")
+                    loaded_results = np.load(results_file, allow_pickle=True).item()
+                    results_dict['sample_sizes'].extend(loaded_results['sample_sizes'])
+                    results_dict['n_covariates'].extend(loaded_results['n_covariates'])
+                    results_dict['n_treatments'].extend(loaded_results['n_treatments'])
+                    results_dict['true_params'].extend(loaded_results['true_params'])
+                    results_dict['treatment_effects'].extend(loaded_results['treatment_effects'])
+                    results_dict['treatment_effects_iv'].extend(loaded_results['treatment_effects_iv'])
+                    results_dict['mccs'].extend(loaded_results['mccs'])
+                    break
 
                 S, X, true_params = generate_ica_data(batch_size=n_samples,
                                                       n_covariates=n_covariates,
@@ -167,70 +181,71 @@ def main():
                     results_dict['treatment_effects_iv'].append(treatment_effects_iv)
                     results_dict['mccs'].append(mcc)
 
+    # Save results dictionary
+    np.save(results_file, results_dict)
+
     import matplotlib.pyplot as plt
     import numpy as np
 
-    # Create plots for each sample size
-    for n_samples in set(results_dict['sample_sizes']):
-        plt.figure(figsize=(10, 6))
+    import seaborn as sns
 
-        # Plot curves for each number of treatments
-        for n_treatment in set(results_dict['n_treatments']):
-            # Filter results for this sample size and number of treatments
-            indices = [i for i, (s, t) in enumerate(zip(results_dict['sample_sizes'], results_dict['n_treatments']))
-                       if s == n_samples and t == n_treatment]
-
-            dimensions = [results_dict['n_covariates'][i] for i in indices]
-            true_params = [results_dict['true_params'][i] for i in indices]
-            est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
-            est_params_iv = [results_dict['treatment_effects_iv'][i] for i in indices]
-
-            # Calculate MSE for each dimension
-            mse = {dim: [] for dim in set(dimensions)}
-            mse_iv = {dim: [] for dim in set(dimensions)}
-            for dim, true_param, est_param, est_param_iv in zip(dimensions, true_params, est_params_ica, est_params_iv):
-                if est_param is not None:  # Handle cases where estimation failed
-                    errors = [np.linalg.norm(est - true) for est, true in zip(est_param, true_param)]
-                    mse[dim].append(np.mean(errors))
-                else:
-                    mse[dim].append(np.nan)
-
-                if est_param_iv is not None:  # Handle cases where estimation failed
-                    errors_iv = [np.linalg.norm(est - true) for est, true in zip(est_param_iv, true_param)]
-                    mse_iv[dim].append(np.mean(errors_iv))
-                else:
-                    mse_iv[dim].append(np.nan)
-
-            for dim in sorted(mse.keys()):
-                mse[dim] = np.array(mse[dim])
-                mse_iv[dim] = np.array(mse_iv[dim])
-
-            # Plot ICA error bars
-            sorted_mse_keys = sorted(mse.keys())
-            ica_handle = plt.errorbar(sorted_mse_keys, np.mean([mse[key] for key in sorted_mse_keys], axis=1), 
-                                      yerr=np.std([mse[key] for key in sorted_mse_keys], axis=1),
-                                      fmt='o-', capsize=5, label=f'{n_treatment} (ICA)')
-
-            # Plot IV error bars
-            sorted_mse_iv_keys = sorted(mse_iv.keys())
-            iv_handle = plt.errorbar(sorted_mse_iv_keys, np.mean([mse_iv[key] for key in sorted_mse_iv_keys], axis=1),
-                                     yerr=np.std([mse_iv[key] for key in sorted_mse_iv_keys], axis=1),
-                                     fmt='o-', capsize=5, label=f'{n_treatment}')
-
-
-        plt.legend(loc='lower center', ncol=int(n_treatment/2), bbox_to_anchor=(0.5, -0.15))
-
-        # plt.xscale('log')
-        plt.yscale('log')
-        plt.xlabel(r'$\dim X$')
-        plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
-        plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
-        plt.legend()
-        plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
-
-        plt.savefig(f'ica_iv_mse_vs_dim_n{n_samples}.svg')
+    def plot_heatmap(data, x_labels, y_labels, x_label, y_label, title, filename):
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(data, xticklabels=x_labels, yticklabels=y_labels, cmap="coolwarm", annot=True, fmt=".2f")
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        # plt.title(title)
+        plt.tight_layout()
+        plt.savefig(filename)
         plt.close()
+    # Refactored data filtering for heatmap preparation
 
+    def filter_indices(results_dict, sample_size, treatment_count=None, covariate_dim=None):
+        return [
+            i for i, (s, t, d) in enumerate(zip(results_dict['sample_sizes'], results_dict['n_treatments'], results_dict['n_covariates']))
+            if s == sample_size and (treatment_count is None or t == treatment_count) and (covariate_dim is None or d == covariate_dim)
+        ]
+
+    def calculate_treatment_effect_diff(results_dict, indices):
+        est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
+        est_params_iv = [results_dict['treatment_effects_iv'][i] for i in indices]
+        return np.nanmean([np.linalg.norm(est_ica - est_iv) for est_ica, est_iv in zip(est_params_ica, est_params_iv)])
+
+    # Prepare data for heatmap: x-axis is number of treatments, y-axis is sample size, covariate dimension is 10
+    covariate_dimension = 10
+    treatment_effect_diff = {}
+    for n_samples in set(results_dict['sample_sizes']):
+        for n_treatment in set(results_dict['n_treatments']):
+            indices = filter_indices(results_dict, n_samples, n_treatment, covariate_dimension)
+            if indices:
+                diff = calculate_treatment_effect_diff(results_dict, indices)
+                treatment_effect_diff[(n_samples, n_treatment)] = diff
+
+    # Create heatmap data
+    sample_sizes = sorted(set(results_dict['sample_sizes']))
+    num_treatments = sorted(set(results_dict['n_treatments']))
+    heatmap_data = np.array([[treatment_effect_diff.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
+
+    plot_heatmap(heatmap_data, num_treatments, sample_sizes, 'Number of Treatments', 'Sample Size',
+                 'Difference in Treatment Effects (Covariate Dimension = 10)', 'heatmap_multi_treatments_vs_samples.svg')
+
+    # Prepare data for heatmap: x-axis is dimension, y-axis is sample size, number of treatments is 2
+    num_treatments_fixed = 2
+    treatment_effect_diff_dim = {}
+    for n_samples in set(results_dict['sample_sizes']):
+        for dimension in set(results_dict['n_covariates']):
+            indices = filter_indices(results_dict, n_samples, num_treatments_fixed, dimension)
+            if indices:
+                diff = calculate_treatment_effect_diff(results_dict, indices)
+                treatment_effect_diff_dim[(n_samples, dimension)] = diff
+
+    # Create heatmap data
+    dimensions = sorted(set(results_dict['n_covariates']))
+    heatmap_data_dim = np.array([[treatment_effect_diff_dim.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
+
+    plot_heatmap(heatmap_data_dim, dimensions, sample_sizes, 'Covariate Dimension', 'Sample Size',
+                 'Difference in Treatment Effects (Number of Treatments = 2)', 'heatmap_multi_dimensions_vs_samples.svg')
+      
 
 def main_nonlinear():
     import matplotlib.pyplot as plt
@@ -276,6 +291,9 @@ def main_nonlinear():
                     results_dict['treatment_effects'].append(treatment_effects)
                     results_dict['slopes'].append(slope)
                     results_dict['mccs'].append(mcc)
+
+    # Save results dictionary
+    np.save('results_main_nonlinear.npy', results_dict)
 
     import matplotlib.pyplot as plt
     import numpy as np
@@ -408,6 +426,9 @@ def main_fun():
             results_dict['mccs'].append(mcc)
             results_dict['fun_options'].append(fun)
 
+    # Save results dictionary
+    np.save('results_main_fun.npy', results_dict)
+
     import matplotlib.pyplot as plt
     import numpy as np
     plt.figure(figsize=(10, 6))
@@ -499,6 +520,9 @@ def main_sparsity():
             results_dict['treatment_effects'].append(treatment_effects)
             results_dict['mccs'].append(mcc)
             results_dict['sparsities'].append(sparsity)
+
+    # Save results dictionary
+    np.save('results_main_sparsity.npy', results_dict)
 
     import matplotlib.pyplot as plt
     import numpy as np
@@ -595,6 +619,9 @@ def main_gennorm():
             results_dict['treatment_effects'].append(treatment_effects)
             results_dict['mccs'].append(mcc)
             results_dict['beta_values'].append(beta)
+
+    # Save results dictionary
+    np.save('results_main_gennorm.npy', results_dict)
 
     import matplotlib.pyplot as plt
     import numpy as np
@@ -693,6 +720,9 @@ def main_loc_scale():
             results_dict['scale_values'].append(scale)
             results_dict['mse_values'].append(avg_mse)
 
+    # Save results dictionary
+    np.save('results_main_loc_scale.npy', results_dict)
+
     # Create a heatmap of MSE values
     mse_matrix = np.array(results_dict['mse_values']).reshape(len(loc_values), len(scale_values))
     plt.figure(figsize=(12, 9))  # Increased figure size
@@ -711,8 +741,8 @@ if __name__ == "__main__":
 
 
 
-    # print("Running multiple treatment effect estimation with ICA...")
-    # main()
+    print("Running multiple treatment effect estimation with ICA...")
+    main_multi()
 
     # print("Running treatment effect estimation with ICA in nonlinear PLR...")
     # main_nonlinear()
@@ -723,10 +753,9 @@ if __name__ == "__main__":
     # print("Running the loss function ablation for treatment effect estimation with ICA in linear PLR...")
     # main_fun()
 
-    print("Running the gennorm ablation for treatment effect estimation with ICA...")
-    main_gennorm()
+    # print("Running the gennorm ablation for treatment effect estimation with ICA...")
+    # main_gennorm()
 
-    print("Running the loc scale ablation for treatment effect estimation with ICA...")
-    main_loc_scale()
-
+    # print("Running the loc scale ablation for treatment effect estimation with ICA...")
+    # main_loc_scale()
 
