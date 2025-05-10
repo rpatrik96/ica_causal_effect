@@ -229,6 +229,7 @@ def main_multi():
     covariate_dimension = 10
     treatment_effect_diff = {}
     treatment_effect_ica = {}
+    treatment_effect_ica_std = {}
     for n_samples in set(results_dict['sample_sizes']):
         for n_treatment in set(results_dict['n_treatments']):
             indices = filter_indices(results_dict, n_samples, n_treatment, covariate_dimension)
@@ -238,8 +239,11 @@ def main_multi():
                 # Calculate ICA error only
                 est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
                 true_params = [results_dict['true_params'][i] for i in indices]
-                ica_error = np.nanmean([np.linalg.norm(est_ica - true.numpy()) for est_ica, true in zip(est_params_ica, true_params)])
-                treatment_effect_ica[(n_samples, n_treatment)] = ica_error
+
+                ica_error = [np.linalg.norm(est_ica - true.numpy()) for est_ica, true in
+                             zip(est_params_ica, true_params)]
+                treatment_effect_ica[(n_samples, n_treatment)] = np.nanmean(ica_error)
+                treatment_effect_ica_std[(n_samples, n_treatment)] = np.nanstd(ica_error)
 
     # Create heatmap data for difference
     sample_sizes = sorted(set(results_dict['sample_sizes']), reverse=True)
@@ -251,14 +255,18 @@ def main_multi():
 
     # Create heatmap data for ICA error only
     heatmap_data_ica = np.array([[treatment_effect_ica.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
+    heatmap_data_ica_std = np.array([[treatment_effect_ica_std.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
 
     plot_heatmap(heatmap_data_ica, num_treatments, sample_sizes, r'$|T|$', r'$n$',
-                 'ICA Error (Covariate Dimension = 10)', 'heatmap_ica_treatments_vs_samples.svg', center=None)
+                 'ICA Error Mean (Covariate Dimension = 10)', 'heatmap_ica_treatments_vs_samples.svg', center=None)
+    plot_heatmap(heatmap_data_ica_std, num_treatments, sample_sizes, r'$|T|$', r'$n$',
+                 'ICA Error Std (Covariate Dimension = 10)', 'heatmap_ica_treatments_vs_samples_std.svg', center=None)
 
     # Prepare data for heatmap: x-axis is dimension, y-axis is sample size, number of treatments is 2
     num_treatments_fixed = 2
     treatment_effect_diff_dim = {}
     treatment_effect_ica_dim = {}
+    treatment_effect_ica_dim_std = {}
     for n_samples in set(results_dict['sample_sizes']):
         for dimension in set(results_dict['n_covariates']):
             indices = filter_indices(results_dict, n_samples, num_treatments_fixed, dimension)
@@ -268,8 +276,9 @@ def main_multi():
                 # Calculate ICA error only
                 est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
                 true_params = [results_dict['true_params'][i] for i in indices]
-                ica_error = np.nanmean([np.linalg.norm(est_ica - true.numpy()) for est_ica, true in zip(est_params_ica, true_params)])
-                treatment_effect_ica_dim[(n_samples, dimension)] = ica_error
+                ica_error = [np.linalg.norm(est_ica - true.numpy()) for est_ica, true in zip(est_params_ica, true_params)]
+                treatment_effect_ica_dim[(n_samples, dimension)] = np.nanmean(ica_error)
+                treatment_effect_ica_dim_std[(n_samples, dimension)] = np.nanstd(ica_error)
 
     # Create heatmap data for difference
     dimensions = sorted(set(results_dict['n_covariates']))
@@ -280,10 +289,11 @@ def main_multi():
 
     # Create heatmap data for ICA error only
     heatmap_data_ica_dim = np.array([[treatment_effect_ica_dim.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
+    heatmap_data_ica_dim_std = np.array([[treatment_effect_ica_dim_std.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
 
-    plot_heatmap(heatmap_data_ica_dim, dimensions, sample_sizes, r'$\dim X$', r'$n$',
-                 'ICA Error (Number of Treatments = 2)', 'heatmap_ica_dimensions_vs_samples.svg', center=None)
-      
+    plot_heatmap(heatmap_data_ica_dim, dimensions, sample_sizes, r'$\dim X$', r'$n$', 'ICA Error Mean (Number of Treatments = 2)', 'heatmap_ica_multi_dimensions_vs_samples.svg', center=None)
+    plot_heatmap(heatmap_data_ica_dim_std, dimensions, sample_sizes, r'$\dim X$', r'$n$', 'ICA Error Std (Number of Treatments = 2)', 'heatmap_ica_multi_dimensions_vs_samples_std.svg', center=None)
+
 
 def main_nonlinear():
     # import matplotlib.pyplot as plt
@@ -335,7 +345,7 @@ def main_nonlinear():
                                                                                          n_treatments=1)
 
                                 # Store results in dictionary
-                                
+
                                 results_dict['slopes'].append(slope)
 
                                 results_dict['sample_sizes'].append(n_samples)
@@ -361,7 +371,7 @@ def main_nonlinear():
                             # Store results in dictionary
                             results_dict['slopes'].append(1.0)  # Default slope for other nonlinearitiesmcc)
 
-                    
+
                             results_dict['sample_sizes'].append(n_samples)
                             results_dict['n_covariates'].append(n_covariates)
                             results_dict['true_params'].append(true_params)
@@ -372,7 +382,7 @@ def main_nonlinear():
         # Save results dictionary
         np.save(results_file, results_dict)
     # Filter the data
-    filtered_indices = [i for i, nonlinearity in enumerate(results_dict['nonlinearities']) 
+    filtered_indices = [i for i, nonlinearity in enumerate(results_dict['nonlinearities'])
                         if (nonlinearity == 'leaky_relu' and results_dict['slopes'][i] == 0.2)
                         or (nonlinearity != 'leaky_relu')]
     filtered_results = {key: [results_dict[key][i] for i in filtered_indices] for key in results_dict}
@@ -381,12 +391,14 @@ def main_nonlinear():
     dimensions = sorted(set(filtered_results['n_covariates']), reverse=True)
     nonlinearities = sorted(set(filtered_results['nonlinearities']))
     heatmap_data = np.zeros((len(dimensions), len(nonlinearities)))
+    heatmap_data_std = np.zeros((len(dimensions), len(nonlinearities)))
 
     for i, dim in enumerate(dimensions):
         for j, nonlinearity in enumerate(nonlinearities):
             relevant_indices = [index for index, (d, n) in enumerate(zip(filtered_results['n_covariates'], filtered_results['nonlinearities'])) if d == dim and n == nonlinearity]
             if relevant_indices:
                 heatmap_data[i, j] = np.mean([calculate_mse(filtered_results['true_params'][index], filtered_results['treatment_effects'][index]) for index in relevant_indices])
+                heatmap_data_std[i, j] = np.std([calculate_mse(filtered_results['true_params'][index], filtered_results['treatment_effects'][index]) for index in relevant_indices])
 
     # Plot heatmap
     plt.figure(figsize=(10, 8))
@@ -395,6 +407,14 @@ def main_nonlinear():
     plt.ylabel(r'$\dim X$')
     # plt.title('Heatmap of MSEs: Dimension vs Nonlinearity')
     plt.savefig('heatmap_dimension_vs_nonlinearity.svg', dpi=300, bbox_inches='tight')
+    plt.close()
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(heatmap_data_std, xticklabels=nonlinearities, yticklabels=dimensions, cmap="coolwarm", annot=True)
+    plt.xlabel('Nonlinearity')
+    plt.ylabel(r'$\dim X$')
+    # plt.title('Heatmap of MSEs: Dimension vs Nonlinearity')
+    plt.savefig('heatmap_dimension_vs_nonlinearity_std.svg', dpi=300, bbox_inches='tight')
     plt.close()
 
     # Filter the data to only include 'leaky_relu' nonlinearity
@@ -677,8 +697,8 @@ if __name__ == "__main__":
 
 
 
-    # print("Running multiple treatment effect estimation with ICA...")
-    # main_multi()
+    print("Running multiple treatment effect estimation with ICA...")
+    main_multi()
 
     print("Running treatment effect estimation with ICA in nonlinear PLR...")
     main_nonlinear()
