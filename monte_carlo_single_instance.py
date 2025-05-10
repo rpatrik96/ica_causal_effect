@@ -245,37 +245,67 @@ def main(args):
         x_values = sorted(set([res[x_key] for res in all_results if (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter)]))
         y_values = sorted(set([res[y_key] for res in all_results if (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter)]), reverse=True)
         data_matrix = np.zeros((len(y_values), len(x_values)))
+        data_matrix_mean = np.zeros((len(y_values), len(x_values)))
+        data_matrix_std = np.zeros((len(y_values), len(x_values)))
 
         for i, x_val in enumerate(x_values):
             for j, y_val in enumerate(y_values):
+                ica_mean = [res[value_key][-1] for res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter))][0]
+                ica_std = [res["sigmas"][-1] for res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter))][0]
                 if diff_index is not None:
+                    compare_mean = [res[value_key][diff_index] for res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter))][0]
+                    compare_std = [res["sigmas"][diff_index] for res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter))][0]
                     diffs = [res[value_key][-1] - res[value_key][diff_index] for res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter))]
-                else:
-                    diffs = [res[value_key][-1] for res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res['support_size'] == support_size_filter))]
-                if diffs:
-                    data_matrix[j, i] = np.mean(diffs)
 
-        return data_matrix, x_values, y_values
+                    if (ica_mean + ica_std) < (compare_mean - compare_std):
+                        data_matrix[j, i] = -1
+                    elif (ica_mean - ica_std) > (compare_mean + compare_std):
+                        data_matrix[j, i] = 1
+                    else:
+                        data_matrix[j, i] = 0
+            
+                else:
+                    diffs = ica_mean
+                if diffs:
+                    data_matrix_mean[j,i] = np.mean(diffs)
+                    data_matrix_std[j,i] = ica_std
+
+
+        return data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values, 
 
     # Plot heatmaps for comparison with HOML Split, filtered for beta=1
-    bias_diff_matrix_dim_homl, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=3, beta_filter=1)
+    bias_diff_matrix_dim_homl_mean, bias_diff_matrix_dim_homl_std, bias_diff_matrix_dim_homl, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=3, beta_filter=1)
+    plot_heatmap(bias_diff_matrix_dim_homl_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl_mean.svg', opts.output_dir, center=0)
+    plot_heatmap(bias_diff_matrix_dim_homl_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl_std.svg', opts.output_dir, center=0)
     plot_heatmap(bias_diff_matrix_dim_homl, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl.svg', opts.output_dir, center=0)
 
-    bias_diff_matrix_beta_homl, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=3, support_size_filter=10)
+    bias_diff_matrix_beta_homl_mean, bias_diff_matrix_beta_homl_std, bias_diff_matrix_beta_homl, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=3, support_size_filter=10)
+    plot_heatmap(bias_diff_matrix_beta_homl_mean, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl_mean.svg', opts.output_dir, center=0)
+    plot_heatmap(bias_diff_matrix_beta_homl_std, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl_std.svg', opts.output_dir, center=0)
     plot_heatmap(bias_diff_matrix_beta_homl, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl.svg', opts.output_dir, center=0)
 
     # Plot heatmaps for comparison with OML, filtered for beta=1
-    bias_diff_matrix_dim_oml, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=0, beta_filter=1)
+    bias_diff_matrix_dim_oml_mean, bias_diff_matrix_dim_oml_std, bias_diff_matrix_dim_oml, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=0, beta_filter=1)
+    plot_heatmap(bias_diff_matrix_dim_oml_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml_mean.svg', opts.output_dir, center=0)
+    plot_heatmap(bias_diff_matrix_dim_oml_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml_std.svg', opts.output_dir, center=0)
     plot_heatmap(bias_diff_matrix_dim_oml, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml.svg', opts.output_dir, center=0)
 
-    bias_diff_matrix_beta_oml, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=0, support_size_filter=10)
+    bias_diff_matrix_beta_oml_mean, bias_diff_matrix_beta_oml_std, bias_diff_matrix_beta_oml, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=0, support_size_filter=10)
+    plot_heatmap(bias_diff_matrix_beta_oml_mean, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_oml_mean.svg', opts.output_dir, center=0)
+    plot_heatmap(bias_diff_matrix_beta_oml_std, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_oml_std.svg', opts.output_dir, center=0)
     plot_heatmap(bias_diff_matrix_beta_oml, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_oml.svg', opts.output_dir, center=0)
 
-    ica_bias_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', beta_filter=1)
-    plot_heatmap(ica_bias_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim.svg', opts.output_dir, center=None)
 
-    ica_bias_matrix_beta, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', support_size_filter=10)
-    plot_heatmap(ica_bias_matrix_beta, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta.svg', opts.output_dir, center=None)
+    # ICA error only
+    ica_bias_matrix_dim_mean, ica_bias_matrix_dim_std, ica_bias_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', beta_filter=1)
+    plot_heatmap(ica_bias_matrix_dim_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim_mean.svg', opts.output_dir, center=None)
+    plot_heatmap(ica_bias_matrix_dim_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim_std.svg', opts.output_dir, center=None)
+    # plot_heatmap(ica_bias_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim.svg', opts.output_dir, center=None)
+
+    ica_bias_matrix_beta_mean, ica_bias_matrix_beta_std, ica_bias_matrix_beta, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', support_size_filter=10)
+    plot_heatmap(ica_bias_matrix_beta_mean, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta_mean.svg', opts.output_dir, center=None)
+    plot_heatmap(ica_bias_matrix_beta_std, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta_std.svg', opts.output_dir, center=None)
+    # plot_heatmap(ica_bias_matrix_beta, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta.svg', opts.output_dir, center=None)
 
     # Prepare data for scatter plot
     filtered_results = all_results
