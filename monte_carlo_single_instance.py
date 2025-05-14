@@ -97,10 +97,17 @@ def main(args):
     # Run experiments for different support sizes and beta values
     
 
-    support_sizes = [2, 5, 10, 20, 50] if opts.asymptotic_var is False else [50]
-    data_samples = [100, 200, 500, 1000, 2000, 5000] if opts.asymptotic_var is False else [5000]
-    beta_values = [1.0] if opts.covariate_pdf != "gennorm" else [0.5, 1.0, 1.5, 2.0, 2.5, 3., 3.5, 4., 4.5, 5]
-    treatment_effects = [3.0] if opts.asymptotic_var is False else [-1, 1]#[-5, -2, -0.1, 0.1, 2, 5]
+    support_sizes = [2, 5, 10, 20, 50] if opts.asymptotic_var is False else [10]#[5, 10, 20]
+    data_samples = [100, 200, 500, 1000, 2000, 5000] if opts.asymptotic_var is False else [10**4]
+    beta_values = [1.0] if opts.covariate_pdf != "gennorm" or opts.asymptotic_var is True else [0.5, 1.0, 1.5, 2.0, 2.5, 3., 3.5, 4., 4.5, 5]
+    treatment_effects = [3.0] if opts.asymptotic_var is False else [1.]#[-20, -10, -5, -2, -1, -.5, -0.2, -.1, .1,  0.2, .5, 1, 2, 5, 10, 20]
+
+    if opts.asymptotic_var:
+        treatment_coefs = [0.1, 0.23, -.33, -0.47, 0.89, -1.34, 1.78, -2.56, 3.14, -3.67,]
+        outcome_coefs = [0.3] #, -0.5, 0.7, -0.9, 1.1, -1.3, 1.5, -1.7, 1.9, -2.1]
+    else:
+        treatment_coefs = [0.6]
+        outcome_coefs =[ 0.3]
 
     import os
 
@@ -112,169 +119,197 @@ def main(args):
     results_file_path = os.path.join(opts.output_dir, results_filename)
 
     all_results = []
+    treatment_coef_list = np.zeros(support_sizes[-1])
+    
+    outcome_coef_list = np.zeros(support_sizes[-1])
+
     for n_samples in data_samples:
 
         # Check if the results file already exists
         if os.path.exists(results_file_path):
             print(f"Results file {results_file_path} already exists. Loading data instead of rerunning experiments.")
-            structured_results = np.load(results_file_path, allow_pickle=True)#.item()
+            structured_results = np.load(results_file_path, allow_pickle=True)  # .item()
             all_results = structured_results
             break
 
         print(f"\nRunning experiments with sample size: {n_samples}")
 
-        for beta in beta_values:
-            print(f"\nRunning experiments with beta: {beta}")
+        for treatment_coefficient in treatment_coefs:
+            for outcome_coefficient in outcome_coefs:
 
-            for support_size in support_sizes:
-                print(f"\nRunning experiments with support size: {support_size}")
-                # print("Support size of sparse functions: {}".format(support_size))
-
-                for treatment_effect in treatment_effects:
-                    print(f"\nRunning experiments with treatment effect: {treatment_effect}")
-
-                    '''
-                    True parameters
-                    '''
-
-                    # Support and coefficients for treatment as function of co-variates
-                    treatment_support = np.random.choice(range(n_dim), size=support_size, replace=False)
-                    treatment_coef = np.random.randn(support_size)
-                    print("Support of treatment as function of co-variates: {}".format(treatment_support))
-                    print("Coefficients of treatment as function of co-variates: {}".format(treatment_coef))
-
-                    # Distribution of residuals of treatment
-                    discounts = np.array([0, -.5, -2., -4.])
-                    probs = np.array([.65, .2, .1, .05])
-                    mean_discount = np.dot(discounts, probs)
-                    eta_sample = lambda x: np.array(
-                        [discounts[i] - mean_discount for i in np.argmax(np.random.multinomial(1, probs, x), axis=1)])
-                    # Calculate moments of the residual distribution
-                    eta_second_moment = np.dot(probs, (discounts - mean_discount) ** 2)
-                    eta_third_moment = np.dot(probs, (discounts - mean_discount) ** 3)
-                    eta_fourth_moment = np.dot(probs, (discounts - mean_discount) ** 4)
-                    print("Second Moment of Eta: {:.2f}".format(eta_second_moment))
-                    print("Third Moment of Eta: {:.2f}".format(eta_third_moment))
-                    non_gauss_cond = eta_fourth_moment - 3 * eta_second_moment
-                    print("Non-Gaussianity Criterion, E[eta^4] - 3 E[eta^2]^2: {:.2f}".format(
-                        non_gauss_cond))
-
-                    # HOML asymptotic variance numerator 
-                    eta_cubed_variance = np.dot(probs, ((discounts - mean_discount) ** 3 - eta_third_moment) ** 2)
-                    homl_asymptotic_var_num = eta_cubed_variance +9*eta_second_moment**2+3*eta_fourth_moment*eta_second_moment
-                    homl_asymptotic_var = homl_asymptotic_var_num/non_gauss_cond**2
-
-                    
+                if opts.asymptotic_var:
+                    outcome_coefficient = treatment_coefficient
+                
+                treatment_coef_list[0] = treatment_coefficient
+                outcome_coef_list[0] = outcome_coefficient
 
 
 
-                    eta_excess_kurtosis = eta_fourth_moment - 3
-                    eta_skewness_squared = eta_third_moment **2
+                for beta in beta_values:
+                    print(f"\nRunning experiments with beta: {beta}")
 
-                    # Support and coefficients for outcome as function of co-variates
-                    outcome_support = treatment_support  # np.random.choice(range(n_dim), size=support_size, replace=False)
-                    outcome_coef = np.random.randn(support_size)
-                    print("Support of outcome as function of co-variates: {}".format(outcome_support))
-                    print("Coefficients of outcome as function of co-variates: {}".format(outcome_coef))
+                    for support_size in support_sizes:
+                        print(f"\nRunning experiments with support size: {support_size}")
+                        # print("Support size of sparse functions: {}".format(support_size))
 
-                    # Distribution of outcome residuals
-                    sigma_outcome = opts.sigma_outcome
-                    epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
+                        for treatment_effect in treatment_effects:
+                            print(f"\nRunning experiments with treatment effect: {treatment_effect}")
 
+                            '''
+                            True parameters
+                            '''
 
-                    # Calculate fourth and sixth moments of a uniform distribution in [-a; a]
-                    
-                    eps_second_moment = (1/3) * sigma_outcome**2
-                    eps_fourth_moment = (1/5) * sigma_outcome**4
-                    eps_sixth_moment = (1/7) * sigma_outcome**6
-                    ica_asymptotic_var_num = eps_sixth_moment - eps_fourth_moment**2
-                    ica_asymptotic_var_hyvarinen = ica_asymptotic_var_num/(eps_fourth_moment-3*eps_second_moment)**2
+                            if opts.asymptotic_var and opts.tie_sample_dim:
+                                n_samples = support_size**4
 
+                            # Support and coefficients for treatment as function of co-variates
+                            # if opts.asymptotic_var is False:
+                            #     treatment_support = np.random.choice(range(n_dim), size=support_size, replace=False)
 
+                            treatment_coef = treatment_coef_list[:support_size]
 
-                    true_coef_treatment = np.zeros(n_dim)
-                    true_coef_treatment[treatment_support] = treatment_coef
-                    true_coef_outcome = np.zeros(n_dim)
-                    true_coef_outcome[outcome_support] = outcome_coef
-                    true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
-                    print(true_coef_outcome[outcome_support])
-                    
-                    
-                    ica_asymptotic_var = (1+ np.linalg.norm(outcome_coef+treatment_coef*treatment_effect, ord=2)**2) * eta_cubed_variance/eta_excess_kurtosis**2
-                    
-                    
-                    '''
-                    Run the experiments.
-                    '''
+                            # print("Support of treatment as function of co-variates: {}".format(treatment_support))
+                            print("Coefficients of treatment as function of co-variates: {}".format(treatment_coef))
 
-                    if opts.covariate_pdf == "gauss":
-                        x_sample = lambda n_samples, n_dim: np.random.normal(size=(n_samples, n_dim))
-                    elif opts.covariate_pdf == "uniform":
-                        x_sample = lambda n_samples, n_dim: np.random.uniform(size=(n_samples, n_dim))
-                    if opts.covariate_pdf == "gennorm":
-                        from scipy.stats import gennorm
-                        loc = 0
-                        scale = 1
-                        x_sample = lambda n_samples, n_dim: gennorm.rvs(beta, size=(n_samples, n_dim))
+                            # Distribution of residuals of treatment
+                            discounts = np.array([0, -.5, -2., -4.])
+                            probs = np.array([.65, .2, .1, .05])
+                            mean_discount = np.dot(discounts, probs)
+                            eta_sample = lambda x: np.array(
+                                [discounts[i] - mean_discount for i in np.argmax(np.random.multinomial(1, probs, x), axis=1)])
+                            # Calculate moments of the residual distribution
+                            eta_second_moment = np.dot(probs, (discounts - mean_discount) ** 2)
+                            eta_third_moment = np.dot(probs, (discounts - mean_discount) ** 3)
+                            eta_fourth_moment = np.dot(probs, (discounts - mean_discount) ** 4)
+                            print("Second Moment of Eta: {:.2f}".format(eta_second_moment))
+                            print("Third Moment of Eta: {:.2f}".format(eta_third_moment))
+                            non_gauss_cond = eta_fourth_moment - 3 * eta_second_moment
+                            print("Non-Gaussianity Criterion, E[eta^4] - 3 E[eta^2]^2: {:.2f}".format(
+                                non_gauss_cond))
 
-                    # Coefficients recovered by orthogonal ML
-                    lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
-                    results = [r for r in Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
-                        x_sample(n_samples, n_dim),
-                        eta_sample(n_samples),
-                        epsilon_sample(n_samples),
-                        treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef, eta_second_moment,
-                        eta_third_moment, lambda_reg
-                    ) for _ in range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
-
-                    ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml,
-                                    ica_treatment_effect_estimate] for
-                                    ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _
-                                    in results]
-                    first_stage_mse = [
-                        [np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome),
-                        np.linalg.norm(ica_treatment_effect_estimate - treatment_effect), ica_mcc] for
-                        _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in results]
-
-                    all_results.append({
-                        'n_samples': n_samples,
-                        'support_size': support_size,
-                        'beta': beta,
-                        'ortho_rec_tau': ortho_rec_tau,
-                        'first_stage_mse': first_stage_mse,
-                        'non_gauss_cond': non_gauss_cond,
-                        'eta_skewness_squared' : eta_skewness_squared,
-                        'eta_second_moment': eta_second_moment,
-                        'eta_third_moment': eta_third_moment,
-                        'eta_fourth_moment' : eta_fourth_moment,
-                        'eta_excess_kurtosis': eta_excess_kurtosis,
-                        'eta_cubed_variance': eta_cubed_variance,
-                        'sigma_outcome': sigma_outcome,
-                        'homl_asymptotic_var_num' : homl_asymptotic_var_num,
-                        'homl_asymptotic_var': homl_asymptotic_var,
-                        'ica_asymptotic_var': ica_asymptotic_var,
-                        'ica_asymptotic_var_num': ica_asymptotic_var_num,
-                        'ica_asymptotic_var_hyvarinen': ica_asymptotic_var_hyvarinen,
-                        'treatment_effect': treatment_effect
-                    })
+                            # HOML asymptotic variance numerator
+                            eta_cubed_variance = np.dot(probs, ((discounts - mean_discount) ** 3 - eta_third_moment) ** 2)
+                            homl_asymptotic_var_num = eta_cubed_variance +9*eta_second_moment**2+3*eta_fourth_moment*eta_second_moment
+                            homl_asymptotic_var = homl_asymptotic_var_num/non_gauss_cond**2
 
 
 
-                    '''
-                    Plotting histograms
-                    '''
 
-                    biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir, n_samples, n_dim,
-                                                            n_experiments, support_size,
-                                                            sigma_outcome, opts.covariate_pdf, beta)
-                    all_results[-1]['biases'] = biases
-                    all_results[-1]['sigmas'] = sigmas
 
-                    plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples, n_dim, n_experiments,
-                                               support_size,
-                                               sigma_outcome, opts.covariate_pdf, beta)
+                            eta_excess_kurtosis = eta_fourth_moment - 3
+                            eta_skewness_squared = eta_third_moment **2
 
-        plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, beta)
+                            # Support and coefficients for outcome as function of co-variates
+                            outcome_support = treatment_support = np.array(range(support_size))  # np.random.choice(range(n_dim), size=support_size, replace=False)
+
+                            outcome_coef = outcome_coef_list[:support_size]
+                            # print("Support of outcome as function of co-variates: {}".format(outcome_support))
+                            print("Coefficients of outcome as function of co-variates: {}".format(outcome_coef))
+
+                            # Distribution of outcome residuals
+                            sigma_outcome = opts.sigma_outcome
+                            epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
+
+
+                            # Calculate fourth and sixth moments of a uniform distribution in [-a; a]
+
+                            eps_second_moment = (1/3) * sigma_outcome**2
+                            eps_fourth_moment = (1/5) * sigma_outcome**4
+                            eps_sixth_moment = (1/7) * sigma_outcome**6
+                            ica_asymptotic_var_num = eps_sixth_moment - eps_fourth_moment**2
+                            ica_asymptotic_var_hyvarinen = ica_asymptotic_var_num/(eps_fourth_moment-3*eps_second_moment)**2
+
+
+
+                            true_coef_treatment = np.zeros(n_dim)
+                            true_coef_treatment[treatment_support] = treatment_coef
+                            true_coef_outcome = np.zeros(n_dim)
+                            true_coef_outcome[outcome_support] = outcome_coef
+                            true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
+                            print(true_coef_outcome[outcome_support])
+
+                            ica_var_coeff = (1 + np.linalg.norm(outcome_coef + treatment_coef * treatment_effect, ord=2) ** 2)
+                            ica_asymptotic_var = ica_var_coeff * eta_cubed_variance / eta_excess_kurtosis ** 2
+
+
+                            '''
+                            Run the experiments.
+                            '''
+
+                            if opts.covariate_pdf == "gauss":
+                                x_sample = lambda n_samples, n_dim: np.random.normal(size=(n_samples, n_dim))
+                            elif opts.covariate_pdf == "uniform":
+                                x_sample = lambda n_samples, n_dim: np.random.uniform(size=(n_samples, n_dim))
+                            if opts.covariate_pdf == "gennorm":
+                                from scipy.stats import gennorm
+                                loc = 0
+                                scale = 1
+                                if opts.asymptotic_var:
+                                    scale = 1/np.sqrt(2.0)
+
+                                x_sample = lambda n_samples, n_dim: gennorm.rvs(beta, loc=loc, scale=scale, size=(n_samples, n_dim))
+
+                            # Coefficients recovered by orthogonal ML
+                            lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
+                            results = [r for r in Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
+                                x_sample(n_samples, n_dim),
+                                eta_sample(n_samples),
+                                epsilon_sample(n_samples),
+                                treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef, eta_second_moment,
+                                eta_third_moment, lambda_reg
+                            ) for _ in range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
+
+                            ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml,
+                                            ica_treatment_effect_estimate] for
+                                            ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _
+                                            in results]
+                            first_stage_mse = [
+                                [np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome),
+                                np.linalg.norm(ica_treatment_effect_estimate - treatment_effect), ica_mcc] for
+                                _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in results]
+
+                            all_results.append({
+                                'n_samples': n_samples,
+                                'support_size': support_size,
+                                'beta': beta,
+                                'ortho_rec_tau': ortho_rec_tau,
+                                'first_stage_mse': first_stage_mse,
+                                'non_gauss_cond': non_gauss_cond,
+                                'eta_skewness_squared' : eta_skewness_squared,
+                                'eta_second_moment': eta_second_moment,
+                                'eta_third_moment': eta_third_moment,
+                                'eta_fourth_moment' : eta_fourth_moment,
+                                'eta_excess_kurtosis': eta_excess_kurtosis,
+                                'eta_cubed_variance': eta_cubed_variance,
+                                'sigma_outcome': sigma_outcome,
+                                'homl_asymptotic_var_num' : homl_asymptotic_var_num,
+                                'homl_asymptotic_var': homl_asymptotic_var,
+                                'ica_asymptotic_var': ica_asymptotic_var,
+                                'ica_asymptotic_var_num': ica_asymptotic_var_num,
+                                'ica_asymptotic_var_hyvarinen': ica_asymptotic_var_hyvarinen,
+                                'ica_var_coeff': ica_var_coeff,
+                                'treatment_effect': treatment_effect,
+                                'treatment_coefficient': treatment_coefficient,
+                                'outcome_coefficient': outcome_coefficient,
+                            })
+
+
+
+                            '''
+                            Plotting histograms
+                            '''
+
+                            biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir, n_samples, n_dim,
+                                                                    n_experiments, support_size,
+                                                                    sigma_outcome, opts.covariate_pdf, beta)
+                            all_results[-1]['biases'] = biases
+                            all_results[-1]['sigmas'] = sigmas
+
+                            plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples, n_dim, n_experiments,
+                                                    support_size,
+                                                    sigma_outcome, opts.covariate_pdf, beta)
+
+                    plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, beta)
 
 
     import seaborn as sns
@@ -330,10 +365,11 @@ def main(args):
     print("\nDone with all experiments!")
 
     # Plot heatmaps for comparison with HOML Split, filtered for beta=1
-    bias_diff_matrix_dim_homl_mean, bias_diff_matrix_dim_homl_std, bias_diff_matrix_dim_homl, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=3, beta_filter=1)
-    plot_heatmap(bias_diff_matrix_dim_homl_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl_mean.svg', opts.output_dir, center=0)
-    plot_heatmap(bias_diff_matrix_dim_homl_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl_std.svg', opts.output_dir, center=0)
-    plot_heatmap(bias_diff_matrix_dim_homl, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl.svg', opts.output_dir, center=0)
+    if opts.asymptotic_var is False:
+        bias_diff_matrix_dim_homl_mean, bias_diff_matrix_dim_homl_std, bias_diff_matrix_dim_homl, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=3, beta_filter=1)
+        plot_heatmap(bias_diff_matrix_dim_homl_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl_mean.svg', opts.output_dir, center=0)
+        plot_heatmap(bias_diff_matrix_dim_homl_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl_std.svg', opts.output_dir, center=0)
+        plot_heatmap(bias_diff_matrix_dim_homl, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl.svg', opts.output_dir, center=0)
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
         bias_diff_matrix_beta_homl_mean, bias_diff_matrix_beta_homl_std, bias_diff_matrix_beta_homl, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=3, support_size_filter=10)
@@ -342,10 +378,11 @@ def main(args):
         plot_heatmap(bias_diff_matrix_beta_homl, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl.svg', opts.output_dir, center=0)
 
     # Plot heatmaps for comparison with OML, filtered for beta=1
-    bias_diff_matrix_dim_oml_mean, bias_diff_matrix_dim_oml_std, bias_diff_matrix_dim_oml, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=0, beta_filter=1)
-    plot_heatmap(bias_diff_matrix_dim_oml_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml_mean.svg', opts.output_dir, center=0)
-    plot_heatmap(bias_diff_matrix_dim_oml_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml_std.svg', opts.output_dir, center=0)
-    plot_heatmap(bias_diff_matrix_dim_oml, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml.svg', opts.output_dir, center=0)
+    if opts.asymptotic_var is False:
+        bias_diff_matrix_dim_oml_mean, bias_diff_matrix_dim_oml_std, bias_diff_matrix_dim_oml, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=0, beta_filter=1)
+        plot_heatmap(bias_diff_matrix_dim_oml_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml_mean.svg', opts.output_dir, center=0)
+        plot_heatmap(bias_diff_matrix_dim_oml_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml_std.svg', opts.output_dir, center=0)
+        plot_heatmap(bias_diff_matrix_dim_oml, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml.svg', opts.output_dir, center=0)
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
         bias_diff_matrix_beta_oml_mean, bias_diff_matrix_beta_oml_std, bias_diff_matrix_beta_oml, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=0, support_size_filter=10)
@@ -355,10 +392,11 @@ def main(args):
 
 
     # ICA error only
-    ica_bias_matrix_dim_mean, ica_bias_matrix_dim_std, ica_bias_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', beta_filter=1)
-    plot_heatmap(ica_bias_matrix_dim_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim_mean.svg', opts.output_dir, center=None)
-    plot_heatmap(ica_bias_matrix_dim_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim_std.svg', opts.output_dir, center=None)
-    # plot_heatmap(ica_bias_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim.svg', opts.output_dir, center=None)
+    if opts.asymptotic_var is False:
+        ica_bias_matrix_dim_mean, ica_bias_matrix_dim_std, ica_bias_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', beta_filter=1)
+        plot_heatmap(ica_bias_matrix_dim_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim_mean.svg', opts.output_dir, center=None)
+        plot_heatmap(ica_bias_matrix_dim_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim_std.svg', opts.output_dir, center=None)
+        # plot_heatmap(ica_bias_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim.svg', opts.output_dir, center=None)
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
         ica_bias_matrix_beta_mean, ica_bias_matrix_beta_std, ica_bias_matrix_beta, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', support_size_filter=10)
@@ -417,40 +455,105 @@ def main(args):
     plt.close()
 
     # Prepare data for the scatter plots
-    x_values_ica_asymptotic_var = [res['ica_asymptotic_var'] for res in all_results]
-    x_values_ica_asymptotic_var_hyvarinen = [res['ica_asymptotic_var_hyvarinen'] for res in all_results]
-    x_values_homl_asymptotic_var = [res['homl_asymptotic_var'] for res in all_results]
-    y_values_actual_variance_ica = [res['sigmas'][-1] for res in all_results] 
-    y_values_actual_variance_homl = [res['sigmas'][3] for res in all_results] 
+    x_values_sample_size = [res['n_samples'] for res in all_results]
+    y_values_ica_asymptotic_var = [res['ica_asymptotic_var'] for res in all_results]
+    y_values_ica_asymptotic_var_hyvarinen = [res['ica_asymptotic_var_hyvarinen'] for res in all_results]
+    y_values_homl_asymptotic_var = [res['homl_asymptotic_var'] for res in all_results]
+    y_values_actual_variance_ica = [res['sigmas'][-1]**2 * res['n_samples'] for res in all_results]
+    y_values_actual_variance_homl = [res['sigmas'][3]**2 * res['n_samples'] for res in all_results]
 
-    colors = [res['beta'] for res in all_results]
+    # colors = [res['beta'] for res in all_results]
 
-    # Scatter plot for ICA asymptotic variance
+    # Scatter plot for ICA asymptotic and actual variance
     plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(x_values_ica_asymptotic_var, y_values_actual_variance_ica, c=colors, cmap='viridis', alpha=0.75)
-    plt.colorbar(scatter, label='Beta')
-    plt.xlabel('ICA Asymptotic Variance')
-    plt.ylabel('Actual Variance (from Sigmas)')
-    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_ica_asymptotic_vs_actual_variance.svg'), dpi=300, bbox_inches='tight')
+    plt.scatter(x_values_sample_size, y_values_ica_asymptotic_var, c='blue', alpha=0.75, label='ICA Asymptotic Variance')
+    plt.scatter(x_values_sample_size, y_values_actual_variance_ica, c='red', alpha=0.75, label='ICA Actual Variance')
+    plt.xlabel('Sample Size')
+    plt.ylabel('Variance')
+    plt.legend()
+    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_sample_size_vs_ica_variance.svg'), dpi=300, bbox_inches='tight')
     plt.close()
 
-    # Scatter plot for ICA Hyvarinen asymptotic variance
+    # Scatter plot for ICA Hyvarinen asymptotic and actual variance
     plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(x_values_ica_asymptotic_var_hyvarinen, y_values_actual_variance_ica, c=colors, cmap='viridis', alpha=0.75)
-    plt.colorbar(scatter, label='Beta')
-    plt.xlabel('ICA Hyvarinen Asymptotic Variance')
-    plt.ylabel('Actual Variance (from Sigmas)')
-    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_ica_hyvarinen_asymptotic_vs_actual_variance.svg'), dpi=300, bbox_inches='tight')
+    plt.scatter(x_values_sample_size, y_values_ica_asymptotic_var_hyvarinen, c='blue', alpha=0.75, label='ICA Hyvarinen Asymptotic Variance')
+    plt.scatter(x_values_sample_size, y_values_actual_variance_ica, c='red', alpha=0.75, label='ICA Actual Variance')
+    plt.xlabel('Sample Size')
+    plt.ylabel('Variance')
+    plt.legend()
+    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_sample_size_vs_ica_hyvarinen_variance.svg'), dpi=300, bbox_inches='tight')
     plt.close()
 
-    # Scatter plot for HOML asymptotic variance
+    # Scatter plot for HOML asymptotic and actual variance
     plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(x_values_homl_asymptotic_var, y_values_actual_variance_homl, c=colors, cmap='viridis', alpha=0.75)
-    plt.colorbar(scatter, label='Beta')
-    plt.xlabel('HOML Asymptotic Variance')
-    plt.ylabel('Actual Variance (from Sigmas)')
-    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_homl_asymptotic_vs_actual_variance.svg'), dpi=300, bbox_inches='tight')
+    plt.scatter(x_values_sample_size, y_values_homl_asymptotic_var, c='blue', alpha=0.75, label='HOML Asymptotic Variance')
+    plt.scatter(x_values_sample_size, y_values_actual_variance_homl, c='red', alpha=0.75, label='HOML Actual Variance')
+    plt.xlabel('Sample Size')
+    plt.ylabel('Variance')
+    plt.legend()
+    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_sample_size_vs_homl_variance.svg'), dpi=300, bbox_inches='tight')
     plt.close()
+
+    # Prepare data for the scatter plot
+    x_values_ica_var_coeff = [res['ica_var_coeff'] for res in all_results]
+    y_values_ica_biases = [res['biases'][-1] for res in all_results]
+    y_values_homl_biases = [res['biases'][3] for res in all_results]
+    y_errors_ica = [res['sigmas'][-1]/np.sqrt(opts.n) for res in all_results]
+    y_errors_homl = [res['sigmas'][3] for res in all_results]
+
+    # Scatter plot for ICA and HOML biases with sigmas as error bars
+    plt.figure(figsize=(10, 8))
+    plt.errorbar(x_values_ica_var_coeff, y_values_ica_biases, yerr=y_errors_ica, fmt='o', color='blue', alpha=0.75, label='ICA')
+    plt.errorbar(x_values_ica_var_coeff, y_values_homl_biases, yerr=y_errors_homl, fmt='o', color='red', alpha=0.75, label='HOML')
+    plt.xlabel(r'$1+(b+a\theta)^2$')
+    plt.xscale('log')
+    plt.ylabel(r'$\Vert \theta - \hat{\theta} \Vert_2$')
+    plt.legend()
+    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_ica_var_coeff_vs_biases.svg'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    if len(treatment_effects) > 1:
+        # Prepare data for the scatter plot
+        x_values_true_theta = [res['treatment_effect'] for res in all_results]  # Assuming the true value of theta is the first element of true_coef_outcome
+        y_values_ica_asymptotic_var = [res['ica_asymptotic_var'] for res in all_results]
+        y_values_homl_asymptotic_var = [res['homl_asymptotic_var'] for res in all_results]
+        y_values_actual_variance_ica = [res['sigmas'][-1]**2 * res['n_samples'] for res in all_results]
+        y_values_actual_variance_homl = [res['sigmas'][3]**2 * res['n_samples'] for res in all_results]
+
+        # Scatter plot for true theta vs variances
+        plt.figure(figsize=(10, 8))
+        plt.scatter(x_values_true_theta, y_values_ica_asymptotic_var, c='blue', alpha=0.75, label='ICA Asymptotic Variance')
+        plt.scatter(x_values_true_theta, y_values_actual_variance_ica, c='green', alpha=0.75, label='ICA Actual Variance')
+        plt.scatter(x_values_true_theta, y_values_homl_asymptotic_var, c='red', alpha=0.75, label='HOML Asymptotic Variance')
+        plt.scatter(x_values_true_theta, y_values_actual_variance_homl, c='orange', alpha=0.75, label='HOML Actual Variance')
+        plt.xlabel('True Value of Theta')
+        plt.ylabel('Variance')
+        plt.legend()
+        plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_true_theta_vs_variances.svg'), dpi=300, bbox_inches='tight')
+        plt.close()
+
+        # Prepare data for the scatter plot of MSEs against theta   
+        x_values_true_theta = [res['treatment_effect'] for res in all_results]
+        y_values_ica_mse = [res['biases'][-1] for res in all_results]
+        y_values_homl_mse = [res['biases'][3] for res in all_results]
+        y_errors_ica = [res['sigmas'][-1] for res in all_results]
+        y_errors_homl = [res['sigmas'][3] for res in all_results]
+
+        # Bar plot for true theta vs MSEs with variances
+        plt.figure(figsize=(10, 8))
+        bar_width = 0.35
+        index = np.arange(len(x_values_true_theta))
+        
+        plt.bar(index, y_values_ica_mse, bar_width, color='blue', alpha=0.75, label='ICA MSE', yerr=y_errors_ica, capsize=5)
+        plt.bar(index + bar_width, y_values_homl_mse, bar_width, color='red', alpha=0.75, label='HOML MSE', yerr=y_errors_homl, capsize=5)
+        
+        plt.xticks(ticks=index + bar_width / 2, labels=[f"{theta:.2f}" for theta in x_values_true_theta], rotation=45)
+        plt.xlabel('ICA var coeff')
+        plt.ylabel('Mean Squared Error (MSE)')
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join(opts.output_dir, 'bar_plot_true_theta_vs_mses_with_variances.svg'), dpi=300, bbox_inches='tight')
+        plt.close()
 
 
 
