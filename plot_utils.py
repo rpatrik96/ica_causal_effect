@@ -39,7 +39,7 @@ def plot_typography(
     rc("figure", titlesize=big)  # fontsize of the figure title
 
 
-def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram of estimates"):
+def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram of estimates", plot=False):
     # the histogram of the data
     n, bins, patches = plt.hist(estimate_list, 40, facecolor='green', alpha=0.75)
     sigma = float(np.std(estimate_list))
@@ -48,34 +48,42 @@ def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram o
     from scipy.stats import norm
     y = norm.pdf(bins.astype(float), mu, sigma)
     l = plt.plot(bins, y, 'r--', linewidth=1)
-    plt.plot([treatment_effect, treatment_effect], [0, np.max(y)], 'b--', label='true effect')
-    plt.title("{}. mean: {:.2f}, sigma: {:.2f}".format(title, mu, sigma))
-    plt.legend()
+    if plot:
+        plt.plot([treatment_effect, treatment_effect], [0, np.max(y)], 'b--', label='true effect')
+        plt.title("{}. mean: {:.2f}, sigma: {:.2f}".format(title, mu, sigma))
+        plt.legend()
     mses = [np.linalg.norm(true_tau - estimate) for estimate in estimate_list]
     return np.mean(mses), np.std(mses)
 
 
-def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta):
+def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta, plot=False):
     # First figure - histograms
-    plt.figure(figsize=(25, 5))
-    plt.subplot(1, 5, 1)
-    bias_ortho, sigma_ortho = plot_estimates(np.array(ortho_rec_tau)[:, 0].flatten(), treatment_effect, treatment_effect,
-                                             title="OML")
-    plt.subplot(1, 5, 2)
-    bias_robust, sigma_robust = plot_estimates(np.array(ortho_rec_tau)[:, 1].flatten(), treatment_effect, treatment_effect, 
-                                             title="HOML")
-    plt.subplot(1, 5, 3)
-    bias_est, sigma_est = plot_estimates(np.array(ortho_rec_tau)[:, 2].flatten(), treatment_effect, treatment_effect,
-                                       title="HOML (Est.)")
-    plt.subplot(1, 5, 4)
-    bias_second, sigma_second = plot_estimates(np.array(ortho_rec_tau)[:, 3].flatten(), treatment_effect, treatment_effect,
-                                             title="HOML (Split)")
-    plt.subplot(1, 5, 5)
-    bias_ica, sigma_ica = plot_estimates(np.array(ortho_rec_tau)[:, 4].flatten(), treatment_effect, treatment_effect,
-                                       title="ICA")
+    if plot:
+        plt.figure(figsize=(25, 5))
+        plt.subplot(1, 5, 1)
 
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir,
+    bias_ortho, sigma_ortho = plot_estimates(np.array(ortho_rec_tau)[:, 0].flatten(), treatment_effect, treatment_effect,
+                                             title="OML", plot=plot)
+    if plot:
+        plt.subplot(1, 5, 2)
+    bias_robust, sigma_robust = plot_estimates(np.array(ortho_rec_tau)[:, 1].flatten(), treatment_effect, treatment_effect, 
+                                             title="HOML", plot=plot)
+    if plot:
+        plt.subplot(1, 5, 3)
+    bias_est, sigma_est = plot_estimates(np.array(ortho_rec_tau)[:, 2].flatten(), treatment_effect, treatment_effect,
+                                       title="HOML (Est.)", plot=plot)
+    if plot:
+        plt.subplot(1, 5, 4)
+    bias_second, sigma_second = plot_estimates(np.array(ortho_rec_tau)[:, 3].flatten(), treatment_effect, treatment_effect,
+                                             title="HOML (Split)", plot=plot)
+    if plot:
+        plt.subplot(1, 5, 5)
+    bias_ica, sigma_ica = plot_estimates(np.array(ortho_rec_tau)[:, 4].flatten(), treatment_effect, treatment_effect,
+                                       title="ICA", plot=plot)
+
+    if plot:
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir,
                              'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}_beta_{}.svg'.format(
                                  n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta)), dpi=300, bbox_inches='tight')
 
@@ -90,26 +98,29 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
     return biases, sigmas
 
 def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_samples, n_dim, n_experiments, support_size,
-                               sigma_outcome, covariate_pdf, beta):
-    plt.figure(figsize=(15, 5))
-    plt.subplot(1, 4, 1)
-    plt.title("Model_treatment error")
-    plt.hist(np.array(first_stage_mse)[:, 0].flatten())
-    plt.subplot(1, 4, 2)
-    plt.hist(np.array(first_stage_mse)[:, 1].flatten())
-    plt.title("Model_outcome error")
-    plt.subplot(1, 4, 3)
-    plt.hist(np.array(first_stage_mse)[:, 2].flatten())
-    plt.title("ICA error")
-    plt.subplot(1, 4, 4)
-    plt.hist(np.array(first_stage_mse)[:, 3].flatten())
-    plt.title("ICA MCC")
-
+                               sigma_outcome, covariate_pdf, beta, plot=False):
     filename_base = 'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}_beta_{}'.format(
         n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta)
 
-    plt.savefig(os.path.join(output_dir, filename_base + '.svg'),
-                dpi=300, bbox_inches='tight')
+    if plot:
+        plt.figure(figsize=(15, 5))
+        plt.subplot(1, 4, 1)
+        plt.title("Model_treatment error")
+        plt.hist(np.array(first_stage_mse)[:, 0].flatten())
+        plt.subplot(1, 4, 2)
+        plt.hist(np.array(first_stage_mse)[:, 1].flatten())
+        plt.title("Model_outcome error")
+        plt.subplot(1, 4, 3)
+        plt.hist(np.array(first_stage_mse)[:, 2].flatten())
+        plt.title("ICA error")
+        plt.subplot(1, 4, 4)
+        plt.hist(np.array(first_stage_mse)[:, 3].flatten())
+        plt.title("ICA MCC")
+
+
+
+        plt.savefig(os.path.join(output_dir, filename_base + '.svg'),
+                    dpi=300, bbox_inches='tight')
 
     # Save the data
     coef_filename = 'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}_beta_{}'.format(
