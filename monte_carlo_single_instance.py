@@ -62,7 +62,7 @@ def main(args):
     parser.add_argument("--n_dim", dest="n_dim",
                         type=int, help='n_dim', default=50)
     parser.add_argument("--n_experiments", dest="n_experiments",
-                        type=int, help='n_experiments', default=20)
+                        type=int, help='n_experiments', default=2)
     parser.add_argument("--seed", dest="seed",
                         type=int, help='seed', default=12143)
     parser.add_argument("--sigma_outcome", dest="sigma_outcome",
@@ -75,7 +75,7 @@ def main(args):
                         type=bool, help='check convergence', default=False)
     
     parser.add_argument("--asymptotic_var", dest="asymptotic_var",
-                        type=bool, help='Flag to ablate asymptotic variance', default=False)
+                        type=bool, help='Flag to ablate asymptotic variance', default=True)
 
     opts = parser.parse_args(args)
 
@@ -98,7 +98,7 @@ def main(args):
     support_sizes = [2, 5, 10, 20, 50] if opts.asymptotic_var is False else [50]
     data_samples = [100, 200, 500, 1000, 2000, 5000] if opts.asymptotic_var is False else [5000]
     beta_values = [1.0] if opts.covariate_pdf != "gennorm" else [0.5, 1.0, 1.5, 2.0, 2.5, 3., 3.5, 4., 4.5, 5]
-    treatment_effects = [3.0] if opts.asymptotic_var is False else [-5, -2, -.25, .25, 2, 5]
+    treatment_effects = [3.0] if opts.asymptotic_var is False else [-1, 1]#[-5, -2, -0.1, 0.1, 2, 5]
 
     import os
 
@@ -131,15 +131,15 @@ def main(args):
                 for treatment_effect in treatment_effects:
                     print(f"\nRunning experiments with treatment effect: {treatment_effect}")
 
-                '''
-                True parameters
-                '''
+                    '''
+                    True parameters
+                    '''
 
-                # Support and coefficients for treatment as function of co-variates
-                treatment_support = np.random.choice(range(n_dim), size=support_size, replace=False)
-                treatment_coef = np.random.uniform(0, 5, size=support_size)
-                print("Support of treatment as function of co-variates: {}".format(treatment_support))
-                print("Coefficients of treatment as function of co-variates: {}".format(treatment_coef))
+                    # Support and coefficients for treatment as function of co-variates
+                    treatment_support = np.random.choice(range(n_dim), size=support_size, replace=False)
+                    treatment_coef = np.random.randn(support_size)
+                    print("Support of treatment as function of co-variates: {}".format(treatment_support))
+                    print("Coefficients of treatment as function of co-variates: {}".format(treatment_coef))
 
                     # Distribution of residuals of treatment
                     discounts = np.array([0, -.5, -2., -4.])
@@ -157,25 +157,27 @@ def main(args):
                     print("Non-Gaussianity Criterion, E[eta^4] - 3 E[eta^2]^2: {:.2f}".format(
                         non_gauss_cond))
 
-                # HOML asymptotic variance numerator 
-                eta_cubed_variance = np.dot(probs, ((discounts - mean_discount) ** 3 - eta_third_moment) ** 2)
-                homl_asymptotic_var_num = eta_cubed_variance +9*eta_second_moment**2+3*eta_fourth_moment*eta_second_moment
-                homl_asymptotic_var = homl_asymptotic_var_num/non_gauss_cond**2
+                    # HOML asymptotic variance numerator 
+                    eta_cubed_variance = np.dot(probs, ((discounts - mean_discount) ** 3 - eta_third_moment) ** 2)
+                    homl_asymptotic_var_num = eta_cubed_variance +9*eta_second_moment**2+3*eta_fourth_moment*eta_second_moment
+                    homl_asymptotic_var = homl_asymptotic_var_num/non_gauss_cond**2
+
+                    
 
 
 
-                eta_excess_kurtosis = eta_fourth_moment - 3
-                eta_skewness_squared = eta_third_moment **2
+                    eta_excess_kurtosis = eta_fourth_moment - 3
+                    eta_skewness_squared = eta_third_moment **2
 
-                # Support and coefficients for outcome as function of co-variates
-                outcome_support = treatment_support  # np.random.choice(range(n_dim), size=support_size, replace=False)
-                outcome_coef = np.random.uniform(0, 5, size=support_size)
-                print("Support of outcome as function of co-variates: {}".format(outcome_support))
-                print("Coefficients of outcome as function of co-variates: {}".format(outcome_coef))
+                    # Support and coefficients for outcome as function of co-variates
+                    outcome_support = treatment_support  # np.random.choice(range(n_dim), size=support_size, replace=False)
+                    outcome_coef = np.random.randn(support_size)
+                    print("Support of outcome as function of co-variates: {}".format(outcome_support))
+                    print("Coefficients of outcome as function of co-variates: {}".format(outcome_coef))
 
-                # Distribution of outcome residuals
-                sigma_outcome = opts.sigma_outcome
-                epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
+                    # Distribution of outcome residuals
+                    sigma_outcome = opts.sigma_outcome
+                    epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
 
 
                     # Calculate fourth and sixth moments of a uniform distribution in [-a; a]
@@ -183,7 +185,7 @@ def main(args):
                     eps_second_moment = (1/3) * sigma_outcome**2
                     eps_fourth_moment = (1/5) * sigma_outcome**4
                     eps_sixth_moment = (1/7) * sigma_outcome**6
-                    ica_asymptotic_var_num = eps_sixth_moment - eps_fourth_moment
+                    ica_asymptotic_var_num = eps_sixth_moment - eps_fourth_moment**2
                     ica_asymptotic_var_hyvarinen = ica_asymptotic_var_num/(eps_fourth_moment-3*eps_second_moment)**2
 
 
@@ -203,34 +205,34 @@ def main(args):
                     Run the experiments.
                     '''
 
-                if opts.covariate_pdf == "gauss":
-                    x_sample = lambda n_samples, n_dim: np.random.normal(size=(n_samples, n_dim))
-                elif opts.covariate_pdf == "uniform":
-                    x_sample = lambda n_samples, n_dim: np.random.uniform(size=(n_samples, n_dim))
-                if opts.covariate_pdf == "gennorm":
-                    from scipy.stats import gennorm
-                    loc = 0
-                    scale = 1
-                    x_sample = lambda n_samples, n_dim: gennorm.rvs(beta, size=(n_samples, n_dim))
+                    if opts.covariate_pdf == "gauss":
+                        x_sample = lambda n_samples, n_dim: np.random.normal(size=(n_samples, n_dim))
+                    elif opts.covariate_pdf == "uniform":
+                        x_sample = lambda n_samples, n_dim: np.random.uniform(size=(n_samples, n_dim))
+                    if opts.covariate_pdf == "gennorm":
+                        from scipy.stats import gennorm
+                        loc = 0
+                        scale = 1
+                        x_sample = lambda n_samples, n_dim: gennorm.rvs(beta, size=(n_samples, n_dim))
 
-                # Coefficients recovered by orthogonal ML
-                lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
-                results = [r for r in Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
-                    x_sample(n_samples, n_dim),
-                    eta_sample(n_samples),
-                    epsilon_sample(n_samples),
-                    treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef, eta_second_moment,
-                    eta_third_moment, lambda_reg
-                ) for _ in range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
+                    # Coefficients recovered by orthogonal ML
+                    lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
+                    results = [r for r in Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
+                        x_sample(n_samples, n_dim),
+                        eta_sample(n_samples),
+                        epsilon_sample(n_samples),
+                        treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef, eta_second_moment,
+                        eta_third_moment, lambda_reg
+                    ) for _ in range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
 
-                ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml,
-                                  ica_treatment_effect_estimate] for
-                                 ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _
-                                 in results]
-                first_stage_mse = [
-                    [np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome),
-                     np.linalg.norm(ica_treatment_effect_estimate - treatment_effect), ica_mcc] for
-                    _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in results]
+                    ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml,
+                                    ica_treatment_effect_estimate] for
+                                    ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _
+                                    in results]
+                    first_stage_mse = [
+                        [np.linalg.norm(true_coef_treatment - coef_treatment), np.linalg.norm(true_coef_outcome - coef_outcome),
+                        np.linalg.norm(ica_treatment_effect_estimate - treatment_effect), ica_mcc] for
+                        _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in results]
 
                     all_results.append({
                         'n_samples': n_samples,
@@ -256,19 +258,19 @@ def main(args):
 
 
 
-                '''
-                Plotting histograms
-                '''
+                    '''
+                    Plotting histograms
+                    '''
 
-                biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir, n_samples, n_dim,
-                                                        n_experiments, support_size,
-                                                        sigma_outcome, opts.covariate_pdf, beta)
-                all_results[-1]['biases'] = biases
-                all_results[-1]['sigmas'] = sigmas
+                    biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir, n_samples, n_dim,
+                                                            n_experiments, support_size,
+                                                            sigma_outcome, opts.covariate_pdf, beta)
+                    all_results[-1]['biases'] = biases
+                    all_results[-1]['sigmas'] = sigmas
 
-                plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples, n_dim, n_experiments,
-                                           support_size,
-                                           sigma_outcome, opts.covariate_pdf, beta)
+                    plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples, n_dim, n_experiments,
+                                               support_size,
+                                               sigma_outcome, opts.covariate_pdf, beta)
 
         plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, beta)
 
@@ -315,7 +317,7 @@ def main(args):
                     data_matrix_std[j,i] = ica_std
 
 
-        return data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values, 
+        return data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values,
 
     # Define the output file path
     results_file_path = os.path.join(opts.output_dir, results_filename)
@@ -412,7 +414,41 @@ def main(args):
     plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_var_vs_asy_var_diff_hyvarinen.svg'), dpi=300, bbox_inches='tight')
     plt.close()
 
+    # Prepare data for the scatter plots
+    x_values_ica_asymptotic_var = [res['ica_asymptotic_var'] for res in all_results]
+    x_values_ica_asymptotic_var_hyvarinen = [res['ica_asymptotic_var_hyvarinen'] for res in all_results]
+    x_values_homl_asymptotic_var = [res['homl_asymptotic_var'] for res in all_results]
+    y_values_actual_variance_ica = [res['sigmas'][-1] for res in all_results] 
+    y_values_actual_variance_homl = [res['sigmas'][3] for res in all_results] 
 
+    colors = [res['beta'] for res in all_results]
+
+    # Scatter plot for ICA asymptotic variance
+    plt.figure(figsize=(10, 8))
+    scatter = plt.scatter(x_values_ica_asymptotic_var, y_values_actual_variance_ica, c=colors, cmap='viridis', alpha=0.75)
+    plt.colorbar(scatter, label='Beta')
+    plt.xlabel('ICA Asymptotic Variance')
+    plt.ylabel('Actual Variance (from Sigmas)')
+    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_ica_asymptotic_vs_actual_variance.svg'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # Scatter plot for ICA Hyvarinen asymptotic variance
+    plt.figure(figsize=(10, 8))
+    scatter = plt.scatter(x_values_ica_asymptotic_var_hyvarinen, y_values_actual_variance_ica, c=colors, cmap='viridis', alpha=0.75)
+    plt.colorbar(scatter, label='Beta')
+    plt.xlabel('ICA Hyvarinen Asymptotic Variance')
+    plt.ylabel('Actual Variance (from Sigmas)')
+    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_ica_hyvarinen_asymptotic_vs_actual_variance.svg'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # Scatter plot for HOML asymptotic variance
+    plt.figure(figsize=(10, 8))
+    scatter = plt.scatter(x_values_homl_asymptotic_var, y_values_actual_variance_homl, c=colors, cmap='viridis', alpha=0.75)
+    plt.colorbar(scatter, label='Beta')
+    plt.xlabel('HOML Asymptotic Variance')
+    plt.ylabel('Actual Variance (from Sigmas)')
+    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_homl_asymptotic_vs_actual_variance.svg'), dpi=300, bbox_inches='tight')
+    plt.close()
 
 
 
