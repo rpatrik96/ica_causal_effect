@@ -95,15 +95,19 @@ def main(args):
     # Run experiments for different support sizes and beta values
     
 
-    support_sizes = [2, 5, 10, 20, 50]
-    data_samples = [100, 200, 500, 1000, 2000, 5000]
+    support_sizes = [2, 5, 10, 20, 50] if opts.asymptotic_var is False else [50]
+    data_samples = [100, 200, 500, 1000, 2000, 5000] if opts.asymptotic_var is False else [5000]
     beta_values = [1.0] if opts.covariate_pdf != "gennorm" else [0.5, 1.0, 1.5, 2.0, 2.5, 3., 3.5, 4., 4.5, 5]
     treatment_effects = [3.0] if opts.asymptotic_var is False else [-5, -2, -.25, .25, 2, 5]
 
     import os
 
     # Define the output file path
-    results_file_path = os.path.join(opts.output_dir, f'all_results_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}.npy')
+    if opts.asymptotic_var:
+        results_filename = f'all_results_asymptotic_var_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}.npy'
+    else:
+        results_filename = f'all_results_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}.npy'
+    results_file_path = os.path.join(opts.output_dir, results_filename)
 
     all_results = []
     for n_samples in data_samples:
@@ -137,21 +141,21 @@ def main(args):
                 print("Support of treatment as function of co-variates: {}".format(treatment_support))
                 print("Coefficients of treatment as function of co-variates: {}".format(treatment_coef))
 
-                # Distribution of residuals of treatment
-                discounts = np.array([0, -.5, -2., -4.])
-                probs = np.array([.65, .2, .1, .05])
-                mean_discount = np.dot(discounts, probs)
-                eta_sample = lambda x: np.array(
-                    [discounts[i] - mean_discount for i in np.argmax(np.random.multinomial(1, probs, x), axis=1)])
-                # Calculate moments of the residual distribution
-                eta_second_moment = np.dot(probs, (discounts - mean_discount) ** 2)
-                eta_third_moment = np.dot(probs, (discounts - mean_discount) ** 3)
-                eta_fourth_moment = np.dot(probs, (discounts - mean_discount) ** 4)
-                print("Second Moment of Eta: {:.2f}".format(eta_second_moment))
-                print("Third Moment of Eta: {:.2f}".format(eta_third_moment))
-                non_gauss_cond = eta_fourth_moment - 3 * eta_second_moment ** 2
-                print("Non-Gaussianity Criterion, E[eta^4] - 3 E[eta^2]^2: {:.2f}".format(
-                    non_gauss_cond))
+                    # Distribution of residuals of treatment
+                    discounts = np.array([0, -.5, -2., -4.])
+                    probs = np.array([.65, .2, .1, .05])
+                    mean_discount = np.dot(discounts, probs)
+                    eta_sample = lambda x: np.array(
+                        [discounts[i] - mean_discount for i in np.argmax(np.random.multinomial(1, probs, x), axis=1)])
+                    # Calculate moments of the residual distribution
+                    eta_second_moment = np.dot(probs, (discounts - mean_discount) ** 2)
+                    eta_third_moment = np.dot(probs, (discounts - mean_discount) ** 3)
+                    eta_fourth_moment = np.dot(probs, (discounts - mean_discount) ** 4)
+                    print("Second Moment of Eta: {:.2f}".format(eta_second_moment))
+                    print("Third Moment of Eta: {:.2f}".format(eta_third_moment))
+                    non_gauss_cond = eta_fourth_moment - 3 * eta_second_moment
+                    print("Non-Gaussianity Criterion, E[eta^4] - 3 E[eta^2]^2: {:.2f}".format(
+                        non_gauss_cond))
 
                 # HOML asymptotic variance numerator 
                 eta_cubed_variance = np.dot(probs, ((discounts - mean_discount) ** 3 - eta_third_moment) ** 2)
@@ -173,24 +177,31 @@ def main(args):
                 sigma_outcome = opts.sigma_outcome
                 epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
 
+
+                    # Calculate fourth and sixth moments of a uniform distribution in [-a; a]
                     
+                    eps_second_moment = (1/3) * sigma_outcome**2
+                    eps_fourth_moment = (1/5) * sigma_outcome**4
+                    eps_sixth_moment = (1/7) * sigma_outcome**6
+                    ica_asymptotic_var_num = eps_sixth_moment - eps_fourth_moment
+                    ica_asymptotic_var_hyvarinen = ica_asymptotic_var_num/(eps_fourth_moment-3*eps_second_moment)**2
 
 
 
-                true_coef_treatment = np.zeros(n_dim)
-                true_coef_treatment[treatment_support] = treatment_coef
-                true_coef_outcome = np.zeros(n_dim)
-                true_coef_outcome[outcome_support] = outcome_coef
-                true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
-                print(true_coef_outcome[outcome_support])
-                
-                
-                ica_asymptotic_var = (1+ np.linalg.norm(outcome_coef+treatment_coef*treatment_effect, p=2)**2) * eta_cubed_variance/eta_excess_kurtosis**2
-                
-                
-                '''
-                Run the experiments.
-                '''
+                    true_coef_treatment = np.zeros(n_dim)
+                    true_coef_treatment[treatment_support] = treatment_coef
+                    true_coef_outcome = np.zeros(n_dim)
+                    true_coef_outcome[outcome_support] = outcome_coef
+                    true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
+                    print(true_coef_outcome[outcome_support])
+                    
+                    
+                    ica_asymptotic_var = (1+ np.linalg.norm(outcome_coef+treatment_coef*treatment_effect, ord=2)**2) * eta_cubed_variance/eta_excess_kurtosis**2
+                    
+                    
+                    '''
+                    Run the experiments.
+                    '''
 
                 if opts.covariate_pdf == "gauss":
                     x_sample = lambda n_samples, n_dim: np.random.normal(size=(n_samples, n_dim))
@@ -238,6 +249,8 @@ def main(args):
                         'homl_asymptotic_var_num' : homl_asymptotic_var_num,
                         'homl_asymptotic_var': homl_asymptotic_var,
                         'ica_asymptotic_var': ica_asymptotic_var,
+                        'ica_asymptotic_var_num': ica_asymptotic_var_num,
+                        'ica_asymptotic_var_hyvarinen': ica_asymptotic_var_hyvarinen,
                         'treatment_effect': treatment_effect
                     })
 
@@ -304,16 +317,25 @@ def main(args):
 
         return data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values, 
 
+    # Define the output file path
+    results_file_path = os.path.join(opts.output_dir, results_filename)
+    np.save(results_file_path, all_results)
+
+    print(f"All results with noise parameters have been saved to {results_file_path}")
+
+    print("\nDone with all experiments!")
+
     # Plot heatmaps for comparison with HOML Split, filtered for beta=1
     bias_diff_matrix_dim_homl_mean, bias_diff_matrix_dim_homl_std, bias_diff_matrix_dim_homl, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=3, beta_filter=1)
     plot_heatmap(bias_diff_matrix_dim_homl_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl_mean.svg', opts.output_dir, center=0)
     plot_heatmap(bias_diff_matrix_dim_homl_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl_std.svg', opts.output_dir, center=0)
     plot_heatmap(bias_diff_matrix_dim_homl, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_homl.svg', opts.output_dir, center=0)
 
-    bias_diff_matrix_beta_homl_mean, bias_diff_matrix_beta_homl_std, bias_diff_matrix_beta_homl, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=3, support_size_filter=10)
-    plot_heatmap(bias_diff_matrix_beta_homl_mean, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl_mean.svg', opts.output_dir, center=0)
-    plot_heatmap(bias_diff_matrix_beta_homl_std, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl_std.svg', opts.output_dir, center=0)
-    plot_heatmap(bias_diff_matrix_beta_homl, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl.svg', opts.output_dir, center=0)
+    if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
+        bias_diff_matrix_beta_homl_mean, bias_diff_matrix_beta_homl_std, bias_diff_matrix_beta_homl, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=3, support_size_filter=10)
+        plot_heatmap(bias_diff_matrix_beta_homl_mean, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl_mean.svg', opts.output_dir, center=0)
+        plot_heatmap(bias_diff_matrix_beta_homl_std, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl_std.svg', opts.output_dir, center=0)
+        plot_heatmap(bias_diff_matrix_beta_homl, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_homl.svg', opts.output_dir, center=0)
 
     # Plot heatmaps for comparison with OML, filtered for beta=1
     bias_diff_matrix_dim_oml_mean, bias_diff_matrix_dim_oml_std, bias_diff_matrix_dim_oml, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases', diff_index=0, beta_filter=1)
@@ -321,10 +343,11 @@ def main(args):
     plot_heatmap(bias_diff_matrix_dim_oml_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml_std.svg', opts.output_dir, center=0)
     plot_heatmap(bias_diff_matrix_dim_oml, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'bias_diff_heatmap_sample_size_vs_dim_oml.svg', opts.output_dir, center=0)
 
-    bias_diff_matrix_beta_oml_mean, bias_diff_matrix_beta_oml_std, bias_diff_matrix_beta_oml, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=0, support_size_filter=10)
-    plot_heatmap(bias_diff_matrix_beta_oml_mean, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_oml_mean.svg', opts.output_dir, center=0)
-    plot_heatmap(bias_diff_matrix_beta_oml_std, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_oml_std.svg', opts.output_dir, center=0)
-    plot_heatmap(bias_diff_matrix_beta_oml, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_oml.svg', opts.output_dir, center=0)
+    if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
+        bias_diff_matrix_beta_oml_mean, bias_diff_matrix_beta_oml_std, bias_diff_matrix_beta_oml, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', diff_index=0, support_size_filter=10)
+        plot_heatmap(bias_diff_matrix_beta_oml_mean, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_oml_mean.svg', opts.output_dir, center=0)
+        plot_heatmap(bias_diff_matrix_beta_oml_std, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_oml_std.svg', opts.output_dir, center=0)
+        plot_heatmap(bias_diff_matrix_beta_oml, betas, sample_sizes, r'$\beta$', r'$n$', 'bias_diff_heatmap_sample_size_vs_beta_oml.svg', opts.output_dir, center=0)
 
 
     # ICA error only
@@ -333,10 +356,11 @@ def main(args):
     plot_heatmap(ica_bias_matrix_dim_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim_std.svg', opts.output_dir, center=None)
     # plot_heatmap(ica_bias_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim.svg', opts.output_dir, center=None)
 
-    ica_bias_matrix_beta_mean, ica_bias_matrix_beta_std, ica_bias_matrix_beta, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', support_size_filter=10)
-    plot_heatmap(ica_bias_matrix_beta_mean, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta_mean.svg', opts.output_dir, center=None)
-    plot_heatmap(ica_bias_matrix_beta_std, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta_std.svg', opts.output_dir, center=None)
-    # plot_heatmap(ica_bias_matrix_beta, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta.svg', opts.output_dir, center=None)
+    if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
+        ica_bias_matrix_beta_mean, ica_bias_matrix_beta_std, ica_bias_matrix_beta, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases', support_size_filter=10)
+        plot_heatmap(ica_bias_matrix_beta_mean, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta_mean.svg', opts.output_dir, center=None)
+        plot_heatmap(ica_bias_matrix_beta_std, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta_std.svg', opts.output_dir, center=None)
+        # plot_heatmap(ica_bias_matrix_beta, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta.svg', opts.output_dir, center=None)
 
     # Prepare data for scatter plot
     filtered_results = all_results
@@ -354,16 +378,42 @@ def main(args):
     plt.close()
     
 
-    import numpy as np
-    import os
+    # Prepare data for the new scatter plot
+    x_values_var_diff = [res['ica_asymptotic_var'] - res['homl_asymptotic_var'] for res in all_results]
+    x_values_var__hyvarinen_diff = [res['ica_asymptotic_var_hyvarinen'] - res['homl_asymptotic_var'] for res in all_results]
+    y_values_bias_diff = [res['biases'][-1] - res['biases'][3] for res in all_results]
+    y_values_sigma_diff = [res['sigmas'][-1] - res['sigmas'][3] for res in all_results]
+    colors = [res['beta'] for res in all_results]
 
-    # Define the output file path
-    results_file_path = os.path.join(opts.output_dir, f'all_results_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}.npy')
-    np.save(results_file_path, all_results)
+    plt.figure(figsize=(10, 8))
+    scatter = plt.scatter(x_values_var_diff, y_values_bias_diff, c=colors, cmap='viridis', alpha=0.75)
+    plt.colorbar(scatter, label='Beta')
+    plt.xlabel('Difference in Asymptotic Variance (ICA - HOML)')
+    plt.ylabel('Difference in Bias (ICA - HOML)')
+    # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
+    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_var_vs_bias_diff.svg'), dpi=300, bbox_inches='tight')
+    plt.close()
 
-    print(f"All results with noise parameters have been saved to {results_file_path}")
+    plt.figure(figsize=(10, 8))
+    scatter = plt.scatter(x_values_var_diff, y_values_sigma_diff, c=colors, cmap='viridis', alpha=0.75)
+    plt.colorbar(scatter, label='Beta')
+    plt.xlabel('Difference in Asymptotic Variance (ICA - HOML)')
+    plt.ylabel('Difference in Variance (ICA - HOML)')
+    # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
+    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_var_vs_asy_var_diff.svg'), dpi=300, bbox_inches='tight')
+    plt.close()
 
-    print("\nDone with all experiments!")
+    plt.figure(figsize=(10, 8))
+    scatter = plt.scatter(x_values_var__hyvarinen_diff, y_values_sigma_diff, c=colors, cmap='viridis', alpha=0.75)
+    plt.colorbar(scatter, label='Beta')
+    plt.xlabel('Difference in Asymptotic Variance (ICA - HOML) Hyvarinen')
+    plt.ylabel('Difference in Variance (ICA - HOML)')
+    # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
+    plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_var_vs_asy_var_diff_hyvarinen.svg'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+
 
 
 if __name__ == "__main__":
