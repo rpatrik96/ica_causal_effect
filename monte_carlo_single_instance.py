@@ -62,11 +62,11 @@ def main(args):
     parser.add_argument("--n_dim", dest="n_dim",
                         type=int, help='n_dim', default=50)
     parser.add_argument("--n_experiments", dest="n_experiments",
-                        type=int, help='n_experiments', default=2)
+                        type=int, help='n_experiments', default=20)
     parser.add_argument("--seed", dest="seed",
                         type=int, help='seed', default=12143)
     parser.add_argument("--sigma_outcome", dest="sigma_outcome",
-                        type=int, help='sigma_outcome', default=1)
+                        type=float, help='sigma_outcome', default=np.sqrt(3.))
     parser.add_argument("--covariate_pdf", dest="covariate_pdf",
                         type=str, help='pdf of covariates', default="gennorm")
 
@@ -76,6 +76,8 @@ def main(args):
     
     parser.add_argument("--asymptotic_var", dest="asymptotic_var",
                         type=bool, help='Flag to ablate asymptotic variance', default=True)
+    parser.add_argument("--tie_sample_dim", dest="tie_sample_dim",
+                        type=bool, help='Ties n=d**4', default=False)
 
     opts = parser.parse_args(args)
 
