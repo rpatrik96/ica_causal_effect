@@ -98,6 +98,7 @@ def main(args):
     support_sizes = [2, 5, 10, 20, 50]
     data_samples = [100, 200, 500, 1000, 2000, 5000]
     beta_values = [1.0] if opts.covariate_pdf != "gennorm" else [0.5, 1.0, 1.5, 2.0, 2.5, 3., 3.5, 4., 4.5, 5]
+    treatment_effects = [3.0] if opts.asymptotic_var is False else [-5, -2, -.25, .25, 2, 5]
 
     import os
 
@@ -121,7 +122,10 @@ def main(args):
 
             for support_size in support_sizes:
                 print(f"\nRunning experiments with support size: {support_size}")
-                print("Support size of sparse functions: {}".format(support_size))
+                # print("Support size of sparse functions: {}".format(support_size))
+
+                for treatment_effect in treatment_effects:
+                    print(f"\nRunning experiments with treatment effect: {treatment_effect}")
 
                 '''
                 True parameters
@@ -169,7 +173,7 @@ def main(args):
                 sigma_outcome = opts.sigma_outcome
                 epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
 
-                treatment_effect = 3.0
+                    
 
 
 
@@ -217,26 +221,27 @@ def main(args):
                      np.linalg.norm(ica_treatment_effect_estimate - treatment_effect), ica_mcc] for
                     _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in results]
 
-                all_results.append({
-                    'n_samples': n_samples,
-                    'support_size': support_size,
-                    'beta': beta,
-                    'ortho_rec_tau': ortho_rec_tau,
-                    'first_stage_mse': first_stage_mse,
-                    'non_gauss_cond': non_gauss_cond,
-                    'eta_skewness_squared' : eta_skewness_squared,
-                    'eta_second_moment': eta_second_moment,
-                    'eta_third_moment': eta_third_moment,
-                    'eta_fourth_moment' : eta_fourth_moment,
-                    'eta_excess_kurtosis': eta_excess_kurtosis,
-                    'eta_cubed_variance': eta_cubed_variance,
-                    'sigma_outcome': sigma_outcome,
-                    'homl_asymptotic_var_num' : homl_asymptotic_var_num,
-                    'homl_asymptotic_var': homl_asymptotic_var,
-                    'ica_asymptotic_var': ica_asymptotic_var
-                })
+                    all_results.append({
+                        'n_samples': n_samples,
+                        'support_size': support_size,
+                        'beta': beta,
+                        'ortho_rec_tau': ortho_rec_tau,
+                        'first_stage_mse': first_stage_mse,
+                        'non_gauss_cond': non_gauss_cond,
+                        'eta_skewness_squared' : eta_skewness_squared,
+                        'eta_second_moment': eta_second_moment,
+                        'eta_third_moment': eta_third_moment,
+                        'eta_fourth_moment' : eta_fourth_moment,
+                        'eta_excess_kurtosis': eta_excess_kurtosis,
+                        'eta_cubed_variance': eta_cubed_variance,
+                        'sigma_outcome': sigma_outcome,
+                        'homl_asymptotic_var_num' : homl_asymptotic_var_num,
+                        'homl_asymptotic_var': homl_asymptotic_var,
+                        'ica_asymptotic_var': ica_asymptotic_var,
+                        'treatment_effect': treatment_effect
+                    })
 
-                print(f"Done with experiments for support size {support_size} and beta {beta}!")
+
 
                 '''
                 Plotting histograms
