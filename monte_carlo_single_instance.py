@@ -152,6 +152,8 @@ def main(args):
                 # HOML asymptotic variance numerator 
                 eta_cubed_variance = np.dot(probs, ((discounts - mean_discount) ** 3 - eta_third_moment) ** 2)
                 homl_asymptotic_var_num = eta_cubed_variance +9*eta_second_moment**2+3*eta_fourth_moment*eta_second_moment
+                homl_asymptotic_var = homl_asymptotic_var_num/non_gauss_cond**2
+
 
 
                 eta_excess_kurtosis = eta_fourth_moment - 3
@@ -179,7 +181,7 @@ def main(args):
                 print(true_coef_outcome[outcome_support])
                 
                 
-                ica_asymptotic_var_num = (1+ np.linalg.norm(outcome_coef+treatment_coef*treatment_effect, p=2)**2) * eta_cubed_variance/eta_excess_kurtosis**2
+                ica_asymptotic_var = (1+ np.linalg.norm(outcome_coef+treatment_coef*treatment_effect, p=2)**2) * eta_cubed_variance/eta_excess_kurtosis**2
                 
                 
                 '''
@@ -230,7 +232,8 @@ def main(args):
                     'eta_cubed_variance': eta_cubed_variance,
                     'sigma_outcome': sigma_outcome,
                     'homl_asymptotic_var_num' : homl_asymptotic_var_num,
-                    'ica_asymptotic_var_num': ica_asymptotic_var_num
+                    'homl_asymptotic_var': homl_asymptotic_var,
+                    'ica_asymptotic_var': ica_asymptotic_var
                 })
 
                 print(f"Done with experiments for support size {support_size} and beta {beta}!")
