@@ -73,6 +73,9 @@ def main(args):
     parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
     parser.add_argument("--check_convergence", dest="check_convergence",
                         type=bool, help='check convergence', default=False)
+    
+    parser.add_argument("--asymptotic_var", dest="asymptotic_var",
+                        type=bool, help='Flag to ablate asymptotic variance', default=False)
 
     opts = parser.parse_args(args)
 
@@ -90,6 +93,8 @@ def main(args):
     n_experiments = opts.n_experiments
 
     # Run experiments for different support sizes and beta values
+    
+
     support_sizes = [2, 5, 10, 20, 50]
     data_samples = [100, 200, 500, 1000, 2000, 5000]
     beta_values = [1.0] if opts.covariate_pdf != "gennorm" else [0.5, 1.0, 1.5, 2.0, 2.5, 3., 3.5, 4., 4.5, 5]
@@ -144,6 +149,12 @@ def main(args):
                 print("Non-Gaussianity Criterion, E[eta^4] - 3 E[eta^2]^2: {:.2f}".format(
                     non_gauss_cond))
 
+                # HOML asymptotic variance numerator 
+                eta_cubed_variance = np.dot(probs, ((discounts - mean_discount) ** 3 - eta_third_moment) ** 2)
+                homl_asymptotic_var_num = eta_cubed_variance +9*eta_second_moment**2+3*eta_fourth_moment*eta_second_moment
+
+
+                eta_excess_kurtosis = eta_fourth_moment - 3
                 eta_skewness_squared = eta_third_moment **2
 
                 # Support and coefficients for outcome as function of co-variates
@@ -158,12 +169,19 @@ def main(args):
 
                 treatment_effect = 3.0
 
+
+
                 true_coef_treatment = np.zeros(n_dim)
                 true_coef_treatment[treatment_support] = treatment_coef
                 true_coef_outcome = np.zeros(n_dim)
                 true_coef_outcome[outcome_support] = outcome_coef
                 true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
                 print(true_coef_outcome[outcome_support])
+                
+                
+                ica_asymptotic_var_num = (1+ np.linalg.norm(outcome_coef+treatment_coef*treatment_effect, p=2)**2) * eta_cubed_variance/eta_excess_kurtosis**2
+                
+                
                 '''
                 Run the experiments.
                 '''
@@ -207,7 +225,12 @@ def main(args):
                     'eta_skewness_squared' : eta_skewness_squared,
                     'eta_second_moment': eta_second_moment,
                     'eta_third_moment': eta_third_moment,
+                    'eta_fourth_moment' : eta_fourth_moment,
+                    'eta_excess_kurtosis': eta_excess_kurtosis,
+                    'eta_cubed_variance': eta_cubed_variance,
                     'sigma_outcome': sigma_outcome,
+                    'homl_asymptotic_var_num' : homl_asymptotic_var_num,
+                    'ica_asymptotic_var_num': ica_asymptotic_var_num
                 })
 
                 print(f"Done with experiments for support size {support_size} and beta {beta}!")
