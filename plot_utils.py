@@ -9,7 +9,7 @@ from matplotlib import rc
 
 
 def plot_typography(
-    usetex: bool = False, small: int = 20, medium: int = 24, big: int = 28
+    usetex: bool = False, small: int = 24, medium: int = 30, big: int = 34
 ):
     """
     Initializes font settings and visualization backend (LaTeX or standard matplotlib).
