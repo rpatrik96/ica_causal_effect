@@ -75,7 +75,7 @@ def main(args):
                         type=bool, help='check convergence', default=False)
     
     parser.add_argument("--asymptotic_var", dest="asymptotic_var",
-                        type=bool, help='Flag to ablate asymptotic variance', default=True)
+                        type=bool, help='Flag to ablate asymptotic variance', default=False)
     parser.add_argument("--tie_sample_dim", dest="tie_sample_dim",
                         type=bool, help='Ties n=d**4', default=False)
 
@@ -498,8 +498,8 @@ def main(args):
     x_values_ica_var_coeff = [res['ica_var_coeff'] for res in all_results]
     y_values_ica_biases = [res['biases'][-1] for res in all_results]
     y_values_homl_biases = [res['biases'][3] for res in all_results]
-    y_errors_ica = [res['sigmas'][-1]/np.sqrt(opts.n) for res in all_results]
-    y_errors_homl = [res['sigmas'][3] for res in all_results]
+    y_errors_ica = [res['sigmas'][-1]/np.sqrt(res['n_samples']) for res in all_results]
+    y_errors_homl = [res['sigmas'][3]/np.sqrt(res['n_samples']) for res in all_results]
 
     # Scatter plot for ICA and HOML biases with sigmas as error bars
     plt.figure(figsize=(10, 8))
@@ -558,4 +558,7 @@ def main(args):
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    plt.rcParams.update(bundles.icml2022(usetex=True))
+    plot_typography()
     main(sys.argv[1:])
