@@ -565,7 +565,7 @@ def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, x_ticks
     plt.figure(figsize=(10, 6))
     bar_positions = np.arange(len(x_values))
     plt.errorbar(bar_positions, means, yerr=std_devs, fmt='o', capsize=5)
-    plt.xticks(bar_positions, x_ticks if x_ticks else x_values)
+    plt.xticks(bar_positions, [f'{x:.2f}' for x in x_values], fontsize=18)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.yscale('log')
@@ -575,7 +575,7 @@ def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, x_ticks
 
 def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename):
     plt.figure(figsize=(12, 9))
-    sns.heatmap(data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap="coolwarm", annot=True, annot_kws={"size": 8})
+    sns.heatmap(data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap="coolwarm", annot=True, annot_kws={"size": 18})
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.yticks(ticks=plt.yticks()[0], labels=[f'{x:.1f}' for x in plt.yticks()[0]])
@@ -591,7 +591,7 @@ def main_sparsity():
         results_dict = np.load(results_file, allow_pickle=True).item()
     else:
         n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
-        sparsities = np.linspace(0, 0.95, num=11)
+        sparsities = np.linspace(0, 1., num=11)[:-1]
         results_dict = initialize_results_dict(['sample_sizes', 'n_covariates', 'n_treatments', 'true_params', 'treatment_effects', 'mccs', 'sparsities'])
 
         for sparsity in sparsities:
@@ -621,12 +621,12 @@ def main_sparsity():
 def main_gennorm():
     setup_plot()
     results_file = 'results_main_gennorm.npy'
+    n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
     import os
     if os.path.exists(results_file):
         print(f"Results file '{results_file}' already exists. Loading data.")
         results_dict = np.load(results_file, allow_pickle=True).item()
     else:
-        n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
         beta_values = np.linspace(0.5, 5, num=10)
         results_dict = initialize_results_dict(['sample_sizes', 'n_covariates', 'n_treatments', 'true_params', 'treatment_effects', 'mccs', 'beta_values'])
 
