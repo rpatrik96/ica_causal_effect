@@ -695,7 +695,7 @@ def main_loc_scale():
 
 if __name__ == "__main__":
 
-
+    plot_typography()
 
     print("Running multiple treatment effect estimation with ICA...")
     main_multi()
