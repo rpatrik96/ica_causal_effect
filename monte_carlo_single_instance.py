@@ -69,7 +69,7 @@ def main(args):
                         type=bool, help='check convergence', default=False)
 
     parser.add_argument("--asymptotic_var", dest="asymptotic_var",
-                        type=bool, help='Flag to ablate asymptotic variance', default=True)
+                        type=bool, help='Flag to ablate asymptotic variance', default=False)
     parser.add_argument("--tie_sample_dim", dest="tie_sample_dim",
                         type=bool, help='Ties n=d**4', default=False)
 
@@ -103,6 +103,11 @@ def main(args):
         treatment_coefs = [0.1, 0.23, -.33, -0.47, 0.89, -1.34, 1.78, -2.56, 3.14, -3.67, ]
         outcome_coefs = [0.3]  # , -0.5, 0.7, -0.9, 1.1, -1.3, 1.5, -1.7, 1.9, -2.1]
     else:
+        treatment_coef_array = np.random.uniform(0, 5, size=support_sizes[-1])
+        outcome_coef_array = np.random.uniform(0, 5, size=support_sizes[-1])
+
+       
+        # dummy variable to avoid loop
         treatment_coefs = [0.6]
         outcome_coefs = [0.3]
 
@@ -147,12 +152,16 @@ def main(args):
                         outcome_coef = outcome_coef_list[:support_size]
 
                     else:
+
+                        # this implicitly specifies sparsity via restricting the support
                         outcome_support = treatment_support = np.random.choice(range(n_dim), size=support_size, replace=False)
+
+
                         # Support and coefficients for treatment as function of co-variates
-                        treatment_coef = np.random.uniform(0, 5, size=support_size)
+                        treatment_coef = treatment_coef_array[treatment_support]
 
                         # Support and coefficients for outcome as function of co-variates
-                        outcome_coef = np.random.uniform(0, 5, size=support_size)
+                        outcome_coef = outcome_coef_array[outcome_support]
 
                     for beta in beta_values:
                         print(f"\nRunning experiments with beta: {beta}")
