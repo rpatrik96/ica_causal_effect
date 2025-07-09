@@ -222,16 +222,19 @@ def main(args):
                                 eta_third_moment, lambda_reg
                             ) for _ in range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
 
-                            ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml,
-                                              ica_treatment_effect_estimate] for
+                            ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] + ica_treatment_effect_estimate.tolist() for
                                              ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _
-                                             in results]
+                                             in results if not np.isnan(ica_treatment_effect_estimate).any()]
+
+                            print(f"Experiments kept: {len(ortho_rec_tau)} out of {n_experiments} seeds")
+
+
                             first_stage_mse = [
                                 [np.linalg.norm(true_coef_treatment - coef_treatment),
                                  np.linalg.norm(true_coef_outcome - coef_outcome),
                                  np.linalg.norm(ica_treatment_effect_estimate - treatment_effect), ica_mcc] for
                                 _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in
-                                results]
+                                results if not np.isnan(ica_treatment_effect_estimate).any()]
 
                             all_results.append({
                                 'n_samples': n_samples,
