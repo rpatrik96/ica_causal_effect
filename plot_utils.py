@@ -39,11 +39,11 @@ def plot_typography(
     rc("figure", titlesize=big)  # fontsize of the figure title
 
 
-def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram of estimates", plot=False):
+def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram of estimates", plot=False, relative_error=False):
     # the histogram of the data
     n, bins, patches = plt.hist(estimate_list, 40, facecolor='green', alpha=0.75)
-    sigma = float(np.std(estimate_list))
-    mu = float(np.mean(estimate_list))
+    sigma = float(np.nanstd(estimate_list))
+    mu = float(np.nanmean(estimate_list))
     # add a 'best fit' line
     from scipy.stats import norm
     y = norm.pdf(bins.astype(float), mu, sigma)
@@ -52,34 +52,48 @@ def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram o
         plt.plot([treatment_effect, treatment_effect], [0, np.max(y)], 'b--', label='true effect')
         plt.title("{}. mean: {:.2f}, sigma: {:.2f}".format(title, mu, sigma))
         plt.legend()
-    mses = [np.linalg.norm(true_tau - estimate) for estimate in estimate_list]
-    return np.mean(mses), np.std(mses)
+    
+    if relative_error:
+        mses = [np.linalg.norm((true_tau - estimate) / true_tau) for estimate in estimate_list]
+    else:
+        mses = [np.linalg.norm(true_tau - estimate) for estimate in estimate_list]
+    
+    return np.nanmean(mses), np.nanstd(mses)
 
 
-def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta, plot=False):
+def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta, plot=False, relative_error=False):
     # First figure - histograms
     if plot:
         plt.figure(figsize=(25, 5))
         plt.subplot(1, 5, 1)
 
-    bias_ortho, sigma_ortho = plot_estimates(np.array(ortho_rec_tau)[:, 0].flatten(), treatment_effect, treatment_effect,
-                                             title="OML", plot=plot)
+    array = np.array(ortho_rec_tau)
+
+    if np.isnan(array).any():
+        print("There is a NaN in the array.")
+
+    
+
+    bias_ortho, sigma_ortho = plot_estimates(array[:, 0].flatten(), treatment_effect, treatment_effect,
+                                             title="OML", plot=plot, relative_error=relative_error)
     if plot:
         plt.subplot(1, 5, 2)
-    bias_robust, sigma_robust = plot_estimates(np.array(ortho_rec_tau)[:, 1].flatten(), treatment_effect, treatment_effect, 
-                                             title="HOML", plot=plot)
+    bias_robust, sigma_robust = plot_estimates(array[:, 1].flatten(), treatment_effect, treatment_effect,
+                                               title="HOML", plot=plot, relative_error=relative_error)
     if plot:
         plt.subplot(1, 5, 3)
-    bias_est, sigma_est = plot_estimates(np.array(ortho_rec_tau)[:, 2].flatten(), treatment_effect, treatment_effect,
-                                       title="HOML (Est.)", plot=plot)
+    bias_est, sigma_est = plot_estimates(array[:, 2].flatten(), treatment_effect, treatment_effect,
+                                         title="HOML (Est.)", plot=plot, relative_error=relative_error)
     if plot:
         plt.subplot(1, 5, 4)
-    bias_second, sigma_second = plot_estimates(np.array(ortho_rec_tau)[:, 3].flatten(), treatment_effect, treatment_effect,
-                                             title="HOML (Split)", plot=plot)
+    bias_second, sigma_second = plot_estimates(array[:, 3].flatten(), treatment_effect, treatment_effect,
+                                               title="HOML (Split)", plot=plot, relative_error=relative_error)
     if plot:
         plt.subplot(1, 5, 5)
-    bias_ica, sigma_ica = plot_estimates(np.array(ortho_rec_tau)[:, 4].flatten(), treatment_effect, treatment_effect,
-                                       title="ICA", plot=plot)
+    bias_ica, sigma_ica = plot_estimates(array[:, 4].flatten(), treatment_effect, treatment_effect,
+                                         title="ICA", plot=plot, relative_error=relative_error)
+
+    print(f"ICA estimates{array[:, 4].flatten()}")
 
     if plot:
         plt.tight_layout()
