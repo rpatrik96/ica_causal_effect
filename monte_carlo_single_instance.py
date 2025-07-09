@@ -268,9 +268,17 @@ def main(args):
                             biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir,
                                                                     n_samples, n_dim,
                                                                     n_experiments, support_size,
-                                                                    sigma_outcome, opts.covariate_pdf, beta)
+                                                                    sigma_outcome, opts.covariate_pdf, beta,  relative_error=False)
+
+                            biases_rel, sigmas_rel = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir,
+                                                                    n_samples, n_dim,
+                                                                    n_experiments, support_size,
+                                                                    sigma_outcome, opts.covariate_pdf, beta, relative_error=True)
                             all_results[-1]['biases'] = biases
                             all_results[-1]['sigmas'] = sigmas
+
+                            all_results[-1]['biases_rel'] = biases_rel
+                            all_results[-1]['sigmas_rel'] = sigmas_rel
 
                             plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples,
                                                        n_dim, n_experiments,
@@ -294,7 +302,7 @@ def main(args):
         plt.close()
 
     def prepare_heatmap_data(all_results, x_key, y_key, value_key, diff_index=None, beta_filter=None,
-                             support_size_filter=None):
+                             support_size_filter=None, relative_error=False):
         x_values = sorted(set([res[x_key] for res in all_results if
                                (beta_filter is None or res['beta'] == beta_filter) and (
                                            support_size_filter is None or res['support_size'] == support_size_filter)]))
@@ -306,28 +314,32 @@ def main(args):
         data_matrix_mean = np.zeros((len(y_values), len(x_values)))
         data_matrix_std = np.zeros((len(y_values), len(x_values)))
 
+        # Determine the keys based on whether relative error is considered
+        value_key_suffix = '_rel' if relative_error else ''
+        sigmas_key = 'sigmas' + value_key_suffix
+
         for i, x_val in enumerate(x_values):
             for j, y_val in enumerate(y_values):
-                ica_mean = [res[value_key][-1] for res in all_results if (
+                ica_mean = [res[value_key + value_key_suffix][-1] for res in all_results if (
                             res[x_key] == x_val and res[y_key] == y_val and (
                                 beta_filter is None or res['beta'] == beta_filter) and (
                                         support_size_filter is None or res['support_size'] == support_size_filter))][0]
-                ica_std = [res["sigmas"][-1] for res in all_results if (
+                ica_std = [res[sigmas_key][-1] for res in all_results if (
                             res[x_key] == x_val and res[y_key] == y_val and (
                                 beta_filter is None or res['beta'] == beta_filter) and (
                                         support_size_filter is None or res['support_size'] == support_size_filter))][0]
                 if diff_index is not None:
-                    compare_mean = [res[value_key][diff_index] for res in all_results if (
+                    compare_mean = [res[value_key + value_key_suffix][diff_index] for res in all_results if (
                                 res[x_key] == x_val and res[y_key] == y_val and (
                                     beta_filter is None or res['beta'] == beta_filter) and (
                                             support_size_filter is None or res[
                                         'support_size'] == support_size_filter))][0]
-                    compare_std = [res["sigmas"][diff_index] for res in all_results if (
+                    compare_std = [res[sigmas_key][diff_index] for res in all_results if (
                                 res[x_key] == x_val and res[y_key] == y_val and (
                                     beta_filter is None or res['beta'] == beta_filter) and (
                                             support_size_filter is None or res[
                                         'support_size'] == support_size_filter))][0]
-                    diffs = [res[value_key][-1] - res[value_key][diff_index] for res in all_results if (
+                    diffs = [res[value_key + value_key_suffix][-1] - res[value_key + value_key_suffix][diff_index] for res in all_results if (
                                 res[x_key] == x_val and res[y_key] == y_val and (
                                     beta_filter is None or res['beta'] == beta_filter) and (
                                             support_size_filter is None or res['support_size'] == support_size_filter))]
@@ -342,7 +354,7 @@ def main(args):
                 else:
                     diffs = ica_mean
                 if diffs:
-                    data_matrix_mean[j, i] = np.mean(diffs)
+                    data_matrix_mean[j, i] = np.nanmean(diffs)
                     data_matrix_std[j, i] = ica_std
 
         return data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values,
@@ -354,6 +366,77 @@ def main(args):
     print(f"All results with noise parameters have been saved to {results_file_path}")
 
     print("\nDone with all experiments!")
+
+    if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
+        import matplotlib.pyplot as plt
+
+        # Prepare data for plotting
+        # ica_mse_matrix, _, _, support_sizes, _ = prepare_heatmap_data(
+        #     all_results, 'support_size', 'n_samples', 'biases', beta_filter=1)
+        homl_bias_matrix, _, _, _, _ = prepare_heatmap_data(
+            all_results, 'support_size', 'n_samples', 'biases', diff_index=None, beta_filter=1, relative_error=True)
+
+        homl_sigma_matrix, _, _, _, _ = prepare_heatmap_data(
+            all_results, 'support_size', 'n_samples', 'sigmas', diff_index=None, beta_filter=1, relative_error=True)
+
+        # Calculate mean MSE across sample sizes for each support size
+
+        homl_mse_matrix = homl_bias_matrix #**2 + homl_sigma_matrix**2
+        
+
+        # Plotting
+        plt.figure(figsize=(10, 6))
+        for idx, sample_size in enumerate(data_samples):
+            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
+        plt.xlabel('Support Size')
+        plt.ylabel('ICA Relative MSE ')
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples)//2)
+        plt.grid(True)
+        plt.savefig(os.path.join(opts.output_dir, 'mse_vs_support_size_rel.svg'))
+
+        homl_mse_matrix = homl_sigma_matrix**2
+
+        plt.figure(figsize=(10, 6))
+        for idx, sample_size in enumerate(data_samples):
+            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
+        plt.xlabel('Support Size')
+        plt.ylabel('ICA MSE STD')
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples)//2)
+        plt.grid(True)
+        plt.savefig(os.path.join(opts.output_dir, 'mse_vs_support_size_rel_std.svg'))
+
+        homl_bias_matrix, _, _, _, _ = prepare_heatmap_data(
+            all_results, 'support_size', 'n_samples', 'biases', diff_index=3, beta_filter=1, relative_error=True)
+        homl_mse_matrix = homl_bias_matrix
+
+        plt.figure(figsize=(10, 6))
+        for idx, sample_size in enumerate(data_samples):
+            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
+        plt.xlabel('Support Size')
+        plt.ylabel('ICA-HOML Relative MSE ')
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples)//2)
+        plt.grid(True)
+        plt.savefig(os.path.join(opts.output_dir, 'mse_vs_support_size_rel_ica_vs_homl.svg'))
+
+        homl_bias_matrix, _, _, _, _ = prepare_heatmap_data(
+            all_results, 'support_size', 'n_samples', 'biases', diff_index=None, beta_filter=1, relative_error=False)
+
+        homl_sigma_matrix, _, _, _, _ = prepare_heatmap_data(
+            all_results, 'support_size', 'n_samples', 'sigmas', diff_index=None, beta_filter=1, relative_error=False)
+
+        homl_mse_matrix = homl_bias_matrix
+
+        # Plotting
+        plt.figure(figsize=(10, 6))
+        for idx, sample_size in enumerate(data_samples):
+            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
+        plt.xlabel('Support Size')
+        plt.ylabel('ICA MSE ')
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples)//2)
+        plt.grid(True)
+        plt.savefig(os.path.join(opts.output_dir, 'mse_vs_support_size.svg'))
+
+
 
     # Plot heatmaps for comparison with HOML Split, filtered for beta=1
     if opts.asymptotic_var is False:
