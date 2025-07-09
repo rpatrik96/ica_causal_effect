@@ -70,18 +70,19 @@ def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1.,
 
     return S, X, theta
 
-def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance", check_convergence=False,
-                                    n_treatments=1, verbose=False, fun="logcosh"):
+def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance", check_convergence=True,
+                                    n_treatments=1, verbose=True, fun="logcosh"):
     from warnings import catch_warnings
 
     tol = 1e-4  # Initial tolerance
     max_tol = 1e-2  # Maximum tolerance to try
+    # random_state = 12143
 
-    for attempt in range(10):
+    for attempt in range(5):
         with catch_warnings(record=True) as w:
             # filterwarnings('error')
 
-            ica = FastICA(n_components=X.shape[1], random_state=random_state + attempt, max_iter=1000,
+            ica = FastICA(n_components=X.shape[1], random_state=random_state+attempt, max_iter=1000,
                           whiten=whiten, tol=tol,fun=fun)
             S_hat = ica.fit_transform(X)
 
@@ -89,9 +90,10 @@ def ica_treatment_effect_estimation(X, S, random_state=0, whiten="unit-variance"
                 if verbose:
                     print(f"warning at {attempt=}")
                 # Increase tolerance for next attempt
-                tol = min(tol * 2, max_tol)
-                if tol >= max_tol:  # Stop if max tolerance reached
-                    return None, None
+                # tol = min(tol * 2, max_tol)
+                # if tol >= max_tol:  # Stop if max tolerance reached
+                print("Max tolerance reached without convergence")
+                return np.nan*np.ones(n_treatments,), None
             else:
                 if verbose:
                     print(f"success at {attempt=}")
