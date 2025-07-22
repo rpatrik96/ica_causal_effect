@@ -385,7 +385,7 @@ def main(args):
         
 
         # Plotting
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 8))
         for idx, sample_size in enumerate(data_samples):
             plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
         plt.xlabel('Support Size')
@@ -396,7 +396,7 @@ def main(args):
 
         homl_mse_matrix = homl_sigma_matrix**2
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 8))
         for idx, sample_size in enumerate(data_samples):
             plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
         plt.xlabel('Support Size')
@@ -409,7 +409,7 @@ def main(args):
             all_results, 'support_size', 'n_samples', 'biases', diff_index=3, beta_filter=1, relative_error=True)
         homl_mse_matrix = homl_bias_matrix
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 8))
         for idx, sample_size in enumerate(data_samples):
             plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
         plt.xlabel('Support Size')
@@ -427,7 +427,7 @@ def main(args):
         homl_mse_matrix = homl_bias_matrix
 
         # Plotting
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 8))
         for idx, sample_size in enumerate(data_samples):
             plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
         plt.xlabel('Support Size')
