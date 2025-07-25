@@ -256,6 +256,7 @@ def main(args):
                                 'ica_asymptotic_var_num': ica_asymptotic_var_num,
                                 'ica_asymptotic_var_hyvarinen': ica_asymptotic_var_hyvarinen,
                                 'ica_var_coeff': ica_var_coeff,
+                                "ica_mcc": ica_mcc,
                                 'treatment_effect': treatment_effect,
                                 'treatment_coefficient': treatment_coefficient,
                                 'outcome_coefficient': outcome_coefficient,
