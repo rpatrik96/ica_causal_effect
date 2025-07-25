@@ -387,20 +387,20 @@ def main(args):
         # Plotting
         plt.figure(figsize=(10, 8))
         for idx, sample_size in enumerate(data_samples):
-            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
-        plt.xlabel('Support Size')
-        plt.ylabel('ICA Relative MSE ')
+            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=r'$n=' + str(sample_size) + '$', marker='x')
+        plt.xlabel(r'$\dim X$')
+        plt.ylabel(r'$\frac{|\theta - \hat{\theta}|}{\theta}$')
         plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples)//2)
         plt.grid(True)
         plt.savefig(os.path.join(opts.output_dir, 'mse_vs_support_size_rel.svg'))
 
-        homl_mse_matrix = homl_sigma_matrix**2
+        homl_mse_matrix = homl_sigma_matrix
 
         plt.figure(figsize=(10, 8))
         for idx, sample_size in enumerate(data_samples):
-            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
-        plt.xlabel('Support Size')
-        plt.ylabel('ICA MSE STD')
+            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=r'$n=' + str(sample_size) + '$', marker='x')
+        plt.xlabel(r'$\dim X$')
+        plt.ylabel(r'$\sigma_{\frac{|\theta - \hat{\theta}|}{\theta}}$')
         plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples)//2)
         plt.grid(True)
         plt.savefig(os.path.join(opts.output_dir, 'mse_vs_support_size_rel_std.svg'))
