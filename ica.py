@@ -19,13 +19,21 @@ import os
 
 
 
-def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4, beta=1., loc=0, scale=1, nonlinearity='leaky_relu'):
+def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4, beta=1., loc=0, scale=1, nonlinearity='leaky_relu', theta_choice='fixed'):
     # Create sparse matrix of shape (n_treatments x n_covariates)
     binary_mask = torch.bernoulli(torch.ones(n_treatments, n_covariates) * sparse_prob)
     random_coeffs = torch.randn(n_treatments, n_covariates)
     A_covariates = binary_mask * random_coeffs
 
-    theta = torch.tensor([1.55, 0.65, -2.45, 1.75, -1.35])[:n_treatments]  # Vector of thetas matching n_treatments
+    if theta_choice == 'fixed':
+        theta = torch.tensor([1.55, 0.65, -2.45, 1.75, -1.35])[:n_treatments]  # Fixed vector of thetas
+    elif theta_choice == 'uniform':
+        theta = torch.rand(n_treatments)  # Draw theta from a uniform distribution
+    elif theta_choice == 'gaussian':
+        theta = torch.randn(n_treatments)  # Draw theta from a Gaussian distribution
+    else:
+        raise ValueError(f"Unsupported theta_choice for theta generation: {theta_choice}")
+    
     B = torch.randn(n_covariates)  # Base effects on outcome per covariate
 
     distribution = gennorm(beta, loc=loc, scale=scale)
