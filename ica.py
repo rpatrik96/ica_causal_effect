@@ -717,6 +717,7 @@ def main_gennorm_nonlinear():
 
 def main_nonlinear_theta():
     setup_plot()
+    plt.figure(figsize=(10, 6))
     results_file = 'results_main_gennorm_nonlinear_theta.npy'
     n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
     import os
@@ -741,19 +742,21 @@ def main_nonlinear_theta():
 
         save_results(results_file, results_dict)
 
-    for theta_choice in set(results_dict['theta_choices']):
-        indices = [i for i, t in enumerate(results_dict['theta_choices']) if t == theta_choice]
+    theta_choices = list(set(results_dict['theta_choices']))
+    for theta_idx, theta_choice in enumerate(theta_choices):
+        indices = [i for i, t in enumerate(theta_choices) if t == theta_choice]
         true_params = [results_dict['true_params'][i] for i in indices]
         est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
         mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
-        plt.errorbar(theta_choice, np.nanmean(mse), yerr=np.nanstd(mse), fmt='o-', capsize=5, label=f'{theta_choice}')
+        plt.errorbar(theta_idx, mean_mse:=np.nanmean(mse), yerr=(std_mse:=np.nanstd(mse)), fmt='o-', capsize=5, label=f'{theta_choice}')
+        print(f"{theta_choice}: {mean_mse:.4f}, {std_mse:.4f}")
+        
 
     plt.yscale('log')
     plt.xlabel('Theta Choice')
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=range(len(theta_choices)), labels=theta_choices)
-    plt.legend()
     plt.savefig(f'ica_mse_vs_theta_choice_nonlinear_n{n_samples}.svg')
     plt.close()
 
