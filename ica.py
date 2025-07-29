@@ -712,6 +712,47 @@ def main_gennorm_nonlinear():
     plt.savefig(f'ica_mse_vs_beta_nonlinear_n{n_samples}.svg')
     plt.close()
 
+def main_nonlinear_theta():
+    setup_plot()
+    results_file = 'results_main_gennorm_nonlinear_theta.npy'
+    n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+    import os
+    if os.path.exists(results_file):
+        print(f"Results file '{results_file}' already exists. Loading data.")
+        results_dict = np.load(results_file, allow_pickle=True).item()
+    else:
+        theta_choices = ['fixed', 'uniform', 'gaussian']
+        results_dict = initialize_results_dict(['sample_sizes', 'n_covariates', 'n_treatments', 'true_params', 'treatment_effects', 'mccs', 'theta_choices'])
+
+        for theta_choice in theta_choices:
+            S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=.2, sparse_prob=0.4, beta=1.0, nonlinearity='leaky_relu', theta_choice=theta_choice)
+            for seed in range(n_seeds):
+                treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment)
+                results_dict['sample_sizes'].append(n_samples)
+                results_dict['n_covariates'].append(n_covariates)
+                results_dict['n_treatments'].append(n_treatment)
+                results_dict['true_params'].append(true_params)
+                results_dict['treatment_effects'].append(treatment_effects)
+                results_dict['mccs'].append(mcc)
+                results_dict['theta_choices'].append(theta_choice)
+
+        save_results(results_file, results_dict)
+
+    for theta_choice in set(results_dict['theta_choices']):
+        indices = [i for i, t in enumerate(results_dict['theta_choices']) if t == theta_choice]
+        true_params = [results_dict['true_params'][i] for i in indices]
+        est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
+        mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
+        plt.errorbar(theta_choice, np.nanmean(mse), yerr=np.nanstd(mse), fmt='o-', capsize=5, label=f'{theta_choice}')
+
+    plt.yscale('log')
+    plt.xlabel('Theta Choice')
+    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
+    plt.xticks(ticks=range(len(theta_choices)), labels=theta_choices)
+    plt.legend()
+    plt.savefig(f'ica_mse_vs_theta_choice_nonlinear_n{n_samples}.svg')
+    plt.close()
 
 def main_loc_scale():
     setup_plot()
@@ -758,6 +799,9 @@ if __name__ == "__main__":
 
     print("Running treatment effect estimation with ICA in nonlinear PLR with gennorm noise...")
     main_gennorm_nonlinear()
+
+    print("Running treatment effect estimation with ICA in nonlinear PLR with different theta choices...")
+    main_nonlinear_theta()
 
     print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
     main_sparsity()
