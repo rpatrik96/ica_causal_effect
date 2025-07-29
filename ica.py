@@ -670,6 +670,49 @@ def main_gennorm():
     plt.savefig(f'ica_mse_vs_beta_n{n_samples}.svg')
     plt.close()
 
+def main_gennorm_nonlinear():
+    setup_plot()
+    results_file = 'results_main_gennorm_nonlinear.npy'
+    n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+    import os
+    if os.path.exists(results_file):
+        print(f"Results file '{results_file}' already exists. Loading data.")
+        results_dict = np.load(results_file, allow_pickle=True).item()
+    else:
+        beta_values = np.linspace(0.5, 5, num=10)
+        results_dict = initialize_results_dict(['sample_sizes', 'n_covariates', 'n_treatments', 'true_params', 'treatment_effects', 'mccs', 'beta_values'])
+
+        for beta in beta_values:
+            S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=.2, sparse_prob=0.4, beta=beta, nonlinearity='leaky_relu')
+            for seed in range(n_seeds):
+                treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment)
+                results_dict['sample_sizes'].append(n_samples)
+                results_dict['n_covariates'].append(n_covariates)
+                results_dict['n_treatments'].append(n_treatment)
+                results_dict['true_params'].append(true_params)
+                results_dict['treatment_effects'].append(treatment_effects)
+                results_dict['mccs'].append(mcc)
+                results_dict['beta_values'].append(beta)
+
+        save_results(results_file, results_dict)
+
+    for beta in set(results_dict['beta_values']):
+        indices = [i for i, b in enumerate(results_dict['beta_values']) if b == beta]
+        true_params = [results_dict['true_params'][i] for i in indices]
+        est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
+        mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
+        plt.errorbar(beta, np.nanmean(mse), yerr=np.nanstd(mse), fmt='o-', capsize=5, label=f'{beta:.2f}')
+
+    plt.yscale('log')
+    plt.xlabel(r'$\beta$')
+    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
+    plt.xticks(ticks=plt.xticks()[0], labels=[f'{x:.1f}' for x in plt.xticks()[0]])
+    plt.legend()
+    plt.savefig(f'ica_mse_vs_beta_nonlinear_n{n_samples}.svg')
+    plt.close()
+
+
 def main_loc_scale():
     setup_plot()
     results_file = 'results_main_loc_scale.npy'
@@ -712,6 +755,9 @@ if __name__ == "__main__":
 
     print("Running treatment effect estimation with ICA in nonlinear PLR...")
     main_nonlinear()
+
+    print("Running treatment effect estimation with ICA in nonlinear PLR with gennorm noise...")
+    main_gennorm_nonlinear()
 
     print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
     main_sparsity()
