@@ -672,6 +672,7 @@ def main_gennorm():
 
 def main_gennorm_nonlinear():
     setup_plot()
+    plt.figure(figsize=(10, 6))
     results_file = 'results_main_gennorm_nonlinear.npy'
     n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
     import os
@@ -701,14 +702,16 @@ def main_gennorm_nonlinear():
         true_params = [results_dict['true_params'][i] for i in indices]
         est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
         mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
-        plt.errorbar(beta, np.nanmean(mse), yerr=np.nanstd(mse), fmt='o-', capsize=5, label=f'{beta:.2f}')
+        plt.errorbar(beta, mean_mse:=np.nanmean(mse), yerr=(std_mse:=np.nanstd(mse)), fmt='o-', capsize=5, label=f'{beta:.2f}')
+        print(f"{beta=:.2f}: {mean_mse:.4f}, {std_mse:.4f}")
+        
 
     plt.yscale('log')
     plt.xlabel(r'$\beta$')
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=plt.xticks()[0], labels=[f'{x:.1f}' for x in plt.xticks()[0]])
-    plt.legend()
+    plt.legend(loc='center right', bbox_to_anchor=(2, 0.5), ncol=2)
     plt.savefig(f'ica_mse_vs_beta_nonlinear_n{n_samples}.svg')
     plt.close()
 
