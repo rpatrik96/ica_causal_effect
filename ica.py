@@ -19,7 +19,7 @@ import os
 
 
 
-def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4, beta=1., loc=0, scale=1, nonlinearity='leaky_relu', theta_choice='fixed'):
+def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4, beta=1., loc=0, scale=1, nonlinearity='leaky_relu', theta_choice='fixed', split_noise_dist=False):
     # Create sparse matrix of shape (n_treatments x n_covariates)
     binary_mask = torch.bernoulli(torch.ones(n_treatments, n_covariates) * sparse_prob)
     random_coeffs = torch.randn(n_treatments, n_covariates)
@@ -39,7 +39,12 @@ def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1.,
     distribution = gennorm(beta, loc=loc, scale=scale)
 
     source_dim = n_covariates + n_treatments + 1  # +1 for outcome
-    S = torch.tensor(distribution.rvs(size=(batch_size, source_dim))).float()
+    if split_noise_dist is False:
+        S = torch.tensor(distribution.rvs(size=(batch_size, source_dim))).float()
+    else:
+        S_X = torch.tensor(gennorm(beta=2., loc=loc, scale=scale).rvs(size=(batch_size, n_covariates))).float()
+        S_TY= torch.tensor(distribution.rvs(size=(batch_size, n_treatments+1))).float()
+        S = torch.hstack((S_X, S_TY))
     X = S.clone()
 
     # Define activation function based on the nonlinearity parameter
