@@ -814,6 +814,9 @@ if __name__ == "__main__":
     print("Running treatment effect estimation with ICA in nonlinear PLR with different theta choices...")
     main_nonlinear_theta()
 
+    print("Running treatment effect estimation with ICA in nonlinear PLR with different noises...")
+    main_nonlinear_noise_split()
+
     print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
     main_sparsity()
 
