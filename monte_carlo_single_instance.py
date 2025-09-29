@@ -256,7 +256,6 @@ def main(args):
                                 'ica_asymptotic_var_num': ica_asymptotic_var_num,
                                 'ica_asymptotic_var_hyvarinen': ica_asymptotic_var_hyvarinen,
                                 'ica_var_coeff': ica_var_coeff,
-                                "ica_mcc": ica_mcc,
                                 'treatment_effect': treatment_effect,
                                 'treatment_coefficient': treatment_coefficient,
                                 'outcome_coefficient': outcome_coefficient,
@@ -321,11 +320,11 @@ def main(args):
 
         for i, x_val in enumerate(x_values):
             for j, y_val in enumerate(y_values):
-                ica_mean = [res[value_key + value_key_suffix][-1] for res in all_results if (
+                ica_mean = [res[value_key + value_key_suffix][-1] if value_key != "first_stage_mse" else np.mean([z[-1] for z in res[value_key]]) for res in all_results if (
                             res[x_key] == x_val and res[y_key] == y_val and (
                                 beta_filter is None or res['beta'] == beta_filter) and (
                                         support_size_filter is None or res['support_size'] == support_size_filter))][0]
-                ica_std = [res[sigmas_key][-1] for res in all_results if (
+                ica_std = [res[sigmas_key][-1] if value_key != "first_stage_mse" else np.std([z[-1] for z in res[value_key]]) for res in all_results if (
                             res[x_key] == x_val and res[y_key] == y_val and (
                                 beta_filter is None or res['beta'] == beta_filter) and (
                                         support_size_filter is None or res['support_size'] == support_size_filter))][0]
