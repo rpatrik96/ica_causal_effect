@@ -708,7 +708,7 @@ def main_gennorm_nonlinear():
         est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
         mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
         plt.errorbar(beta, mean_mse:=np.nanmean(mse), yerr=(std_mse:=np.nanstd(mse)), fmt='o-', capsize=5, label=f'{beta:.2f}')
-        print(f"{beta=:.2f}: {mean_mse:.4f}, {std_mse:.4f}")
+        print(f"{beta=:.2f}: {mean_mse:.4f}\pm{std_mse:.4f}")
         
 
     plt.yscale('log')
@@ -749,20 +749,72 @@ def main_nonlinear_theta():
 
     theta_choices = list(set(results_dict['theta_choices']))
     for theta_idx, theta_choice in enumerate(theta_choices):
-        indices = [i for i, t in enumerate(theta_choices) if t == theta_choice]
+        indices = [i for i, t in enumerate(results_dict["theta_choices"]) if t == theta_choice]
         true_params = [results_dict['true_params'][i] for i in indices]
         est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
         mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
         plt.errorbar(theta_idx, mean_mse:=np.nanmean(mse), yerr=(std_mse:=np.nanstd(mse)), fmt='o-', capsize=5, label=f'{theta_choice}')
-        print(f"{theta_choice}: {mean_mse:.4f}, {std_mse:.4f}")
+        print(f"{theta_choice}: {mean_mse:.4f}\pm{std_mse:.4f}")
         
 
     plt.yscale('log')
-    plt.xlabel('Theta Choice')
+    plt.xlabel(r'$p(\theta)$')
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=range(len(theta_choices)), labels=theta_choices)
     plt.savefig(f'ica_mse_vs_theta_choice_nonlinear_n{n_samples}.svg')
+    plt.close()
+
+
+def main_nonlinear_noise_split():
+    setup_plot()
+    plt.figure(figsize=(10, 6))
+    results_file = 'results_main_gennorm_nonlinear_noise_split.npy'
+    n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+    import os
+    if os.path.exists(results_file):
+        print(f"Results file '{results_file}' already exists. Loading data.")
+        results_dict = np.load(results_file, allow_pickle=True).item()
+    else:
+        noise_splits = [True, False]
+        results_dict = initialize_results_dict(
+            ['sample_sizes', 'n_covariates', 'n_treatments', 'true_params', 'treatment_effects', 'mccs',
+             'noise_splits'])
+
+        for noise_split in noise_splits:
+            S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates,
+                                                  n_treatments=n_treatment, slope=.2, sparse_prob=0.4, beta=1.0,
+                                                  nonlinearity='leaky_relu',split_noise_dist=noise_split)
+            for seed in range(n_seeds):
+                treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed,
+                                                                         check_convergence=False,
+                                                                         n_treatments=n_treatment)
+                results_dict['sample_sizes'].append(n_samples)
+                results_dict['n_covariates'].append(n_covariates)
+                results_dict['n_treatments'].append(n_treatment)
+                results_dict['true_params'].append(true_params)
+                results_dict['treatment_effects'].append(treatment_effects)
+                results_dict['mccs'].append(mcc)
+                results_dict['noise_splits'].append(noise_split)
+
+        save_results(results_file, results_dict)
+
+    noise_splits = list(set(results_dict['noise_splits']))
+    for noise_idx, noise_split in enumerate(noise_splits):
+        indices = [i for i, t in enumerate(results_dict["noise_splits"]) if t == noise_split]
+        true_params = [results_dict['true_params'][i] for i in indices]
+        est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
+        mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
+        plt.errorbar(noise_idx, mean_mse := np.nanmean(mse), yerr=(std_mse := np.nanstd(mse)), fmt='o-', capsize=5,
+                     label=f'{noise_split}')
+        print(f"{noise_split}: {mean_mse:.4f}\pm{std_mse:.4f}")
+
+    plt.yscale('log')
+    plt.xlabel(r'Gaussian $X$')
+    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
+    plt.xticks(ticks=range(len(noise_splits)), labels=noise_splits)
+    plt.savefig(f'ica_mse_vs_noise_split_nonlinear_n{n_samples}.svg')
     plt.close()
 
 def main_loc_scale():
