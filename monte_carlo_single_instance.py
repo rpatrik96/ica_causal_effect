@@ -100,7 +100,7 @@ def main(args):
     beta_values = [1.0] if opts.covariate_pdf != "gennorm" or opts.asymptotic_var is True else [0.5, 1.0, 1.5, 2.0, 2.5,
                                                                                                 3., 3.5, 4., 4.5, 5]
     treatment_effects = [3.0] if opts.asymptotic_var is False else [
-        1.]  # [-20, -10, -5, -2, -1, -.5, -0.2, -.1, .1,  0.2, .5, 1, 2, 5, 10, 20]
+        3.]  # [-20, -10, -5, -2, -1, -.5, -0.2, -.1, .1,  0.2, .5, 1, 2, 5, 10, 20]
 
     if opts.asymptotic_var:
         treatment_coefs = [0.1, 0.23, -.33, -0.47, 0.89, -1.34, 1.78, -2.56, 3.14, -3.67, ]
