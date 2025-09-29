@@ -136,43 +136,22 @@ def main(args):
             all_results = structured_results
             break
 
-        print(f"\nRunning experiments with sample size: {n_samples}")
+        print(f"{n_samples=}")
 
         for treatment_coefficient in treatment_coefs:
             for outcome_coefficient in outcome_coefs:
                 for support_size in support_sizes:
-                    print(f"\nRunning experiments with support size: {support_size}")
+                    print(f"{support_size=}")
 
-                    if opts.asymptotic_var:
-                        outcome_coefficient = treatment_coefficient
-
-                        treatment_coef_list[0] = treatment_coefficient
-                        outcome_coef_list[0] = outcome_coefficient
-
-                        outcome_support = treatment_support = np.array(range(support_size))
-
-                        treatment_coef = treatment_coef_list[:support_size]
-                        outcome_coef = outcome_coef_list[:support_size]
-
-                    else:
-
-                        # this implicitly specifies sparsity via restricting the support
-                        outcome_support = treatment_support = np.random.choice(range(n_dim), size=support_size, replace=False)
-
-
-                        # Support and coefficients for treatment as function of co-variates
-                        treatment_coef = treatment_coef_array[treatment_support]
-
-                        # Support and coefficients for outcome as function of co-variates
-                        outcome_coef = outcome_coef_array[outcome_support]
+                    outcome_coef, outcome_coefficient, outcome_support, treatment_coef, treatment_support = setup_treatment_outcome_coefs(
+                        n_dim, opts, outcome_coef_array, outcome_coef_list, outcome_coefficient, support_size,
+                        treatment_coef_array, treatment_coef_list, treatment_coefficient)
 
                     for beta in beta_values:
-                        print(f"\nRunning experiments with beta: {beta}")
-
-
+                        print(f"{beta=}")
 
                         for treatment_effect in treatment_effects:
-                            print(f"\nRunning experiments with treatment effect: {treatment_effect}")
+                            print(f"{treatment_effect=}")
 
                             '''
                             True parameters
@@ -206,7 +185,7 @@ def main(args):
                             true_coef_outcome = np.zeros(n_dim)
                             true_coef_outcome[outcome_support] = outcome_coef
                             true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
-                            print(true_coef_outcome[outcome_support])
+                            print(f"{true_coef_outcome[outcome_support]=}")
 
                             '''
                             Run the experiments.
@@ -216,14 +195,11 @@ def main(args):
 
                             # Coefficients recovered by orthogonal ML
                             lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
-                            results = [r for r in Parallel(n_jobs=-1, verbose=1)(delayed(experiment)(
-                                x_sample(n_samples, n_dim),
-                                eta_sample(n_samples),
-                                epsilon_sample(n_samples),
-                                treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef,
-                                eta_second_moment,
-                                eta_third_moment, lambda_reg
-                            ) for _ in range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
+                            results = [r for r in Parallel(n_jobs=-1, verbose=0)(
+                                delayed(experiment)(x_sample(n_samples, n_dim), eta_sample(n_samples),
+                                    epsilon_sample(n_samples), treatment_effect, treatment_support, treatment_coef,
+                                    outcome_support, outcome_coef, eta_second_moment, eta_third_moment, lambda_reg) for
+                                _ in range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
 
                             ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] + ica_treatment_effect_estimate.tolist() for
                                              ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _
@@ -269,14 +245,15 @@ def main(args):
                             '''
 
                             biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir,
-                                                                    n_samples, n_dim,
-                                                                    n_experiments, support_size,
-                                                                    sigma_outcome, opts.covariate_pdf, beta,  relative_error=False)
+                                                                    n_samples, n_dim, n_experiments, support_size,
+                                                                    sigma_outcome, opts.covariate_pdf, beta, plot=False,
+                                                                    relative_error=False)
 
-                            biases_rel, sigmas_rel = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir,
-                                                                    n_samples, n_dim,
-                                                                    n_experiments, support_size,
-                                                                    sigma_outcome, opts.covariate_pdf, beta, relative_error=True)
+                            biases_rel, sigmas_rel = plot_method_comparison(ortho_rec_tau, treatment_effect,
+                                                                            opts.output_dir, n_samples, n_dim,
+                                                                            n_experiments, support_size, sigma_outcome,
+                                                                            opts.covariate_pdf, beta, plot=False,
+                                                                            relative_error=True)
                             all_results[-1]['biases'] = biases
                             all_results[-1]['sigmas'] = sigmas
 
@@ -284,9 +261,8 @@ def main(args):
                             all_results[-1]['sigmas_rel'] = sigmas_rel
 
                             plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples,
-                                                       n_dim, n_experiments,
-                                                       support_size,
-                                                       sigma_outcome, opts.covariate_pdf, beta)
+                                                       n_dim, n_experiments, support_size, sigma_outcome,
+                                                       opts.covariate_pdf, beta, plot=False)
 
                     plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, beta)
 
@@ -322,20 +298,23 @@ def main(args):
 
         for i, x_val in enumerate(x_values):
             for j, y_val in enumerate(y_values):
-                ica_mean = [res[value_key + value_key_suffix][-1] if value_key != "first_stage_mse" else np.mean([z[-1] for z in res[value_key]]) for res in all_results if (
-                            res[x_key] == x_val and res[y_key] == y_val and (
-                                beta_filter is None or res['beta'] == beta_filter) and (
-                                        support_size_filter is None or res['support_size'] == support_size_filter))][0]
-                ica_std = [res[sigmas_key][-1] if value_key != "first_stage_mse" else np.std([z[-1] for z in res[value_key]]) for res in all_results if (
-                            res[x_key] == x_val and res[y_key] == y_val and (
-                                beta_filter is None or res['beta'] == beta_filter) and (
-                                        support_size_filter is None or res['support_size'] == support_size_filter))][0]
-                if diff_index is not None:
-                    compare_mean = [res[value_key + value_key_suffix][diff_index] for res in all_results if (
-                                res[x_key] == x_val and res[y_key] == y_val and (
+                ica_mean = [res[value_key + value_key_suffix][-1] if value_key != "first_stage_mse" else np.mean(
+                    [z[-1] for z in res[value_key]]) for res in all_results if (
+                                    res[x_key] == x_val and res[y_key] == y_val and (
                                     beta_filter is None or res['beta'] == beta_filter) and (
                                             support_size_filter is None or res[
                                         'support_size'] == support_size_filter))][0]
+                ica_std = \
+                [res[sigmas_key][-1] if value_key != "first_stage_mse" else np.std([z[-1] for z in res[value_key]]) for
+                 res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (
+                        beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res[
+                    'support_size'] == support_size_filter))][0]
+
+                if diff_index is not None:
+                    compare_mean = [res[value_key + value_key_suffix][diff_index] for res in all_results if (
+                            res[x_key] == x_val and res[y_key] == y_val and (
+                            beta_filter is None or res['beta'] == beta_filter) and (
+                                    support_size_filter is None or res['support_size'] == support_size_filter))][0]
                     compare_std = [res[sigmas_key][diff_index] for res in all_results if (
                                 res[x_key] == x_val and res[y_key] == y_val and (
                                     beta_filter is None or res['beta'] == beta_filter) and (
@@ -447,11 +426,33 @@ def main(args):
     plot_ica_gennorm_support_filter_mcc(all_results, opts, plot_heatmap, prepare_heatmap_data)
     plot_ica_gennorm_beta_filter_bias(all_results, opts, plot_heatmap, prepare_heatmap_data)
 
-
-
     plot_asymptotic_var_comparison(all_results, opts)
 
     plot_multi_treatment(all_results, opts, treatment_effects)
+
+
+def setup_treatment_outcome_coefs(n_dim, opts, outcome_coef_array, outcome_coef_list, outcome_coefficient, support_size,
+                                  treatment_coef_array, treatment_coef_list, treatment_coefficient):
+    if opts.asymptotic_var is True:
+        outcome_coefficient = treatment_coefficient
+
+        treatment_coef_list[0] = treatment_coefficient
+        outcome_coef_list[0] = outcome_coefficient
+
+        outcome_support = treatment_support = np.array(range(support_size))
+
+        treatment_coef = treatment_coef_list[:support_size]
+        outcome_coef = outcome_coef_list[:support_size]
+
+    else:
+        # this implicitly specifies sparsity via restricting the support
+        outcome_support = treatment_support = np.random.choice(range(n_dim), size=support_size,
+                                                               replace=False)
+        treatment_coef = treatment_coef_array[
+            treatment_support]  # Support and coefficients for treatment as function of co-variates
+        outcome_coef = outcome_coef_array[
+            outcome_support]  # Support and coefficients for outcome as function of co-variates
+    return outcome_coef, outcome_coefficient, outcome_support, treatment_coef, treatment_support
 
 
 def calc_ica_asymptotic_var(eta_cubed_variance, eta_fourth_moment, eta_third_moment, outcome_coef, sigma_outcome,
@@ -481,9 +482,13 @@ def calc_homl_asymptotic_var(discounts, mean_discount, probs):
     return eta_cubed_variance, eta_fourth_moment, eta_non_gauss_cond, eta_second_moment, eta_third_moment, homl_asymptotic_var, homl_asymptotic_var_num
 
 
-def setup_treatment_noise():
-    discounts = np.array([0, -.5, -2., -4.])
-    probs = np.array([.65, .2, .1, .05])
+def setup_treatment_noise(dirichlet=True):
+    if dirichlet is False:
+        discounts = np.array([0, -.5, -2., -4.])
+        probs = np.array([.65, .2, .1, .05])
+    else:
+        discounts = np.array([0, -.5])
+        probs = np.array([.5, .5])
     mean_discount = np.dot(discounts, probs)
     eta_sample = lambda x: np.array(
         [discounts[i] - mean_discount for i in np.argmax(np.random.multinomial(1, probs, x), axis=1)])
