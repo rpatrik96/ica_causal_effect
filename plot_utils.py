@@ -328,7 +328,7 @@ def plot_multi_treatment(all_results, opts, treatment_effects):
 
 
 def plot_asymptotic_var_comparison(all_results, opts):
-    if opts.asymptotic_var:
+    if opts.asymptotic_var is False:
         return 0
 
 
