@@ -491,6 +491,19 @@ def main(args):
                      'ica_bias_heatmap_sample_size_vs_dim_std.svg', opts.output_dir, center=None)
         # plot_heatmap(ica_bias_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim.svg', opts.output_dir, center=None)
 
+    if opts.asymptotic_var is False:
+        ica_mcc_matrix_dim_mean, ica_mcc_matrix_dim_std, ica_mcc_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(
+            all_results, 'beta', 'n_samples', 'first_stage_mse', support_size_filter=10)
+        plot_heatmap(ica_mcc_matrix_dim_mean, support_sizes, sample_sizes, r'$\beta$', r'$n$',
+                     'ica_mcc_heatmap_sample_size_vs_beta_mean.svg', opts.output_dir, center=None)
+        plot_heatmap(ica_mcc_matrix_dim_std, support_sizes, sample_sizes, r'$\beta$', r'$n$',
+                     'ica_mcc_heatmap_sample_size_vs_beta_std.svg', opts.output_dir, center=None)
+        plot_heatmap(ica_mcc_matrix_dim, support_sizes, sample_sizes, r'$\beta$', r'$n$',
+                     'ica_mcc_heatmap_sample_size_vs_beta.svg', opts.output_dir, center=None)
+
+   
+    
+
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
         ica_bias_matrix_beta_mean, ica_bias_matrix_beta_std, ica_bias_matrix_beta, betas, sample_sizes = prepare_heatmap_data(
             all_results, 'beta', 'n_samples', 'biases', support_size_filter=10)
@@ -600,7 +613,7 @@ def main(args):
                      label='HOML')
         plt.xlabel(r'$1+(b+a\theta)^2$')
         plt.xscale('log')
-        plt.ylabel(r'$\Vert \theta - \hat{\theta} \Vert_2$')
+        plt.ylabel(r'$\mathrm{Var}(\hat{\theta})$')
         plt.legend()
         plt.savefig(os.path.join(opts.output_dir, 'scatter_plot_ica_var_coeff_vs_biases.svg'), dpi=300, bbox_inches='tight')
         plt.close()
