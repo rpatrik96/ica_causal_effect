@@ -2,10 +2,12 @@ import sys
 
 import matplotlib
 
-from plot_utils import plot_typography
+from plot_utils import plot_typography, plot_ica_gennorm_beta_filter_bias, plot_ica_gennorm_support_filter_mcc, \
+    plot_ica_gennorm_beta_filter, plot_oml_ica_comparison_gennorm_support_filter, \
+    plot_oml_ica_comparison_gennorm_beta_filter, plot_homl_ica_comparison_gennorm_support_filter, \
+    plot_homl_ica_comparison_gennorm_beta_filter, plot_multi_treatment, plot_asymptotic_var_comparison
 
 matplotlib.use('Agg')
-import os
 import numpy as np
 from sklearn.linear_model import Lasso
 from main_estimation import all_together_cross_fitting
