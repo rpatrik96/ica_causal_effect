@@ -112,7 +112,7 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
     return biases, sigmas
 
 def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_samples, n_dim, n_experiments, support_size,
-                               sigma_outcome, covariate_pdf, beta, plot=False):
+                               sigma_outcome, covariate_pdf, beta, plot=False, save=False):
     filename_base = 'model_errors_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}_beta_{}'.format(
         n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta)
 
@@ -137,10 +137,11 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
                     dpi=300, bbox_inches='tight')
 
     # Save the data
-    coef_filename = 'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}_beta_{}'.format(
-        n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta)
-    joblib.dump(ortho_rec_tau, os.path.join(output_dir, coef_filename))
-    joblib.dump(first_stage_mse, os.path.join(output_dir, filename_base))
+    if save:
+        coef_filename = 'recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}_beta_{}'.format(
+            n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta)
+        joblib.dump(ortho_rec_tau, os.path.join(output_dir, coef_filename))
+        joblib.dump(first_stage_mse, os.path.join(output_dir, filename_base))
     
 
 
