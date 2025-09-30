@@ -62,7 +62,7 @@ def plot_estimates(estimate_list, true_tau, treatment_effect, title="Histogram o
 
 
 def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_samples, n_dim, n_experiments, support_size,
-                           sigma_outcome, covariate_pdf, beta, plot=False, relative_error=False):
+                           sigma_outcome, covariate_pdf, beta, plot=False, relative_error=False, verbose=False):
     # Create subfolder for the experiment
     experiment_dir = os.path.join(output_dir, f"recovered_coefficients")
     os.makedirs(experiment_dir, exist_ok=True)
@@ -75,7 +75,8 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
     array = np.array(ortho_rec_tau)
 
     if np.isnan(array).any():
-        print("There is a NaN in the array.")
+        if verbose:
+            print("There is a NaN in the array.")
 
     bias_ortho, sigma_ortho = plot_estimates(array[:, 0].flatten(), treatment_effect, treatment_effect,
                                              title="OML", plot=plot, relative_error=relative_error)
@@ -96,7 +97,8 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
     bias_ica, sigma_ica = plot_estimates(array[:, 4].flatten(), treatment_effect, treatment_effect,
                                          title="ICA", plot=plot, relative_error=relative_error)
 
-    print(f"ICA estimates{array[:, 4].flatten()}")
+    if verbose:
+        print(f"ICA estimates{array[:, 4].flatten()}")
 
     if plot:
         plt.tight_layout()
@@ -105,9 +107,10 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
                                      n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf,
                                      beta)), dpi=300, bbox_inches='tight')
 
-    print("Ortho ML MSE: {}".format(bias_ortho ** 2 + sigma_ortho ** 2))
-    print("Second Order ML MSE: {}".format(bias_second ** 2 + sigma_ortho ** 2))
-    print(f"ICA: {bias_ica=}, {sigma_ica=}")
+    if verbose:
+        print("Ortho ML MSE: {}".format(bias_ortho ** 2 + sigma_ortho ** 2))
+        print("Second Order ML MSE: {}".format(bias_second ** 2 + sigma_ortho ** 2))
+        print(f"ICA: {bias_ica=}, {sigma_ica=}")
 
     # Return lists of biases and standard deviations for each method
     biases = [bias_ortho, bias_robust, bias_est, bias_second, bias_ica]
@@ -199,8 +202,9 @@ def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, bet
 
 
 def plot_ica_gennorm_beta_filter_bias(all_results, opts, ):
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, "gennorm")
+
+    treatment_effect_value = all_results[0]['treatment_effect']
+    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
@@ -214,8 +218,9 @@ def plot_ica_gennorm_beta_filter_bias(all_results, opts, ):
 
 
 def plot_ica_gennorm_support_filter_mcc(all_results, opts, ):
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, "gennorm")
+
+    treatment_effect_value = all_results[0]['treatment_effect']
+    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
     if opts.asymptotic_var is False:
@@ -230,8 +235,8 @@ def plot_ica_gennorm_support_filter_mcc(all_results, opts, ):
 
 
 def plot_ica_gennorm_beta_filter(all_results, opts, ):
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, "gennorm")
+    treatment_effect_value = all_results[0]['treatment_effect']
+    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
     # ICA error only
@@ -246,8 +251,8 @@ def plot_ica_gennorm_beta_filter(all_results, opts, ):
 
 
 def plot_oml_ica_comparison_gennorm_support_filter(all_results, opts, ):
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, "gennorm")
+    treatment_effect_value = all_results[0]['treatment_effect']
+    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
@@ -262,8 +267,8 @@ def plot_oml_ica_comparison_gennorm_support_filter(all_results, opts, ):
 
 
 def plot_oml_ica_comparison_gennorm_beta_filter(all_results, opts, ):
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, "gennorm")
+    treatment_effect_value = all_results[0]['treatment_effect']
+    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
     # Plot heatmaps for comparison with OML, filtered for beta=1
@@ -279,8 +284,8 @@ def plot_oml_ica_comparison_gennorm_beta_filter(all_results, opts, ):
 
 
 def plot_homl_ica_comparison_gennorm_support_filter(all_results, opts, ):
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, "gennorm")
+    treatment_effect_value = all_results[0]['treatment_effect']
+    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
@@ -295,8 +300,8 @@ def plot_homl_ica_comparison_gennorm_support_filter(all_results, opts, ):
 
 
 def plot_homl_ica_comparison_gennorm_beta_filter(all_results, opts, ):
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, "gennorm")
+    treatment_effect_value = all_results[0]['treatment_effect']
+    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
     # Plot heatmaps for comparison with HOML Split, filtered for beta=1
@@ -312,7 +317,6 @@ def plot_homl_ica_comparison_gennorm_beta_filter(all_results, opts, ):
 
 
 def plot_multi_treatment(all_results, opts, treatment_effects):
-    # Create subfolder for the experiment
     experiment_dir = os.path.join(opts.output_dir, "multi_treatment")
     os.makedirs(experiment_dir, exist_ok=True)
 
