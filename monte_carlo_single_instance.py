@@ -83,6 +83,9 @@ def main(args):
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
 
+    if opts.check_convergence:
+        opts.output_dir += "_convergence"
+
     '''
     We will work with a sparse linear model with high dimensional co-variates
     '''
