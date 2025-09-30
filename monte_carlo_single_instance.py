@@ -355,7 +355,7 @@ def calc_homl_asymptotic_var(discounts, mean_discount, probs):
     return eta_cubed_variance, eta_fourth_moment, eta_non_gauss_cond, eta_second_moment, eta_third_moment, homl_asymptotic_var, homl_asymptotic_var_num
 
 
-def setup_treatment_noise(rademacher=True):
+def setup_treatment_noise(rademacher=False):
     if rademacher is False:
         discounts = np.array([0, -.5, -2., -4.])
         probs = np.array([.65, .2, .1, .05])
