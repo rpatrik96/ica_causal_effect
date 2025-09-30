@@ -109,10 +109,9 @@ def main(args):
         treatment_coefs = [0.1, 0.23, -.33, -0.47, 0.89, -1.34, 1.78, -2.56, 3.14, -3.67, ]
         outcome_coefs = [0.3]  # , -0.5, 0.7, -0.9, 1.1, -1.3, 1.5, -1.7, 1.9, -2.1]
     else:
-        treatment_coef_array = np.random.uniform(0, 5, size=support_sizes[-1])
-        outcome_coef_array = np.random.uniform(0, 5, size=support_sizes[-1])
+        treatment_coef_array = np.random.uniform(-5, 5, size=support_sizes[-1])
+        outcome_coef_array = np.random.uniform(-5, 5, size=support_sizes[-1])
 
-       
         # dummy variable to avoid loop
         treatment_coefs = [0.6]
         outcome_coefs = [0.3]
