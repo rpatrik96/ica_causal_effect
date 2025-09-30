@@ -617,9 +617,9 @@ def plot_asymptotic_var_comparison(all_results, opts):
     plt.close()
 
 
-def plot_mse(all_results, data_samples, opts, support_sizes):
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, "gennorm")
+def plot_mse(all_results, data_samples, opts, support_sizes, beta_values):
+    treatment_effect_value = all_results[0]['treatment_effect']
+    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
@@ -655,18 +655,23 @@ def plot_mse(all_results, data_samples, opts, support_sizes):
         plt.grid(True)
         plt.savefig(os.path.join(experiment_dir, 'mse_vs_support_size_rel_std.svg'))
 
-        homl_bias_matrix, _, _, _, _ = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases',
-                                                            diff_index=3, beta_filter=1, relative_error=True)
-        homl_mse_matrix = homl_bias_matrix
 
-        plt.figure(figsize=(10, 8))
-        for idx, sample_size in enumerate(data_samples):
-            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
-        plt.xlabel('Support Size')
-        plt.ylabel('ICA-HOML Relative MSE ')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples) // 2)
-        plt.grid(True)
-        plt.savefig(os.path.join(experiment_dir, 'mse_vs_support_size_rel_ica_vs_homl.svg'))
+
+        homl_bias_matrix, _, _, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases',
+                                                            diff_index=3, beta_filter=1, relative_error=True)
+
+        plot_heatmap(homl_bias_matrix, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
+                     'bias_diff_heatmap_sample_size_vs_dim_homl_mean_rel.svg', experiment_dir, center=0)
+
+
+
+        homl_bias_matrix, _, _, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases',
+                                                            diff_index=3, support_size_filter=10, relative_error=True)
+
+
+        plot_heatmap(homl_bias_matrix, betas, sample_sizes, r'$\beta$', r'$n$',
+                     'bias_diff_heatmap_sample_size_vs_beta_homl_mean_rel.svg', experiment_dir, center=0)
+
 
         homl_bias_matrix, _, _, _, _ = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases',
                                                             diff_index=None, beta_filter=1, relative_error=False)
@@ -685,6 +690,8 @@ def plot_mse(all_results, data_samples, opts, support_sizes):
         plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples) // 2)
         plt.grid(True)
         plt.savefig(os.path.join(experiment_dir, 'mse_vs_support_size.svg'))
+
+        plt.close()
 
 
 def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename, output_dir, cmap="coolwarm",
