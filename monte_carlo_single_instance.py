@@ -118,9 +118,15 @@ def main(args):
 
     # Define the output file path
     if opts.asymptotic_var:
-        results_filename = f'all_results_asymptotic_var_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}.npy'
+        results_filename = f'all_results_asymptotic_var_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}'
     else:
-        results_filename = f'all_results_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}.npy'
+        results_filename = f'all_results_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}'
+    
+    # Add check_convergence flag status to the filename if it is set to true
+    if opts.check_convergence:
+        results_filename += '_check_convergence'
+    
+    results_filename += '.npy'
     results_file_path = os.path.join(opts.output_dir, results_filename)
 
     all_results = []
@@ -153,9 +159,6 @@ def main(args):
                         for treatment_effect in treatment_effects:
                             print(f"{treatment_effect=}")
 
-                            '''
-                            True parameters
-                            '''
 
                             if opts.asymptotic_var and opts.tie_sample_dim:
                                 n_samples = support_size ** 4
@@ -275,7 +278,7 @@ def main(args):
 
     print("\nDone with all experiments!")
 
-    plot_mse(all_results, data_samples, opts, support_sizes)
+    
 
     for treatment_effect in treatment_effects:
         filtered_results = [result for result in all_results if result['treatment_effect'] == treatment_effect]
