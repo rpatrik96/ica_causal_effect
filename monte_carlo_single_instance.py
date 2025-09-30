@@ -18,7 +18,7 @@ from tueplots import bundles
 
 
 def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef,
-               eta_second_moment, eta_third_moment, lambda_reg, check_convergence=False, verbose=True):
+               eta_second_moment, eta_third_moment, lambda_reg, check_convergence=False, verbose=False):
     # Generate price as a function of co-variates
     treatment = np.dot(x[:, treatment_support], treatment_coef) + eta
     # Generate demand as a function of price and co-variates
@@ -71,10 +71,10 @@ def main(args):
     parser.add_argument("--check_convergence", dest="check_convergence",
                         type=bool, help='check convergence', default=False)
 
-    parser.add_argument("--asymptotic_var", dest="asymptotic_var",
-                        type=bool, help='Flag to ablate asymptotic variance', default=False)
-    parser.add_argument("--tie_sample_dim", dest="tie_sample_dim",
-                        type=bool, help='Ties n=d**4', default=False)
+    parser.add_argument("--asymptotic_var", dest="asymptotic_var", type=bool, help='Flag to ablate asymptotic variance',
+                        default=False)
+    parser.add_argument("--tie_sample_dim", dest="tie_sample_dim", type=bool, help='Ties n=d**4', default=False)
+    parser.add_argument("--verbose", dest="verbose", type=bool, help='Enable verbose output', default=False)
 
     opts = parser.parse_args(args)
 
@@ -160,10 +160,9 @@ def main(args):
                             if opts.asymptotic_var and opts.tie_sample_dim:
                                 n_samples = support_size ** 4
 
-
-
-                            print("Support of treatment as function of co-variates: {}".format(treatment_support))
-                            print("Coefficients of treatment as function of co-variates: {}".format(treatment_coef))
+                            if opts.verbose:
+                                print("Support of treatment as function of co-variates: {}".format(treatment_support))
+                                print("Coefficients of treatment as function of co-variates: {}".format(treatment_coef))
 
                             # Distribution of residuals of treatment
                             discounts, eta_sample, mean_discount, probs = setup_treatment_noise()
@@ -185,7 +184,9 @@ def main(args):
                             true_coef_outcome = np.zeros(n_dim)
                             true_coef_outcome[outcome_support] = outcome_coef
                             true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
-                            print(f"{true_coef_outcome[outcome_support]=}")
+
+                            if opts.verbose:
+                                print(f"{true_coef_outcome[outcome_support]=}")
 
                             '''
                             Run the experiments.
@@ -247,13 +248,13 @@ def main(args):
                             biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir,
                                                                     n_samples, n_dim, n_experiments, support_size,
                                                                     sigma_outcome, opts.covariate_pdf, beta, plot=False,
-                                                                    relative_error=False)
+                                                                    relative_error=False, verbose=opts.verbose)
 
                             biases_rel, sigmas_rel = plot_method_comparison(ortho_rec_tau, treatment_effect,
                                                                             opts.output_dir, n_samples, n_dim,
                                                                             n_experiments, support_size, sigma_outcome,
                                                                             opts.covariate_pdf, beta, plot=False,
-                                                                            relative_error=True)
+                                                                            relative_error=True, verbose=opts.verbose)
                             all_results[-1]['biases'] = biases
                             all_results[-1]['sigmas'] = sigmas
 
@@ -276,14 +277,17 @@ def main(args):
 
     plot_mse(all_results, data_samples, opts, support_sizes)
 
-    plot_homl_ica_comparison_gennorm_beta_filter(all_results, opts, )
-    plot_homl_ica_comparison_gennorm_support_filter(all_results, opts, )
-    plot_oml_ica_comparison_gennorm_beta_filter(all_results, opts, )
-    plot_oml_ica_comparison_gennorm_support_filter(all_results, opts, )
+    for treatment_effect in treatment_effects:
+        filtered_results = [result for result in all_results if result['treatment_effect'] == treatment_effect]
+        
+        plot_homl_ica_comparison_gennorm_beta_filter(filtered_results, opts)
+        plot_homl_ica_comparison_gennorm_support_filter(filtered_results, opts)
+        plot_oml_ica_comparison_gennorm_beta_filter(filtered_results, opts)
+        plot_oml_ica_comparison_gennorm_support_filter(filtered_results, opts)
 
-    plot_ica_gennorm_beta_filter(all_results, opts, )
-    plot_ica_gennorm_support_filter_mcc(all_results, opts, )
-    plot_ica_gennorm_beta_filter_bias(all_results, opts, )
+        plot_ica_gennorm_beta_filter(filtered_results, opts)
+        plot_ica_gennorm_support_filter_mcc(filtered_results, opts)
+        plot_ica_gennorm_beta_filter_bias(filtered_results, opts)
 
     plot_asymptotic_var_comparison(all_results, opts)
 
