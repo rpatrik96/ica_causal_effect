@@ -5,7 +5,7 @@ import matplotlib
 from plot_utils import plot_typography, plot_ica_gennorm_beta_filter_bias, plot_ica_gennorm_support_filter_mcc, \
     plot_ica_gennorm_beta_filter, plot_oml_ica_comparison_gennorm_support_filter, \
     plot_oml_ica_comparison_gennorm_beta_filter, plot_homl_ica_comparison_gennorm_support_filter, \
-    plot_homl_ica_comparison_gennorm_beta_filter, plot_multi_treatment, plot_asymptotic_var_comparison
+    plot_homl_ica_comparison_gennorm_beta_filter, plot_multi_treatment, plot_asymptotic_var_comparison, plot_mse
 
 matplotlib.use('Agg')
 import numpy as np
@@ -282,6 +282,10 @@ def main(args):
 
     for treatment_effect in treatment_effects:
         filtered_results = [result for result in all_results if result['treatment_effect'] == treatment_effect]
+
+        plot_mse(filtered_results, data_samples, opts, support_sizes, beta_values)
+
+        continue
         
         plot_homl_ica_comparison_gennorm_beta_filter(filtered_results, opts)
         plot_homl_ica_comparison_gennorm_support_filter(filtered_results, opts)
