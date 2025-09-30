@@ -266,80 +266,6 @@ def main(args):
 
                     plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, beta)
 
-    import seaborn as sns
-
-    def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename, output_dir, cmap="coolwarm",
-                     center=None):
-        plot_typography(small = 20, medium = 24, big = 30)
-        plt.figure(figsize=(10, 8))
-        # Set the midpoint of the color scale to the specified center if provided
-        sns.heatmap(data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap=cmap, annot=True, center=center)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches='tight')
-        plt.close()
-
-    def prepare_heatmap_data(all_results, x_key, y_key, value_key, diff_index=None, beta_filter=None,
-                             support_size_filter=None, relative_error=False):
-        x_values = sorted(set([res[x_key] for res in all_results if
-                               (beta_filter is None or res['beta'] == beta_filter) and (
-                                           support_size_filter is None or res['support_size'] == support_size_filter)]))
-        y_values = sorted(set([res[y_key] for res in all_results if
-                               (beta_filter is None or res['beta'] == beta_filter) and (
-                                           support_size_filter is None or res['support_size'] == support_size_filter)]),
-                          reverse=True)
-        data_matrix = np.zeros((len(y_values), len(x_values)))
-        data_matrix_mean = np.zeros((len(y_values), len(x_values)))
-        data_matrix_std = np.zeros((len(y_values), len(x_values)))
-
-        # Determine the keys based on whether relative error is considered
-        value_key_suffix = '_rel' if relative_error else ''
-        sigmas_key = 'sigmas' + value_key_suffix
-
-        for i, x_val in enumerate(x_values):
-            for j, y_val in enumerate(y_values):
-                ica_mean = [res[value_key + value_key_suffix][-1] if value_key != "first_stage_mse" else np.mean(
-                    [z[-1] for z in res[value_key]]) for res in all_results if (
-                                    res[x_key] == x_val and res[y_key] == y_val and (
-                                    beta_filter is None or res['beta'] == beta_filter) and (
-                                            support_size_filter is None or res[
-                                        'support_size'] == support_size_filter))][0]
-                ica_std = \
-                [res[sigmas_key][-1] if value_key != "first_stage_mse" else np.std([z[-1] for z in res[value_key]]) for
-                 res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (
-                        beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res[
-                    'support_size'] == support_size_filter))][0]
-
-                if diff_index is not None:
-                    compare_mean = [res[value_key + value_key_suffix][diff_index] for res in all_results if (
-                            res[x_key] == x_val and res[y_key] == y_val and (
-                            beta_filter is None or res['beta'] == beta_filter) and (
-                                    support_size_filter is None or res['support_size'] == support_size_filter))][0]
-                    compare_std = [res[sigmas_key][diff_index] for res in all_results if (
-                                res[x_key] == x_val and res[y_key] == y_val and (
-                                    beta_filter is None or res['beta'] == beta_filter) and (
-                                            support_size_filter is None or res[
-                                        'support_size'] == support_size_filter))][0]
-                    diffs = [res[value_key + value_key_suffix][-1] - res[value_key + value_key_suffix][diff_index] for res in all_results if (
-                                res[x_key] == x_val and res[y_key] == y_val and (
-                                    beta_filter is None or res['beta'] == beta_filter) and (
-                                            support_size_filter is None or res['support_size'] == support_size_filter))]
-
-                    if (ica_mean + ica_std) < (compare_mean - compare_std):
-                        data_matrix[j, i] = -1
-                    elif (ica_mean - ica_std) > (compare_mean + compare_std):
-                        data_matrix[j, i] = 1
-                    else:
-                        data_matrix[j, i] = 0
-
-                else:
-                    diffs = ica_mean
-                if diffs:
-                    data_matrix_mean[j, i] = np.nanmean(diffs)
-                    data_matrix_std[j, i] = ica_std
-
-        return data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values,
-
     # Define the output file path
     results_file_path = os.path.join(opts.output_dir, results_filename)
     np.save(results_file_path, all_results)
@@ -348,83 +274,16 @@ def main(args):
 
     print("\nDone with all experiments!")
 
-    if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
-        import matplotlib.pyplot as plt
+    plot_mse(all_results, data_samples, opts, support_sizes)
 
-        # Prepare data for plotting
-        # ica_mse_matrix, _, _, support_sizes, _ = prepare_heatmap_data(
-        #     all_results, 'support_size', 'n_samples', 'biases', beta_filter=1)
-        homl_bias_matrix, _, _, _, _ = prepare_heatmap_data(
-            all_results, 'support_size', 'n_samples', 'biases', diff_index=None, beta_filter=1, relative_error=True)
+    plot_homl_ica_comparison_gennorm_beta_filter(all_results, opts, )
+    plot_homl_ica_comparison_gennorm_support_filter(all_results, opts, )
+    plot_oml_ica_comparison_gennorm_beta_filter(all_results, opts, )
+    plot_oml_ica_comparison_gennorm_support_filter(all_results, opts, )
 
-        homl_sigma_matrix, _, _, _, _ = prepare_heatmap_data(
-            all_results, 'support_size', 'n_samples', 'sigmas', diff_index=None, beta_filter=1, relative_error=True)
-
-        # Calculate mean MSE across sample sizes for each support size
-
-        homl_mse_matrix = homl_bias_matrix #**2 + homl_sigma_matrix**2
-        
-
-        # Plotting
-        plt.figure(figsize=(10, 8))
-        for idx, sample_size in enumerate(data_samples):
-            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=r'$n=' + str(sample_size) + '$', marker='x')
-        plt.xlabel(r'$\dim X$')
-        plt.ylabel(r'$\frac{|\theta - \hat{\theta}|}{\theta}$')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples)//2)
-        plt.grid(True)
-        plt.savefig(os.path.join(opts.output_dir, 'mse_vs_support_size_rel.svg'))
-
-        homl_mse_matrix = homl_sigma_matrix
-
-        plt.figure(figsize=(10, 8))
-        for idx, sample_size in enumerate(data_samples):
-            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=r'$n=' + str(sample_size) + '$', marker='x')
-        plt.xlabel(r'$\dim X$')
-        plt.ylabel(r'$\sigma_{\frac{|\theta - \hat{\theta}|}{\theta}}$')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples)//2)
-        plt.grid(True)
-        plt.savefig(os.path.join(opts.output_dir, 'mse_vs_support_size_rel_std.svg'))
-
-        homl_bias_matrix, _, _, _, _ = prepare_heatmap_data(
-            all_results, 'support_size', 'n_samples', 'biases', diff_index=3, beta_filter=1, relative_error=True)
-        homl_mse_matrix = homl_bias_matrix
-
-        plt.figure(figsize=(10, 8))
-        for idx, sample_size in enumerate(data_samples):
-            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
-        plt.xlabel('Support Size')
-        plt.ylabel('ICA-HOML Relative MSE ')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples)//2)
-        plt.grid(True)
-        plt.savefig(os.path.join(opts.output_dir, 'mse_vs_support_size_rel_ica_vs_homl.svg'))
-
-        homl_bias_matrix, _, _, _, _ = prepare_heatmap_data(
-            all_results, 'support_size', 'n_samples', 'biases', diff_index=None, beta_filter=1, relative_error=False)
-
-        homl_sigma_matrix, _, _, _, _ = prepare_heatmap_data(
-            all_results, 'support_size', 'n_samples', 'sigmas', diff_index=None, beta_filter=1, relative_error=False)
-
-        homl_mse_matrix = homl_bias_matrix
-
-        # Plotting
-        plt.figure(figsize=(10, 8))
-        for idx, sample_size in enumerate(data_samples):
-            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
-        plt.xlabel('Support Size')
-        plt.ylabel('ICA MSE ')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples)//2)
-        plt.grid(True)
-        plt.savefig(os.path.join(opts.output_dir, 'mse_vs_support_size.svg'))
-
-    plot_homl_ica_comparison_gennorm_beta_filter(all_results, opts, plot_heatmap, prepare_heatmap_data)
-    plot_homl_ica_comparison_gennorm_support_filter(all_results, opts, plot_heatmap, prepare_heatmap_data)
-    plot_oml_ica_comparison_gennorm_beta_filter(all_results, opts, plot_heatmap, prepare_heatmap_data)
-    plot_oml_ica_comparison_gennorm_support_filter(all_results, opts, plot_heatmap, prepare_heatmap_data)
-
-    plot_ica_gennorm_beta_filter(all_results, opts, plot_heatmap, prepare_heatmap_data)
-    plot_ica_gennorm_support_filter_mcc(all_results, opts, plot_heatmap, prepare_heatmap_data)
-    plot_ica_gennorm_beta_filter_bias(all_results, opts, plot_heatmap, prepare_heatmap_data)
+    plot_ica_gennorm_beta_filter(all_results, opts, )
+    plot_ica_gennorm_support_filter_mcc(all_results, opts, )
+    plot_ica_gennorm_beta_filter_bias(all_results, opts, )
 
     plot_asymptotic_var_comparison(all_results, opts)
 
@@ -482,12 +341,12 @@ def calc_homl_asymptotic_var(discounts, mean_discount, probs):
     return eta_cubed_variance, eta_fourth_moment, eta_non_gauss_cond, eta_second_moment, eta_third_moment, homl_asymptotic_var, homl_asymptotic_var_num
 
 
-def setup_treatment_noise(dirichlet=True):
-    if dirichlet is False:
+def setup_treatment_noise(rademacher=True):
+    if rademacher is False:
         discounts = np.array([0, -.5, -2., -4.])
         probs = np.array([.65, .2, .1, .05])
     else:
-        discounts = np.array([0, -.5])
+        discounts = np.array([1, -1])
         probs = np.array([.5, .5])
     mean_discount = np.dot(discounts, probs)
     eta_sample = lambda x: np.array(
