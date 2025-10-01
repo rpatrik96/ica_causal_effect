@@ -87,6 +87,9 @@ def main(args):
 
     # Run experiments for different support sizes and beta values
 
+    beta_filter = 4
+    support_filter = 5 if opts.small_data else 10
+
     if opts.small_data:
         support_sizes = [2, 5, 10]
         data_samples = [20, 50, 100]
