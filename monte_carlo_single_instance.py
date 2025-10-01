@@ -49,20 +49,12 @@ def main(args):
     from joblib import delayed, Parallel
 
     os.environ['JOBLIB_TEMP_FOLDER'] = '/tmp'
-    parser = argparse.ArgumentParser(
-        description="Second order orthogonal ML!")
-    parser.add_argument("--n_samples", dest="n_samples",
-                        type=int, help='n_samples', default=500)
-    parser.add_argument("--n_dim", dest="n_dim",
-                        type=int, help='n_dim', default=50)
-    parser.add_argument("--n_experiments", dest="n_experiments",
-                        type=int, help='n_experiments', default=20)
-    parser.add_argument("--seed", dest="seed",
-                        type=int, help='seed', default=12143)
-    parser.add_argument("--sigma_outcome", dest="sigma_outcome",
-                        type=float, help='sigma_outcome', default=np.sqrt(3.))
-    parser.add_argument("--covariate_pdf", dest="covariate_pdf",
-                        type=str, help='pdf of covariates', default="gennorm")
+    parser = argparse.ArgumentParser(description="Second order orthogonal ML!")
+    parser.add_argument("--n_samples", dest="n_samples", type=int, help='n_samples', default=500)
+    parser.add_argument("--n_experiments", dest="n_experiments", type=int, help='n_experiments', default=20)
+    parser.add_argument("--seed", dest="seed", type=int, help='seed', default=12143)
+    parser.add_argument("--sigma_outcome", dest="sigma_outcome", type=float, help='sigma_outcome', default=np.sqrt(3.))
+    parser.add_argument("--covariate_pdf", dest="covariate_pdf", type=str, help='pdf of covariates', default="gennorm")
 
     parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
     parser.add_argument("--check_convergence", dest="check_convergence",
@@ -96,8 +88,7 @@ def main(args):
     '''
     We will work with a sparse linear model with high dimensional co-variates
     '''
-    # Dimension of co-variates
-    n_dim = opts.n_dim
+
     # How many experiments to run to see the distribution of the recovered coefficient between price and demand
     n_experiments = opts.n_experiments
 
@@ -129,8 +120,8 @@ def main(args):
         treatment_coefs = [0.1, 0.23, -.33, -0.47, 0.89, -1.34, 1.78, -2.56, 3.14, -3.67, ]
         outcome_coefs = [0.3]  # , -0.5, 0.7, -0.9, 1.1, -1.3, 1.5, -1.7, 1.9, -2.1]
     else:
-        treatment_coef_array = np.random.uniform(-5, 5, size=support_sizes[-1])
-        outcome_coef_array = np.random.uniform(-5, 5, size=support_sizes[-1])
+        treatment_coef_array = np.random.uniform(-5, 5, size=cov_dim_max)
+        outcome_coef_array = np.random.uniform(-5, 5, size=cov_dim_max)
 
         # dummy variable to avoid loop
         treatment_coefs = [0.6]
@@ -152,8 +143,9 @@ def main(args):
     results_file_path = os.path.join(opts.output_dir, results_filename)
 
     all_results = []
-    treatment_coef_list = np.zeros(support_sizes[-1])
-    outcome_coef_list = np.zeros(support_sizes[-1])
+    treatment_coef_list = np.zeros(cov_dim_max)
+    outcome_coef_list = np.zeros(cov_dim_max)
+
 
     for n_samples in data_samples:
 
@@ -172,7 +164,7 @@ def main(args):
                     print(f"{support_size=}")
 
                     outcome_coef, outcome_coefficient, outcome_support, treatment_coef, treatment_support = setup_treatment_outcome_coefs(
-                        n_dim, opts, outcome_coef_array, outcome_coef_list, outcome_coefficient, support_size,
+                        cov_dim_max, opts, outcome_coef_array, outcome_coef_list, outcome_coefficient, support_size,
                         treatment_coef_array, treatment_coef_list, treatment_coefficient)
 
                     for beta in beta_values:
@@ -202,9 +194,9 @@ def main(args):
                             # Distribution of outcome residuals
                             epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
 
-                            true_coef_treatment = np.zeros(n_dim)
+                            true_coef_treatment = np.zeros(cov_dim_max)
                             true_coef_treatment[treatment_support] = treatment_coef
-                            true_coef_outcome = np.zeros(n_dim)
+                            true_coef_outcome = np.zeros(cov_dim_max)
                             true_coef_outcome[outcome_support] = outcome_coef
                             true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
 
@@ -218,9 +210,9 @@ def main(args):
                             x_sample = setup_covariate_pdf(opts, beta)
 
                             # Coefficients recovered by orthogonal ML
-                            lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
+                            lambda_reg = np.sqrt(np.log(cov_dim_max) / (n_samples))
                             results = [r for r in Parallel(n_jobs=-1, verbose=0)(
-                                delayed(experiment)(x_sample(n_samples, n_dim), eta_sample(n_samples),
+                                delayed(experiment)(x_sample(n_samples, cov_dim_max), eta_sample(n_samples),
                                                     epsilon_sample(n_samples), treatment_effect, treatment_support,
                                                     treatment_coef, outcome_support, outcome_coef, eta_second_moment,
                                                     eta_third_moment, lambda_reg, verbose=opts.verbose) for _ in
@@ -270,12 +262,12 @@ def main(args):
                             '''
 
                             biases, sigmas = plot_method_comparison(ortho_rec_tau, treatment_effect, opts.output_dir,
-                                                                    n_samples, n_dim, n_experiments, support_size,
+                                                                    n_samples, cov_dim_max, n_experiments, support_size,
                                                                     sigma_outcome, opts.covariate_pdf, beta, plot=False,
                                                                     relative_error=False, verbose=opts.verbose)
 
                             biases_rel, sigmas_rel = plot_method_comparison(ortho_rec_tau, treatment_effect,
-                                                                            opts.output_dir, n_samples, n_dim,
+                                                                            opts.output_dir, n_samples, cov_dim_max,
                                                                             n_experiments, support_size, sigma_outcome,
                                                                             opts.covariate_pdf, beta, plot=False,
                                                                             relative_error=True, verbose=opts.verbose)
@@ -286,10 +278,10 @@ def main(args):
                             all_results[-1]['sigmas_rel'] = sigmas_rel
 
                             plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, opts.output_dir, n_samples,
-                                                       n_dim, n_experiments, support_size, sigma_outcome,
+                                                       cov_dim_max, n_experiments, support_size, sigma_outcome,
                                                        opts.covariate_pdf, beta, plot=False)
 
-                    plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, beta)
+                        plot_error_bar_stats(all_results, cov_dim_max, n_experiments, n_samples, opts, beta)
 
     # Define the output file path
     results_file_path = os.path.join(opts.output_dir, results_filename)
