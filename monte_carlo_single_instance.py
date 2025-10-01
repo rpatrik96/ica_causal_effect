@@ -12,6 +12,7 @@ from main_estimation import all_together_cross_fitting
 from ica import ica_treatment_effect_estimation
 
 from tueplots import bundles
+import os
 
 
 def experiment(x, eta, epsilon, treatment_effect, treatment_support, treatment_coef, outcome_support, outcome_coef,
@@ -73,17 +74,7 @@ def main(args):
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
 
-    opts.output_dir = os.path.join(opts.output_dir,
-                                   f"n_exp_{opts.n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}")
-
-    if opts.check_convergence:
-        opts.output_dir += "_convergence"
-
-    if opts.small_data:
-        opts.output_dir += "_small_data"
-
-    if not os.path.exists(opts.output_dir):
-        os.makedirs(opts.output_dir)
+    setup_output_dir(opts)
 
     '''
     We will work with a sparse linear model with high dimensional co-variates
@@ -140,20 +131,9 @@ def main(args):
         treatment_coefs = [None]
         outcome_coefs = [None]
 
-    import os
 
-    # Define the output file path
-    if opts.asymptotic_var:
-        results_filename = f'all_results_asymptotic_var_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}'
-    else:
-        results_filename = f'all_results_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}'
-    
-    # Add check_convergence flag status to the filename if it is set to true
-    if opts.check_convergence:
-        results_filename += '_check_convergence'
-    
-    results_filename += '.npy'
-    results_file_path = os.path.join(opts.output_dir, results_filename)
+
+    results_file_path, results_filename = setup_filename(n_experiments, opts)
 
     all_results = []
     treatment_coef_list = np.zeros(cov_dim_max)
@@ -324,6 +304,31 @@ def main(args):
         plot_asymptotic_var_comparison(filtered_results, opts)
 
     plot_multi_treatment(all_results, opts, treatment_effects)
+
+
+def setup_output_dir(opts):
+    opts.output_dir = os.path.join(opts.output_dir,
+                                   f"n_exp_{opts.n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}")
+    if opts.check_convergence:
+        opts.output_dir += "_convergence"
+    if opts.small_data:
+        opts.output_dir += "_small_data"
+    if not os.path.exists(opts.output_dir):
+        os.makedirs(opts.output_dir)
+
+
+def setup_filename(n_experiments, opts):
+    # Define the output file path
+    if opts.asymptotic_var:
+        results_filename = f'all_results_asymptotic_var_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}'
+    else:
+        results_filename = f'all_results_n_exp_{n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}'
+    # Add check_convergence flag status to the filename if it is set to true
+    if opts.check_convergence:
+        results_filename += '_check_convergence'
+    results_filename += '.npy'
+    results_file_path = os.path.join(opts.output_dir, results_filename)
+    return results_file_path, results_filename
 
 
 def setup_treatment_outcome_coefs(n_dim, opts, outcome_coef_array, outcome_coef_list, outcome_coefficient, support_size,
