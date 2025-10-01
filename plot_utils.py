@@ -654,38 +654,6 @@ def plot_mse(all_results, data_samples, opts, support_sizes, beta_values):
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
 
-        # Prepare data for plotting
-        homl_bias_matrix, _, _, _, _ = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases',
-                                                            diff_index=None, beta_filter=1, relative_error=True)
-
-        homl_sigma_matrix, _, _, _, _ = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'sigmas',
-                                                             diff_index=None, beta_filter=1, relative_error=True)
-
-        # Calculate mean MSE across sample sizes for each support size
-        homl_mse_matrix = homl_bias_matrix
-
-        # Plotting
-        plt.figure(figsize=(10, 8))
-        for idx, sample_size in enumerate(data_samples):
-            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=r'$n=' + str(sample_size) + '$', marker='x')
-        plt.xlabel(r'$\dim X$')
-        plt.ylabel(r'$\frac{|\theta - \hat{\theta}|}{\theta}$')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples) // 2)
-        plt.grid(True)
-        plt.savefig(os.path.join(experiment_dir, 'mse_vs_support_size_rel.svg'))
-
-        homl_mse_matrix = homl_sigma_matrix
-
-        plt.figure(figsize=(10, 8))
-        for idx, sample_size in enumerate(data_samples):
-            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=r'$n=' + str(sample_size) + '$', marker='x')
-        plt.xlabel(r'$\dim X$')
-        plt.ylabel(r'$\sigma_{\frac{|\theta - \hat{\theta}|}{\theta}}$')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples) // 2)
-        plt.grid(True)
-        plt.savefig(os.path.join(experiment_dir, 'mse_vs_support_size_rel_std.svg'))
-
-
 
         homl_bias_matrix, _, _, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases',
                                                             diff_index=3, beta_filter=1, relative_error=True)
@@ -703,23 +671,6 @@ def plot_mse(all_results, data_samples, opts, support_sizes, beta_values):
                      'bias_diff_heatmap_sample_size_vs_beta_homl_mean_rel.svg', experiment_dir, center=0)
 
 
-        homl_bias_matrix, _, _, _, _ = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases',
-                                                            diff_index=None, beta_filter=1, relative_error=False)
-
-        homl_sigma_matrix, _, _, _, _ = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'sigmas',
-                                                             diff_index=None, beta_filter=1, relative_error=False)
-
-        homl_mse_matrix = homl_bias_matrix
-
-        # Plotting
-        plt.figure(figsize=(10, 8))
-        for idx, sample_size in enumerate(data_samples):
-            plt.plot(support_sizes, homl_mse_matrix[idx, :], label=f'(n={sample_size})', marker='x')
-        plt.xlabel('Support Size')
-        plt.ylabel('ICA MSE ')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -.22), ncol=len(data_samples) // 2)
-        plt.grid(True)
-        plt.savefig(os.path.join(experiment_dir, 'mse_vs_support_size.svg'))
 
         plt.close()
 
