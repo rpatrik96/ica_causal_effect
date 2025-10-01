@@ -195,7 +195,7 @@ def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, bet
     plt.close()
 
 
-def plot_gennorm(all_results, opts, filter_type='support', filter_value=10, compare_method='oml', plot_type='bias'):
+def plot_gennorm(all_results, opts, filter_type='support', filter_value=10, compare_method='oml', plot_type='bias', plot_binary=False):
     treatment_effect_value = all_results[0]['treatment_effect']
     experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
@@ -236,10 +236,14 @@ def plot_gennorm(all_results, opts, filter_type='support', filter_value=10, comp
 
         plot_heatmap(data_matrix_mean, x_labels, sample_sizes, x_label, r'$n$',
                      f'{filename_prefix}_sample_size_vs_{filename_suffix}_mean.svg', experiment_dir, center=0)
-        plot_heatmap(data_matrix_std, x_labels, sample_sizes, x_label, r'$n$',
-                     f'{filename_prefix}_sample_size_vs_{filename_suffix}_std.svg', experiment_dir, center=0)
-        plot_heatmap(data_matrix, x_labels, sample_sizes, x_label, r'$n$',
+        
+        if plot_binary:
+            plot_heatmap(data_matrix, x_labels, sample_sizes, x_label, r'$n$',
                      f'{filename_prefix}_sample_size_vs_{filename_suffix}.svg', experiment_dir, center=0)
+
+        if compare_method is None:
+            plot_heatmap(data_matrix_std, x_labels, sample_sizes, x_label, r'$n$',
+                         f'{filename_prefix}_sample_size_vs_{filename_suffix}_std.svg', experiment_dir, center=0)
 
 
 def plot_multi_treatment(all_results, opts, treatment_effects):
