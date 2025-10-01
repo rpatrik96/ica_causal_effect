@@ -2,10 +2,7 @@ import sys
 
 import matplotlib
 
-from plot_utils import plot_typography, plot_ica_gennorm_beta_filter_bias, plot_ica_gennorm_support_filter_mcc, \
-    plot_ica_gennorm_beta_filter, plot_oml_ica_comparison_gennorm_support_filter, \
-    plot_oml_ica_comparison_gennorm_beta_filter, plot_homl_ica_comparison_gennorm_support_filter, \
-    plot_homl_ica_comparison_gennorm_beta_filter, plot_multi_treatment, plot_asymptotic_var_comparison, plot_mse
+from plot_utils import plot_typography, plot_multi_treatment, plot_asymptotic_var_comparison, plot_gennorm
 
 matplotlib.use('Agg')
 import numpy as np
@@ -83,8 +80,14 @@ def main(args):
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
 
+    opts.output_dir = os.path.join(opts.output_dir,
+                                   f"n_exp_{opts.n_experiments}_sigma_outcome_{opts.sigma_outcome}_pdf_{opts.covariate_pdf}")
+
     if opts.check_convergence:
         opts.output_dir += "_convergence"
+
+    if not os.path.exists(opts.output_dir):
+        os.makedirs(opts.output_dir)
 
     '''
     We will work with a sparse linear model with high dimensional co-variates
@@ -175,14 +178,12 @@ def main(args):
                             eta_cubed_variance, eta_fourth_moment, eta_non_gauss_cond, eta_second_moment, eta_third_moment, homl_asymptotic_var, homl_asymptotic_var_num = calc_homl_asymptotic_var(
                                 discounts, mean_discount, probs)
 
-
-
-                            # Distribution of outcome residuals
-                            epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
-
                             eta_excess_kurtosis, eta_skewness_squared, ica_asymptotic_var, ica_asymptotic_var_hyvarinen, ica_asymptotic_var_num, ica_var_coeff = calc_ica_asymptotic_var(
                                 eta_cubed_variance, eta_fourth_moment, eta_third_moment, outcome_coef, sigma_outcome,
                                 treatment_coef, treatment_effect)
+
+                            # Distribution of outcome residuals
+                            epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
 
                             true_coef_treatment = np.zeros(n_dim)
                             true_coef_treatment[treatment_support] = treatment_coef
@@ -203,9 +204,10 @@ def main(args):
                             lambda_reg = np.sqrt(np.log(n_dim) / (n_samples))
                             results = [r for r in Parallel(n_jobs=-1, verbose=0)(
                                 delayed(experiment)(x_sample(n_samples, n_dim), eta_sample(n_samples),
-                                    epsilon_sample(n_samples), treatment_effect, treatment_support, treatment_coef,
-                                    outcome_support, outcome_coef, eta_second_moment, eta_third_moment, lambda_reg) for
-                                _ in range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
+                                                    epsilon_sample(n_samples), treatment_effect, treatment_support,
+                                                    treatment_coef, outcome_support, outcome_coef, eta_second_moment,
+                                                    eta_third_moment, lambda_reg, verbose=opts.verbose) for _ in
+                                range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
 
                             ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] + ica_treatment_effect_estimate.tolist() for
                                              ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_treatment_effect_estimate, _
@@ -280,25 +282,24 @@ def main(args):
 
     print("\nDone with all experiments!")
 
-    
-
     for treatment_effect in treatment_effects:
         filtered_results = [result for result in all_results if result['treatment_effect'] == treatment_effect]
 
-        plot_mse(filtered_results, data_samples, opts, support_sizes, beta_values)
+        plot_gennorm(filtered_results, opts, filter_type='beta', filter_value=4, compare_method='homl',
+                     plot_type='bias')
+        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=10, compare_method='homl',
+                     plot_type='bias')
+        plot_gennorm(filtered_results, opts, filter_type='beta', filter_value=4, compare_method='oml', plot_type='bias')
+        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=10, compare_method='oml',
+                     plot_type='bias')
 
-        continue
-        
-        plot_homl_ica_comparison_gennorm_beta_filter(filtered_results, opts)
-        plot_homl_ica_comparison_gennorm_support_filter(filtered_results, opts)
-        plot_oml_ica_comparison_gennorm_beta_filter(filtered_results, opts)
-        plot_oml_ica_comparison_gennorm_support_filter(filtered_results, opts)
+        plot_gennorm(filtered_results, opts, filter_type='beta', filter_value=4, compare_method=None, plot_type='bias')
+        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=10, compare_method=None,
+                     plot_type='mcc')
+        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=10, compare_method=None,
+                     plot_type='bias')
 
-        plot_ica_gennorm_beta_filter(filtered_results, opts)
-        plot_ica_gennorm_support_filter_mcc(filtered_results, opts)
-        plot_ica_gennorm_beta_filter_bias(filtered_results, opts)
-
-    plot_asymptotic_var_comparison(all_results, opts)
+        plot_asymptotic_var_comparison(filtered_results, opts)
 
     plot_multi_treatment(all_results, opts, treatment_effects)
 

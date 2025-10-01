@@ -7,9 +7,7 @@ from matplotlib import pyplot as plt
 from matplotlib import rc
 
 
-def plot_typography(
-        usetex: bool = False, small: int = 28, medium: int = 34, big: int = 40
-):
+def plot_typography(usetex: bool = False, small: int = 28, medium: int = 34, big: int = 40):
     """
     Initializes font settings and visualization backend (LaTeX or standard matplotlib).
     :param usetex: flag to indicate the usage of LaTeX (needs LaTeX indstalled)
@@ -78,24 +76,24 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
         if verbose:
             print("There is a NaN in the array.")
 
-    bias_ortho, sigma_ortho = plot_estimates(array[:, 0].flatten(), treatment_effect, treatment_effect,
-                                             title="OML", plot=plot, relative_error=relative_error)
+    bias_ortho, sigma_ortho = plot_estimates(array[:, 0].flatten(), treatment_effect, treatment_effect, title="OML",
+                                             plot=plot, relative_error=relative_error)
     if plot:
         plt.subplot(1, 5, 2)
-    bias_robust, sigma_robust = plot_estimates(array[:, 1].flatten(), treatment_effect, treatment_effect,
-                                               title="HOML", plot=plot, relative_error=relative_error)
+    bias_robust, sigma_robust = plot_estimates(array[:, 1].flatten(), treatment_effect, treatment_effect, title="HOML",
+                                               plot=plot, relative_error=relative_error)
     if plot:
         plt.subplot(1, 5, 3)
-    bias_est, sigma_est = plot_estimates(array[:, 2].flatten(), treatment_effect, treatment_effect,
-                                         title="HOML (Est.)", plot=plot, relative_error=relative_error)
+    bias_est, sigma_est = plot_estimates(array[:, 2].flatten(), treatment_effect, treatment_effect, title="HOML (Est.)",
+                                         plot=plot, relative_error=relative_error)
     if plot:
         plt.subplot(1, 5, 4)
     bias_second, sigma_second = plot_estimates(array[:, 3].flatten(), treatment_effect, treatment_effect,
                                                title="HOML (Split)", plot=plot, relative_error=relative_error)
     if plot:
         plt.subplot(1, 5, 5)
-    bias_ica, sigma_ica = plot_estimates(array[:, 4].flatten(), treatment_effect, treatment_effect,
-                                         title="ICA", plot=plot, relative_error=relative_error)
+    bias_ica, sigma_ica = plot_estimates(array[:, 4].flatten(), treatment_effect, treatment_effect, title="ICA",
+                                         plot=plot, relative_error=relative_error)
 
     if verbose:
         print(f"ICA estimates{array[:, 4].flatten()}")
@@ -120,8 +118,7 @@ def plot_method_comparison(ortho_rec_tau, treatment_effect, output_dir, n_sample
 
 
 def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_samples, n_dim, n_experiments,
-                               support_size,
-                               sigma_outcome, covariate_pdf, beta, plot=False, save=False):
+                               support_size, sigma_outcome, covariate_pdf, beta, plot=False, save=False):
     # Create subfolder for the experiment
     experiment_dir = os.path.join(output_dir, f"model_errors")
     os.makedirs(experiment_dir, exist_ok=True)
@@ -143,8 +140,7 @@ def plot_and_save_model_errors(first_stage_mse, ortho_rec_tau, output_dir, n_sam
         plt.hist(np.array(first_stage_mse)[:, 3].flatten())
         plt.title("ICA MCC")
 
-        plt.savefig(os.path.join(experiment_dir, filename_base + '.svg'),
-                    dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(experiment_dir, filename_base + '.svg'), dpi=300, bbox_inches='tight')
 
     # Save the data
     if save:
@@ -177,9 +173,8 @@ def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, bet
 
     # Plot error bars for each method with enhanced styling
     for method, color in zip(methods, colors):
-        plt.errorbar(dimensions, method_biases[method],
-                     yerr=method_sigmas[method],
-                     fmt='o-', label=method, color=color, capsize=4, elinewidth=2, markeredgewidth=2)
+        plt.errorbar(dimensions, method_biases[method], yerr=method_sigmas[method], fmt='o-', label=method, color=color,
+                     capsize=4, elinewidth=2, markeredgewidth=2)
 
     # Use a logarithmic scale for the y-axis to handle large error magnitudes and variances
     plt.yscale('log')
@@ -195,125 +190,56 @@ def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, bet
 
     # Save the plot with a high resolution suitable for conferences
     plt.savefig(os.path.join(experiment_dir,
-                             'error_by_dimension_n_samples_{}_n_dim_{}_n_exp_{}_pdf_{}_beta_{}.svg'.format(
-                                 n_samples, n_dim, n_experiments, opts.covariate_pdf, beta)), dpi=600,
-                bbox_inches='tight')
+                             'error_by_dimension_n_samples_{}_n_dim_{}_n_exp_{}_pdf_{}_beta_{}.svg'.format(n_samples,
+                                 n_dim, n_experiments, opts.covariate_pdf, beta)), dpi=600, bbox_inches='tight')
     plt.close()
 
 
-def plot_ica_gennorm_beta_filter_bias(all_results, opts, ):
-
-    treatment_effect_value = all_results[0]['treatment_effect']
-    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
-    os.makedirs(experiment_dir, exist_ok=True)
-
-    if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
-        ica_bias_matrix_beta_mean, ica_bias_matrix_beta_std, ica_bias_matrix_beta, betas, sample_sizes = prepare_heatmap_data(
-            all_results, 'beta', 'n_samples', 'biases', support_size_filter=10)
-        plot_heatmap(ica_bias_matrix_beta_mean, betas, sample_sizes, r'$\beta$', r'$n$',
-                     'ica_bias_heatmap_sample_size_vs_beta_mean.svg', experiment_dir, center=None)
-        plot_heatmap(ica_bias_matrix_beta_std, betas, sample_sizes, r'$\beta$', r'$n$',
-                     'ica_bias_heatmap_sample_size_vs_beta_std.svg', experiment_dir, center=None)
-        # plot_heatmap(ica_bias_matrix_beta, betas, sample_sizes, r'$\beta$', r'$n$', 'ica_bias_heatmap_sample_size_vs_beta.svg', experiment_dir, center=None)
-
-
-def plot_ica_gennorm_support_filter_mcc(all_results, opts, ):
-
+def plot_gennorm(all_results, opts, filter_type='support', filter_value=10, compare_method='oml', plot_type='bias'):
     treatment_effect_value = all_results[0]['treatment_effect']
     experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
     if opts.asymptotic_var is False:
-        ica_mcc_matrix_dim_mean, ica_mcc_matrix_dim_std, ica_mcc_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(
-            all_results, 'beta', 'n_samples', 'first_stage_mse', support_size_filter=10)
-        plot_heatmap(ica_mcc_matrix_dim_mean, support_sizes, sample_sizes, r'$\beta$', r'$n$',
-                     'ica_mcc_heatmap_sample_size_vs_beta_mean.svg', experiment_dir, center=None)
-        plot_heatmap(ica_mcc_matrix_dim_std, support_sizes, sample_sizes, r'$\beta$', r'$n$',
-                     'ica_mcc_heatmap_sample_size_vs_beta_std.svg', experiment_dir, center=None)
-        plot_heatmap(ica_mcc_matrix_dim, support_sizes, sample_sizes, r'$\beta$', r'$n$',
-                     'ica_mcc_heatmap_sample_size_vs_beta.svg', experiment_dir, center=None)
+        # Determine the diff_index based on the compare_method
+        if compare_method == 'oml':
+            diff_index = 0
+        elif compare_method == 'homl':
+            diff_index = 3
+        elif compare_method is None:
+            diff_index = None
+        else:
+            raise ValueError("Invalid compare_method. Use 'oml', 'homl', or None for no comparison.")
 
+        # Determine the value_key based on the plot_type
+        if plot_type == 'bias':
+            value_key = 'biases'
+            filename_prefix = 'bias'
+        elif plot_type == 'mcc':
+            value_key = 'first_stage_mse'
+            filename_prefix = 'mcc'
+        else:
+            raise ValueError("Invalid plot_type. Use 'bias' or 'mcc'.")
 
-def plot_ica_gennorm_beta_filter(all_results, opts, ):
-    treatment_effect_value = all_results[0]['treatment_effect']
-    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
-    os.makedirs(experiment_dir, exist_ok=True)
+        if filter_type == 'support':
+            data_matrix_mean, data_matrix_std, data_matrix, x_labels, sample_sizes = prepare_heatmap_data(all_results,
+                'beta', 'n_samples', value_key, diff_index=diff_index, support_size_filter=filter_value)
+            x_label = r'$\beta$'
+            filename_suffix = f'beta_{compare_method if compare_method else "ica"}'
+        elif filter_type == 'beta':
+            data_matrix_mean, data_matrix_std, data_matrix, x_labels, sample_sizes = prepare_heatmap_data(all_results,
+                'support_size', 'n_samples', value_key, diff_index=diff_index, beta_filter=filter_value)
+            x_label = r'$\dim X$'
+            filename_suffix = f'dim_{compare_method if compare_method else "ica"}'
+        else:
+            raise ValueError("Invalid filter_type. Use 'support' or 'beta'.")
 
-    # ICA error only
-    if opts.asymptotic_var is False:
-        ica_bias_matrix_dim_mean, ica_bias_matrix_dim_std, ica_bias_matrix_dim, support_sizes, sample_sizes = prepare_heatmap_data(
-            all_results, 'support_size', 'n_samples', 'biases', beta_filter=1)
-        plot_heatmap(ica_bias_matrix_dim_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
-                     'ica_bias_heatmap_sample_size_vs_dim_mean.svg', experiment_dir, center=None)
-        plot_heatmap(ica_bias_matrix_dim_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
-                     'ica_bias_heatmap_sample_size_vs_dim_std.svg', experiment_dir, center=None)
-        # plot_heatmap(ica_bias_matrix_dim, support_sizes, sample_sizes, r'$\dim X$', r'$n$', 'ica_bias_heatmap_sample_size_vs_dim.svg', experiment_dir, center=None)
-
-
-def plot_oml_ica_comparison_gennorm_support_filter(all_results, opts, ):
-    treatment_effect_value = all_results[0]['treatment_effect']
-    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
-    os.makedirs(experiment_dir, exist_ok=True)
-
-    if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
-        bias_diff_matrix_beta_oml_mean, bias_diff_matrix_beta_oml_std, bias_diff_matrix_beta_oml, betas, sample_sizes = prepare_heatmap_data(
-            all_results, 'beta', 'n_samples', 'biases', diff_index=0, support_size_filter=10)
-        plot_heatmap(bias_diff_matrix_beta_oml_mean, betas, sample_sizes, r'$\beta$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_beta_oml_mean.svg', experiment_dir, center=0)
-        plot_heatmap(bias_diff_matrix_beta_oml_std, betas, sample_sizes, r'$\beta$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_beta_oml_std.svg', experiment_dir, center=0)
-        plot_heatmap(bias_diff_matrix_beta_oml, betas, sample_sizes, r'$\beta$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_beta_oml.svg', experiment_dir, center=0)
-
-
-def plot_oml_ica_comparison_gennorm_beta_filter(all_results, opts, ):
-    treatment_effect_value = all_results[0]['treatment_effect']
-    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
-    os.makedirs(experiment_dir, exist_ok=True)
-
-    # Plot heatmaps for comparison with OML, filtered for beta=1
-    if opts.asymptotic_var is False:
-        bias_diff_matrix_dim_oml_mean, bias_diff_matrix_dim_oml_std, bias_diff_matrix_dim_oml, support_sizes, sample_sizes = prepare_heatmap_data(
-            all_results, 'support_size', 'n_samples', 'biases', diff_index=0, beta_filter=1)
-        plot_heatmap(bias_diff_matrix_dim_oml_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_dim_oml_mean.svg', experiment_dir, center=0)
-        plot_heatmap(bias_diff_matrix_dim_oml_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_dim_oml_std.svg', experiment_dir, center=0)
-        plot_heatmap(bias_diff_matrix_dim_oml, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_dim_oml.svg', experiment_dir, center=0)
-
-
-def plot_homl_ica_comparison_gennorm_support_filter(all_results, opts, ):
-    treatment_effect_value = all_results[0]['treatment_effect']
-    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
-    os.makedirs(experiment_dir, exist_ok=True)
-
-    if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
-        bias_diff_matrix_beta_homl_mean, bias_diff_matrix_beta_homl_std, bias_diff_matrix_beta_homl, betas, sample_sizes = prepare_heatmap_data(
-            all_results, 'beta', 'n_samples', 'biases', diff_index=3, support_size_filter=10)
-        plot_heatmap(bias_diff_matrix_beta_homl_mean, betas, sample_sizes, r'$\beta$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_beta_homl_mean.svg', experiment_dir, center=0)
-        plot_heatmap(bias_diff_matrix_beta_homl_std, betas, sample_sizes, r'$\beta$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_beta_homl_std.svg', experiment_dir, center=0)
-        plot_heatmap(bias_diff_matrix_beta_homl, betas, sample_sizes, r'$\beta$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_beta_homl.svg', experiment_dir, center=0)
-
-
-def plot_homl_ica_comparison_gennorm_beta_filter(all_results, opts, ):
-    treatment_effect_value = all_results[0]['treatment_effect']
-    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
-    os.makedirs(experiment_dir, exist_ok=True)
-
-    # Plot heatmaps for comparison with HOML Split, filtered for beta=1
-    if opts.asymptotic_var is False:
-        bias_diff_matrix_dim_homl_mean, bias_diff_matrix_dim_homl_std, bias_diff_matrix_dim_homl, support_sizes, sample_sizes = prepare_heatmap_data(
-            all_results, 'support_size', 'n_samples', 'biases', diff_index=3, beta_filter=1)
-        plot_heatmap(bias_diff_matrix_dim_homl_mean, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_dim_homl_mean.svg', experiment_dir, center=0)
-        plot_heatmap(bias_diff_matrix_dim_homl_std, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_dim_homl_std.svg', experiment_dir, center=0)
-        plot_heatmap(bias_diff_matrix_dim_homl, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_dim_homl.svg', experiment_dir, center=0)
+        plot_heatmap(data_matrix_mean, x_labels, sample_sizes, x_label, r'$n$',
+                     f'{filename_prefix}_sample_size_vs_{filename_suffix}_mean.svg', experiment_dir, center=0)
+        plot_heatmap(data_matrix_std, x_labels, sample_sizes, x_label, r'$n$',
+                     f'{filename_prefix}_sample_size_vs_{filename_suffix}_std.svg', experiment_dir, center=0)
+        plot_heatmap(data_matrix, x_labels, sample_sizes, x_label, r'$n$',
+                     f'{filename_prefix}_sample_size_vs_{filename_suffix}.svg', experiment_dir, center=0)
 
 
 def plot_multi_treatment(all_results, opts, treatment_effects):
@@ -375,7 +301,8 @@ def plot_multi_treatment(all_results, opts, treatment_effects):
 
 def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=False):
     treatment_effect_value = all_results[0]['treatment_effect']
-    experiment_dir = os.path.join(opts.output_dir, "asymptotic_var_comparison", f"treatment_effect_{treatment_effect_value}")
+    experiment_dir = os.path.join(opts.output_dir, "asymptotic_var_comparison",
+                                  f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
@@ -392,12 +319,10 @@ def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=Fa
         fig, axs = plt.subplots(1, 1, figsize=(10, 8))
 
         # Subplot 1: x-axis is x_values_ica_var_coeff
-        axs.errorbar(x_values_ica_var_coeff, y_values_ica_biases, yerr=y_errors_ica, fmt='o', color='blue',
-                        alpha=0.75,
-                        label='ICA')
-        axs.errorbar(x_values_ica_var_coeff, y_values_homl_biases, yerr=y_errors_homl, fmt='o', color='red',
-                        alpha=0.75,
-                        label='HOML')
+        axs.errorbar(x_values_ica_var_coeff, y_values_ica_biases, yerr=y_errors_ica, fmt='o', color='blue', alpha=0.75,
+                     label='ICA')
+        axs.errorbar(x_values_ica_var_coeff, y_values_homl_biases, yerr=y_errors_homl, fmt='o', color='red', alpha=0.75,
+                     label='HOML')
         axs.set_xlabel(r'$1+\Vert b+a\theta\Vert_2^2$')
         axs.set_xscale('log')
         axs.set_ylabel(r'$|\theta-\hat{\theta}|$')
@@ -410,7 +335,6 @@ def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=Fa
         return 0
 
     if asymptotic_var_versions is True:
-
         # Prepare data for the new scatter plot
         x_values_var_diff = [res['ica_asymptotic_var'] - res['homl_asymptotic_var'] for res in all_results]
         x_values_var__hyvarinen_diff = [res['ica_asymptotic_var_hyvarinen'] - res['homl_asymptotic_var'] for res in
@@ -455,7 +379,8 @@ def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=Fa
         plt.figure(figsize=(10, 8))
         plt.scatter(x_values_sample_size, y_values_ica_asymptotic_var, c='blue', alpha=0.75,
                     label='ICA Asymptotic Variance')
-        plt.scatter(x_values_sample_size, y_values_actual_variance_ica, c='red', alpha=0.75, label='ICA Actual Variance')
+        plt.scatter(x_values_sample_size, y_values_actual_variance_ica, c='red', alpha=0.75,
+                    label='ICA Actual Variance')
         plt.xlabel('Sample Size')
         plt.ylabel('Variance')
         plt.legend()
@@ -466,7 +391,8 @@ def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=Fa
         plt.figure(figsize=(10, 8))
         plt.scatter(x_values_sample_size, y_values_ica_asymptotic_var_hyvarinen, c='blue', alpha=0.75,
                     label='ICA Hyvarinen Asymptotic Variance')
-        plt.scatter(x_values_sample_size, y_values_actual_variance_ica, c='red', alpha=0.75, label='ICA Actual Variance')
+        plt.scatter(x_values_sample_size, y_values_actual_variance_ica, c='red', alpha=0.75,
+                    label='ICA Actual Variance')
         plt.xlabel('Sample Size')
         plt.ylabel('Variance')
         plt.legend()
@@ -477,7 +403,8 @@ def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=Fa
         plt.figure(figsize=(10, 8))
         plt.scatter(x_values_sample_size, y_values_homl_asymptotic_var, c='blue', alpha=0.75,
                     label='HOML Asymptotic Variance')
-        plt.scatter(x_values_sample_size, y_values_actual_variance_homl, c='red', alpha=0.75, label='HOML Actual Variance')
+        plt.scatter(x_values_sample_size, y_values_actual_variance_homl, c='red', alpha=0.75,
+                    label='HOML Actual Variance')
         plt.xlabel('Sample Size')
         plt.ylabel('Variance')
         plt.legend()
@@ -518,7 +445,7 @@ def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=Fa
                                            res['treatment_coefficient'] == t_coef]) for t_coef in treatment_coef]
     avg_y_errors_homl_treatment = [np.mean(
         [res['sigmas'][3] / np.sqrt(res['n_samples']) for res in all_results if res['treatment_coefficient'] == t_coef])
-                                   for t_coef in treatment_coef]
+        for t_coef in treatment_coef]
 
     axs[1].errorbar(treatment_coef, y_values_ica_biases, yerr=y_errors_ica, fmt='o', color='blue', alpha=0.75,
                     label='ICA')
@@ -539,10 +466,10 @@ def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=Fa
         outcome_coef]
     avg_y_errors_ica_outcome = [np.mean(
         [res['sigmas'][-1] / np.sqrt(res['n_samples']) for res in all_results if res['outcome_coefficient'] == o_coef])
-                                for o_coef in outcome_coef]
+        for o_coef in outcome_coef]
     avg_y_errors_homl_outcome = [np.mean(
         [res['sigmas'][3] / np.sqrt(res['n_samples']) for res in all_results if res['outcome_coefficient'] == o_coef])
-                                 for o_coef in outcome_coef]
+        for o_coef in outcome_coef]
 
     axs[2].errorbar(outcome_coef, y_values_ica_biases, yerr=y_errors_ica, fmt='o', color='blue', alpha=0.75,
                     label='ICA')
@@ -647,36 +574,7 @@ def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=Fa
     plt.close()
 
 
-def plot_mse(all_results, data_samples, opts, support_sizes, beta_values):
-    treatment_effect_value = all_results[0]['treatment_effect']
-    experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
-    os.makedirs(experiment_dir, exist_ok=True)
-
-    if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
-
-
-        homl_bias_matrix, _, _, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases',
-                                                            diff_index=3, beta_filter=4, relative_error=True)
-
-        plot_heatmap(homl_bias_matrix, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_dim_homl_mean_rel.svg', experiment_dir, center=0)
-
-
-
-        homl_bias_matrix, _, _, betas, sample_sizes = prepare_heatmap_data(all_results, 'beta', 'n_samples', 'biases',
-                                                            diff_index=3, support_size_filter=10, relative_error=True)
-
-
-        plot_heatmap(homl_bias_matrix, betas, sample_sizes, r'$\beta$', r'$n$',
-                     'bias_diff_heatmap_sample_size_vs_beta_homl_mean_rel.svg', experiment_dir, center=0)
-
-
-
-        plt.close()
-
-
-def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename, output_dir, cmap="coolwarm",
-                 center=None):
+def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename, output_dir, cmap="coolwarm", center=None):
     plot_typography()
     # plot_typography(small=20, medium=24, big=30)
     plt.figure(figsize=(10, 8))
@@ -711,8 +609,7 @@ def prepare_heatmap_data(all_results, x_key, y_key, value_key, diff_index=None, 
                 [z[-1] for z in res[value_key]]) for res in all_results if (
                                 res[x_key] == x_val and res[y_key] == y_val and (
                                 beta_filter is None or res['beta'] == beta_filter) and (
-                                        support_size_filter is None or res[
-                                    'support_size'] == support_size_filter))][0]
+                                        support_size_filter is None or res['support_size'] == support_size_filter))][0]
             ica_std = \
                 [res[sigmas_key][-1] if value_key != "first_stage_mse" else np.std([z[-1] for z in res[value_key]]) for
                  res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (
@@ -728,11 +625,10 @@ def prepare_heatmap_data(all_results, x_key, y_key, value_key, diff_index=None, 
                         res[x_key] == x_val and res[y_key] == y_val and (
                         beta_filter is None or res['beta'] == beta_filter) and (
                                 support_size_filter is None or res['support_size'] == support_size_filter))][0]
-                diffs = [res[value_key + value_key_suffix][-1] - res[value_key + value_key_suffix][diff_index] for
-                         res in all_results if (res[x_key] == x_val and res[y_key] == y_val and (
-                            beta_filter is None or res['beta'] == beta_filter) and (
-                                                        support_size_filter is None or res[
-                                                    'support_size'] == support_size_filter))]
+                diffs = [res[value_key + value_key_suffix][-1] - res[value_key + value_key_suffix][diff_index] for res
+                         in all_results if (res[x_key] == x_val and res[y_key] == y_val and (
+                            beta_filter is None or res['beta'] == beta_filter) and (support_size_filter is None or res[
+                        'support_size'] == support_size_filter))]
 
                 if (ica_mean + ica_std) < (compare_mean - compare_std):
                     data_matrix[j, i] = -1
