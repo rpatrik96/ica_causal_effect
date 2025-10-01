@@ -72,6 +72,7 @@ def main(args):
                         default=False)
     parser.add_argument("--tie_sample_dim", dest="tie_sample_dim", type=bool, help='Ties n=d**4', default=False)
     parser.add_argument("--verbose", dest="verbose", type=bool, help='Enable verbose output', default=False)
+    parser.add_argument("--small_data", dest="small_data", type=bool, help='Flag to use a small dataset', default=True)
 
     opts = parser.parse_args(args)
 
@@ -85,6 +86,9 @@ def main(args):
 
     if opts.check_convergence:
         opts.output_dir += "_convergence"
+
+    if opts.small_data:
+        opts.output_dir += "_small_data"
 
     if not os.path.exists(opts.output_dir):
         os.makedirs(opts.output_dir)
@@ -101,12 +105,25 @@ def main(args):
 
     # Run experiments for different support sizes and beta values
 
-    support_sizes = [2, 5, 10, 20, 50] if opts.asymptotic_var is False else [10]  # [5, 10, 20]
-    data_samples = [100, 200, 500, 1000, 2000, 5000] if opts.asymptotic_var is False else [10 ** 4]
-    beta_values = [1.0] if opts.covariate_pdf != "gennorm" or opts.asymptotic_var is True else [0.5, 1.0, 1.5, 2.0, 2.5,
-                                                                                                3., 3.5, 4., 4.5, 5]
-    treatment_effects = [3.0] if opts.asymptotic_var is False else [
-        3.]  # [-20, -10, -5, -2, -1, -.5, -0.2, -.1, .1,  0.2, .5, 1, 2, 5, 10, 20]
+    if opts.small_data:
+        support_sizes = [2, 5, 10]
+        data_samples = [20, 50, 100]
+    else:
+        support_sizes = [2,5,10, 20, 50]  if opts.asymptotic_var is False else [10] 
+        data_samples = [100, 200, 500, 1000, 2000, 5000]  if opts.asymptotic_var is False else [10 ** 4]
+    
+    
+    beta_values = [1.0] if opts.covariate_pdf != "gennorm" or opts.asymptotic_var is True else [0.5, 1.0,  # 1.5,
+                                                                                                2.0,  # 2.5,
+                                                                                                3.,  # 3.5,
+                                                                                                4.,  # 4.5,
+                                                                                                # 5.
+                                                                                                ]
+    # treatment_effects = [3.0] if opts.asymptotic_var is False else [-10, -2, -0.2, -.02, 0.01, .1, .5, 1., 3., 10]
+    treatment_effects = [0.01, .1, .5, 1., 3., 10]
+    # Dimension of co-variates
+    cov_dim_max = support_sizes[-1]
+
 
     if opts.asymptotic_var:
         treatment_coefs = [0.1, 0.23, -.33, -0.47, 0.89, -1.34, 1.78, -2.56, 3.14, -3.67, ]
