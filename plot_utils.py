@@ -656,7 +656,7 @@ def plot_mse(all_results, data_samples, opts, support_sizes, beta_values):
 
 
         homl_bias_matrix, _, _, support_sizes, sample_sizes = prepare_heatmap_data(all_results, 'support_size', 'n_samples', 'biases',
-                                                            diff_index=3, beta_filter=1, relative_error=True)
+                                                            diff_index=3, beta_filter=4, relative_error=True)
 
         plot_heatmap(homl_bias_matrix, support_sizes, sample_sizes, r'$\dim X$', r'$n$',
                      'bias_diff_heatmap_sample_size_vs_dim_homl_mean_rel.svg', experiment_dir, center=0)
