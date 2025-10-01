@@ -117,8 +117,21 @@ def main(args):
 
 
     if opts.asymptotic_var:
-        treatment_coefs = [0.1, 0.23, -.33, -0.47, 0.89, -1.34, 1.78, -2.56, 3.14, -3.67, ]
-        outcome_coefs = [0.3]  # , -0.5, 0.7, -0.9, 1.1, -1.3, 1.5, -1.7, 1.9, -2.1]
+        treatment_coefs = [  # -.00005, 0.0006,
+            -.002, 0.1, 0.23, -.33,  # -0.47, 0.89,
+            # -1.34, 1.78,
+            -2.56, 3.14,  # -8.67, 12.3
+        ]
+        outcome_coefs = [  # -.00001, 0.0002,
+            0.003, -0.05,  # 0.3, -0.5,
+            # 0.7, -0.9,
+            1.1, -1.3,  # 1.5, -1.7,
+            # 1.9, -2.1,
+            5., -4.,  # 13., -22,
+            # 33., -56
+        ]
+
+        treatment_coef_array = outcome_coef_array = None
     else:
         treatment_coef_array = np.random.uniform(-5, 5, size=cov_dim_max)
         outcome_coef_array = np.random.uniform(-5, 5, size=cov_dim_max)
