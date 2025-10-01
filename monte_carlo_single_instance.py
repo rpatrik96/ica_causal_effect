@@ -208,7 +208,7 @@ def main(args):
                                 delayed(experiment)(x_sample(n_samples, cov_dim_max), eta_sample(n_samples),
                                                     epsilon_sample(n_samples), treatment_effect, treatment_support,
                                                     treatment_coef, outcome_support, outcome_coef, eta_second_moment,
-                                                    eta_third_moment, lambda_reg, verbose=opts.verbose) for _ in
+                                                    eta_third_moment, lambda_reg, opts.check_convergence, verbose=opts.verbose) for _ in
                                 range(n_experiments)) if (opts.check_convergence is False or r[-1] is not None)]
 
                             ortho_rec_tau = [[ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] + ica_treatment_effect_estimate.tolist() for
