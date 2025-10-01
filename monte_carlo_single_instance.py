@@ -288,18 +288,24 @@ def main(args):
     for treatment_effect in treatment_effects:
         filtered_results = [result for result in all_results if result['treatment_effect'] == treatment_effect]
 
-        plot_gennorm(filtered_results, opts, filter_type='beta', filter_value=4, compare_method='homl',
+        beta_filter = 4
+        support_filter = 5
+
+        plot_gennorm(filtered_results, opts, filter_type='beta', filter_value=beta_filter, compare_method='homl',
                      plot_type='bias')
-        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=10, compare_method='homl',
-                     plot_type='bias')
-        plot_gennorm(filtered_results, opts, filter_type='beta', filter_value=4, compare_method='oml', plot_type='bias')
-        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=10, compare_method='oml',
+        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=support_filter, compare_method='homl',
                      plot_type='bias')
 
-        plot_gennorm(filtered_results, opts, filter_type='beta', filter_value=4, compare_method=None, plot_type='bias')
-        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=10, compare_method=None,
+
+        # plot_gennorm(filtered_results, opts, filter_type='beta', filter_value=beta_filter, compare_method='oml', plot_type='bias')
+        # plot_gennorm(filtered_results, opts, filter_type='support', filter_value=support_filter, compare_method='oml',
+        #              plot_type='bias')
+
+        plot_gennorm(filtered_results, opts, filter_type='beta', filter_value=beta_filter, compare_method=None,
+                               plot_type='bias')
+        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=support_filter, compare_method=None,
                      plot_type='mcc')
-        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=10, compare_method=None,
+        plot_gennorm(filtered_results, opts, filter_type='support', filter_value=support_filter, compare_method=None,
                      plot_type='bias')
 
         plot_asymptotic_var_comparison(filtered_results, opts)
