@@ -373,87 +373,117 @@ def plot_multi_treatment(all_results, opts, treatment_effects):
         plt.close()
 
 
-def plot_asymptotic_var_comparison(all_results, opts):
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, "asymptotic_var_comparison")
+def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=False):
+    treatment_effect_value = all_results[0]['treatment_effect']
+    experiment_dir = os.path.join(opts.output_dir, "asymptotic_var_comparison", f"treatment_effect_{treatment_effect_value}")
     os.makedirs(experiment_dir, exist_ok=True)
 
-    if opts.asymptotic_var is False:
+    if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
+        # Prepare data for the scatter plot
+        x_values_ica_var_coeff = [res['ica_var_coeff'] for res in all_results]
+        treatment_coef = [res['treatment_coefficient'] for res in all_results]
+        outcome_coef = [res['outcome_coefficient'] for res in all_results]
+        y_values_ica_biases = [res['biases'][-1] for res in all_results]
+        y_values_homl_biases = [res['biases'][3] for res in all_results]
+        y_errors_ica = [res['sigmas'][-1] / np.sqrt(res['n_samples']) for res in all_results]
+        y_errors_homl = [res['sigmas'][3] / np.sqrt(res['n_samples']) for res in all_results]
+
+        # Create a figure with 3 subplots
+        fig, axs = plt.subplots(1, 1, figsize=(10, 8))
+
+        # Subplot 1: x-axis is x_values_ica_var_coeff
+        axs.errorbar(x_values_ica_var_coeff, y_values_ica_biases, yerr=y_errors_ica, fmt='o', color='blue',
+                        alpha=0.75,
+                        label='ICA')
+        axs.errorbar(x_values_ica_var_coeff, y_values_homl_biases, yerr=y_errors_homl, fmt='o', color='red',
+                        alpha=0.75,
+                        label='HOML')
+        axs.set_xlabel(r'$1+\Vert b+a\theta\Vert_2^2$')
+        axs.set_xscale('log')
+        axs.set_ylabel(r'$|\theta-\hat{\theta}|$')
+        axs.legend()
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(experiment_dir, 'gennorm_asymp_var.svg'), dpi=300, bbox_inches='tight')
+        plt.close()
+
         return 0
 
-    # Prepare data for the new scatter plot
-    x_values_var_diff = [res['ica_asymptotic_var'] - res['homl_asymptotic_var'] for res in all_results]
-    x_values_var__hyvarinen_diff = [res['ica_asymptotic_var_hyvarinen'] - res['homl_asymptotic_var'] for res in
-                                    all_results]
-    y_values_bias_diff = [res['biases'][-1] - res['biases'][3] for res in all_results]
-    y_values_sigma_diff = [res['sigmas'][-1] - res['sigmas'][3] for res in all_results]
-    colors = [res['beta'] for res in all_results]
-    plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(x_values_var_diff, y_values_bias_diff, c=colors, cmap='viridis', alpha=0.75)
-    plt.colorbar(scatter, label='Beta')
-    plt.xlabel('Difference in Asymptotic Variance (ICA - HOML)')
-    plt.ylabel('Difference in Bias (ICA - HOML)')
-    # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
-    plt.savefig(os.path.join(experiment_dir, 'scatter_plot_var_vs_bias_diff.svg'), dpi=300, bbox_inches='tight')
-    plt.close()
-    plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(x_values_var_diff, y_values_sigma_diff, c=colors, cmap='viridis', alpha=0.75)
-    plt.colorbar(scatter, label='Beta')
-    plt.xlabel('Difference in Asymptotic Variance (ICA - HOML)')
-    plt.ylabel('Difference in Variance (ICA - HOML)')
-    # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
-    plt.savefig(os.path.join(experiment_dir, 'scatter_plot_var_vs_asy_var_diff.svg'), dpi=300, bbox_inches='tight')
-    plt.close()
-    plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(x_values_var__hyvarinen_diff, y_values_sigma_diff, c=colors, cmap='viridis', alpha=0.75)
-    plt.colorbar(scatter, label='Beta')
-    plt.xlabel('Difference in Asymptotic Variance (ICA - HOML) Hyvarinen')
-    plt.ylabel('Difference in Variance (ICA - HOML)')
-    # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
-    plt.savefig(os.path.join(experiment_dir, 'scatter_plot_var_vs_asy_var_diff_hyvarinen.svg'), dpi=300,
-                bbox_inches='tight')
-    plt.close()
-    # Prepare data for the scatter plots
-    x_values_sample_size = [res['n_samples'] for res in all_results]
-    y_values_ica_asymptotic_var = [res['ica_asymptotic_var'] for res in all_results]
-    y_values_ica_asymptotic_var_hyvarinen = [res['ica_asymptotic_var_hyvarinen'] for res in all_results]
-    y_values_homl_asymptotic_var = [res['homl_asymptotic_var'] for res in all_results]
-    y_values_actual_variance_ica = [res['sigmas'][-1] ** 2 * res['n_samples'] for res in all_results]
-    y_values_actual_variance_homl = [res['sigmas'][3] ** 2 * res['n_samples'] for res in all_results]
-    # colors = [res['beta'] for res in all_results]
-    # Scatter plot for ICA asymptotic and actual variance
-    plt.figure(figsize=(10, 8))
-    plt.scatter(x_values_sample_size, y_values_ica_asymptotic_var, c='blue', alpha=0.75,
-                label='ICA Asymptotic Variance')
-    plt.scatter(x_values_sample_size, y_values_actual_variance_ica, c='red', alpha=0.75, label='ICA Actual Variance')
-    plt.xlabel('Sample Size')
-    plt.ylabel('Variance')
-    plt.legend()
-    plt.savefig(os.path.join(experiment_dir, 'scatter_plot_sample_size_vs_ica_variance.svg'), dpi=300,
-                bbox_inches='tight')
-    plt.close()
-    # Scatter plot for ICA Hyvarinen asymptotic and actual variance
-    plt.figure(figsize=(10, 8))
-    plt.scatter(x_values_sample_size, y_values_ica_asymptotic_var_hyvarinen, c='blue', alpha=0.75,
-                label='ICA Hyvarinen Asymptotic Variance')
-    plt.scatter(x_values_sample_size, y_values_actual_variance_ica, c='red', alpha=0.75, label='ICA Actual Variance')
-    plt.xlabel('Sample Size')
-    plt.ylabel('Variance')
-    plt.legend()
-    plt.savefig(os.path.join(experiment_dir, 'scatter_plot_sample_size_vs_ica_hyvarinen_variance.svg'), dpi=300,
-                bbox_inches='tight')
-    plt.close()
-    # Scatter plot for HOML asymptotic and actual variance
-    plt.figure(figsize=(10, 8))
-    plt.scatter(x_values_sample_size, y_values_homl_asymptotic_var, c='blue', alpha=0.75,
-                label='HOML Asymptotic Variance')
-    plt.scatter(x_values_sample_size, y_values_actual_variance_homl, c='red', alpha=0.75, label='HOML Actual Variance')
-    plt.xlabel('Sample Size')
-    plt.ylabel('Variance')
-    plt.legend()
-    plt.savefig(os.path.join(experiment_dir, 'scatter_plot_sample_size_vs_homl_variance.svg'), dpi=300,
-                bbox_inches='tight')
-    plt.close()
+    if asymptotic_var_versions is True:
+
+        # Prepare data for the new scatter plot
+        x_values_var_diff = [res['ica_asymptotic_var'] - res['homl_asymptotic_var'] for res in all_results]
+        x_values_var__hyvarinen_diff = [res['ica_asymptotic_var_hyvarinen'] - res['homl_asymptotic_var'] for res in
+                                        all_results]
+        y_values_bias_diff = [res['biases'][-1] - res['biases'][3] for res in all_results]
+        y_values_sigma_diff = [res['sigmas'][-1] - res['sigmas'][3] for res in all_results]
+        colors = [res['beta'] for res in all_results]
+        plt.figure(figsize=(10, 8))
+        scatter = plt.scatter(x_values_var_diff, y_values_bias_diff, c=colors, cmap='viridis', alpha=0.75)
+        plt.colorbar(scatter, label='Beta')
+        plt.xlabel('Difference in Asymptotic Variance (ICA - HOML)')
+        plt.ylabel('Difference in Bias (ICA - HOML)')
+        # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
+        plt.savefig(os.path.join(experiment_dir, 'scatter_plot_var_vs_bias_diff.svg'), dpi=300, bbox_inches='tight')
+        plt.close()
+        plt.figure(figsize=(10, 8))
+        scatter = plt.scatter(x_values_var_diff, y_values_sigma_diff, c=colors, cmap='viridis', alpha=0.75)
+        plt.colorbar(scatter, label='Beta')
+        plt.xlabel('Difference in Asymptotic Variance (ICA - HOML)')
+        plt.ylabel('Difference in Variance (ICA - HOML)')
+        # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
+        plt.savefig(os.path.join(experiment_dir, 'scatter_plot_var_vs_asy_var_diff.svg'), dpi=300, bbox_inches='tight')
+        plt.close()
+        plt.figure(figsize=(10, 8))
+        scatter = plt.scatter(x_values_var__hyvarinen_diff, y_values_sigma_diff, c=colors, cmap='viridis', alpha=0.75)
+        plt.colorbar(scatter, label='Beta')
+        plt.xlabel('Difference in Asymptotic Variance (ICA - HOML) Hyvarinen')
+        plt.ylabel('Difference in Variance (ICA - HOML)')
+        # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
+        plt.savefig(os.path.join(experiment_dir, 'scatter_plot_var_vs_asy_var_diff_hyvarinen.svg'), dpi=300,
+                    bbox_inches='tight')
+        plt.close()
+        # Prepare data for the scatter plots
+        x_values_sample_size = [res['n_samples'] for res in all_results]
+        y_values_ica_asymptotic_var = [res['ica_asymptotic_var'] for res in all_results]
+        y_values_ica_asymptotic_var_hyvarinen = [res['ica_asymptotic_var_hyvarinen'] for res in all_results]
+        y_values_homl_asymptotic_var = [res['homl_asymptotic_var'] for res in all_results]
+        y_values_actual_variance_ica = [res['sigmas'][-1] ** 2 * res['n_samples'] for res in all_results]
+        y_values_actual_variance_homl = [res['sigmas'][3] ** 2 * res['n_samples'] for res in all_results]
+        # colors = [res['beta'] for res in all_results]
+        # Scatter plot for ICA asymptotic and actual variance
+        plt.figure(figsize=(10, 8))
+        plt.scatter(x_values_sample_size, y_values_ica_asymptotic_var, c='blue', alpha=0.75,
+                    label='ICA Asymptotic Variance')
+        plt.scatter(x_values_sample_size, y_values_actual_variance_ica, c='red', alpha=0.75, label='ICA Actual Variance')
+        plt.xlabel('Sample Size')
+        plt.ylabel('Variance')
+        plt.legend()
+        plt.savefig(os.path.join(experiment_dir, 'scatter_plot_sample_size_vs_ica_variance.svg'), dpi=300,
+                    bbox_inches='tight')
+        plt.close()
+        # Scatter plot for ICA Hyvarinen asymptotic and actual variance
+        plt.figure(figsize=(10, 8))
+        plt.scatter(x_values_sample_size, y_values_ica_asymptotic_var_hyvarinen, c='blue', alpha=0.75,
+                    label='ICA Hyvarinen Asymptotic Variance')
+        plt.scatter(x_values_sample_size, y_values_actual_variance_ica, c='red', alpha=0.75, label='ICA Actual Variance')
+        plt.xlabel('Sample Size')
+        plt.ylabel('Variance')
+        plt.legend()
+        plt.savefig(os.path.join(experiment_dir, 'scatter_plot_sample_size_vs_ica_hyvarinen_variance.svg'), dpi=300,
+                    bbox_inches='tight')
+        plt.close()
+        # Scatter plot for HOML asymptotic and actual variance
+        plt.figure(figsize=(10, 8))
+        plt.scatter(x_values_sample_size, y_values_homl_asymptotic_var, c='blue', alpha=0.75,
+                    label='HOML Asymptotic Variance')
+        plt.scatter(x_values_sample_size, y_values_actual_variance_homl, c='red', alpha=0.75, label='HOML Actual Variance')
+        plt.xlabel('Sample Size')
+        plt.ylabel('Variance')
+        plt.legend()
+        plt.savefig(os.path.join(experiment_dir, 'scatter_plot_sample_size_vs_homl_variance.svg'), dpi=300,
+                    bbox_inches='tight')
+        plt.close()
 
     # Prepare data for the scatter plot
     x_values_ica_var_coeff = [res['ica_var_coeff'] for res in all_results]
