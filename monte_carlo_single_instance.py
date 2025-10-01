@@ -124,8 +124,8 @@ def main(args):
         outcome_coef_array = np.random.uniform(-5, 5, size=cov_dim_max)
 
         # dummy variable to avoid loop
-        treatment_coefs = [0.6]
-        outcome_coefs = [0.3]
+        treatment_coefs = [None]
+        outcome_coefs = [None]
 
     import os
 
@@ -232,30 +232,24 @@ def main(args):
                                 _, _, _, _, coef_treatment, coef_outcome, ica_treatment_effect_estimate, ica_mcc in
                                 results if not np.isnan(ica_treatment_effect_estimate).any()]
 
-                            all_results.append({
-                                'n_samples': n_samples,
-                                'support_size': support_size,
-                                'beta': beta,
-                                'ortho_rec_tau': ortho_rec_tau,
-                                'first_stage_mse': first_stage_mse,
-                                'eta_non_gauss_cond': eta_non_gauss_cond,
-                                'eta_skewness_squared': eta_skewness_squared,
-                                'eta_second_moment': eta_second_moment,
-                                'eta_third_moment': eta_third_moment,
-                                'eta_fourth_moment': eta_fourth_moment,
-                                'eta_excess_kurtosis': eta_excess_kurtosis,
-                                'eta_cubed_variance': eta_cubed_variance,
-                                'sigma_outcome': sigma_outcome,
-                                'homl_asymptotic_var_num': homl_asymptotic_var_num,
-                                'homl_asymptotic_var': homl_asymptotic_var,
-                                'ica_asymptotic_var': ica_asymptotic_var,
-                                'ica_asymptotic_var_num': ica_asymptotic_var_num,
-                                'ica_asymptotic_var_hyvarinen': ica_asymptotic_var_hyvarinen,
-                                'ica_var_coeff': ica_var_coeff,
-                                'treatment_effect': treatment_effect,
-                                'treatment_coefficient': treatment_coefficient,
-                                'outcome_coefficient': outcome_coefficient,
-                            })
+                            all_results.append({'n_samples': n_samples, 'support_size': support_size, 'beta': beta,
+                                                'ortho_rec_tau': ortho_rec_tau, 'first_stage_mse': first_stage_mse,
+                                                'eta_non_gauss_cond': eta_non_gauss_cond,
+                                                'eta_skewness_squared': eta_skewness_squared,
+                                                'eta_second_moment': eta_second_moment,
+                                                'eta_third_moment': eta_third_moment,
+                                                'eta_fourth_moment': eta_fourth_moment,
+                                                'eta_excess_kurtosis': eta_excess_kurtosis,
+                                                'eta_cubed_variance': eta_cubed_variance,
+                                                'sigma_outcome': sigma_outcome,
+                                                'homl_asymptotic_var_num': homl_asymptotic_var_num,
+                                                'homl_asymptotic_var': homl_asymptotic_var,
+                                                'ica_asymptotic_var': ica_asymptotic_var,
+                                                'ica_asymptotic_var_num': ica_asymptotic_var_num,
+                                                'ica_asymptotic_var_hyvarinen': ica_asymptotic_var_hyvarinen,
+                                                'ica_var_coeff': ica_var_coeff, 'treatment_effect': treatment_effect,
+                                                'treatment_coefficient': treatment_coefficient if treatment_coefficient is not None else treatment_coef_array,
+                                                'outcome_coefficient': outcome_coefficient if outcome_coefficient is not None else outcome_coef_array, })
 
                             '''
                             Plotting histograms
