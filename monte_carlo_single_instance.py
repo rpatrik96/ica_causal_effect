@@ -282,7 +282,7 @@ def main(args):
         filtered_results = [result for result in all_results if result['treatment_effect'] == treatment_effect]
 
         beta_filter = 4
-        support_filter = 5
+        support_filter = 5 if opts.small_data else 10
 
         plot_gennorm(filtered_results, opts, filter_type='beta', filter_value=beta_filter, compare_method='homl',
                      plot_type='bias')
