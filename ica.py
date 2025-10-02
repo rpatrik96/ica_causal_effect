@@ -190,11 +190,11 @@ def main_multi():
                 formula = 'Y ~ 1 + ' + ' + '.join([f'T{k}' for k in range(T.shape[1])]) + ' + ' + ' + '.join(
                     [f'X{l}' for l in range(X_cov.shape[1])])
 
-                for seed in range(n_seeds):
-                    treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
-                                                                             random_state=seed,
-                                                                             check_convergence=False,
-                                                                             n_treatments=n_treatment)
+                    for seed in range(n_seeds):
+                        treatment_effects, mcc = ica_treatment_effect_estimation(X, S,
+                                                                                 random_state=seed,
+                                                                                 check_convergence=False,
+                                                                                 n_treatments=n_treatment, verbose=False)
 
                     # Fit the IV regression model
                     from linearmodels.iv import IV2SLS
@@ -225,7 +225,7 @@ def main_multi():
         plt.ylabel(y_label)
         # plt.title(title)
         # plt.tight_layout()
-        plt.savefig(filename)
+        save_figure(filename)
         plt.close()
     # Refactored data filtering for heatmap preparation
 
@@ -422,7 +422,7 @@ def main_nonlinear():
     plt.xlabel('Nonlinearity')
     plt.ylabel(r'$\dim X$')
     # plt.title('Heatmap of MSEs: Dimension vs Nonlinearity')
-    plt.savefig('heatmap_dimension_vs_nonlinearity.svg', dpi=300, bbox_inches='tight')
+    save_figure('heatmap_dimension_vs_nonlinearity.svg') #, dpi=300, bbox_inches='tight')
     plt.close()
 
     plt.figure(figsize=(10, 8))
@@ -430,7 +430,7 @@ def main_nonlinear():
     plt.xlabel('Nonlinearity')
     plt.ylabel(r'$\dim X$')
     # plt.title('Heatmap of MSEs: Dimension vs Nonlinearity')
-    plt.savefig('heatmap_dimension_vs_nonlinearity_std.svg', dpi=300, bbox_inches='tight')
+    save_figure('heatmap_dimension_vs_nonlinearity_std.svg') #, dpi=300, bbox_inches='tight')
     plt.close()
 
     # Filter the data to only include 'leaky_relu' nonlinearity
@@ -454,7 +454,7 @@ def main_nonlinear():
     plt.xlabel('Slope')
     plt.ylabel(r'$\dim X$')
     # plt.title('Heatmap of MCCs: Dimension vs Slope for Leaky ReLU')
-    plt.savefig('heatmap_dimension_vs_slope_leaky_relu.svg', dpi=300, bbox_inches='tight')
+    save_figure('heatmap_dimension_vs_slope_leaky_relu.svg')
     plt.close()
 
 
@@ -553,7 +553,7 @@ def main_fun():
     # plt.legend()
     # plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
 
-    plt.savefig(f'ica_mse_fun.svg')
+    save_figure(f'ica_mse_fun.svg')
     plt.close()
 
 
@@ -589,7 +589,7 @@ def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, x_ticks
     plt.ylabel(ylabel)
     plt.yscale('log')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
-    plt.savefig(filename)
+    save_figure(filename)
     plt.close()
 
 def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename):
@@ -598,7 +598,7 @@ def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename):
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.yticks(ticks=plt.yticks()[0], labels=[f'{x:.1f}' for x in plt.yticks()[0]])
-    plt.savefig(filename)
+    save_figure(filename)
     plt.close()
 
 def main_sparsity():
@@ -676,7 +676,7 @@ def main_gennorm():
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=plt.xticks()[0], labels=[f'{x:.1f}' for x in plt.xticks()[0]])
     plt.legend()
-    plt.savefig(f'ica_mse_vs_beta_n{n_samples}.svg')
+    save_figure(f'ica_mse_vs_beta_n{n_samples}.svg')
     plt.close()
 
 def main_gennorm_nonlinear():
@@ -721,7 +721,7 @@ def main_gennorm_nonlinear():
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=plt.xticks()[0], labels=[f'{x:.1f}' for x in plt.xticks()[0]])
     plt.legend(loc='center right', bbox_to_anchor=(2, 0.5), ncol=2)
-    plt.savefig(f'ica_mse_vs_beta_nonlinear_n{n_samples}.svg')
+    save_figure(f'ica_mse_vs_beta_nonlinear_n{n_samples}.svg')
     plt.close()
 
 def main_nonlinear_theta():
@@ -766,7 +766,7 @@ def main_nonlinear_theta():
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=range(len(theta_choices)), labels=theta_choices)
-    plt.savefig(f'ica_mse_vs_theta_choice_nonlinear_n{n_samples}.svg')
+    save_figure(f'ica_mse_vs_theta_choice_nonlinear_n{n_samples}.svg')
     plt.close()
 
 
@@ -818,7 +818,7 @@ def main_nonlinear_noise_split():
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=range(len(noise_splits)), labels=noise_splits)
-    plt.savefig(f'ica_mse_vs_noise_split_nonlinear_n{n_samples}.svg')
+    save_figure(f'ica_mse_vs_noise_split_nonlinear_n{n_samples}.svg')
     plt.close()
 
 def main_loc_scale():
@@ -853,6 +853,15 @@ def main_loc_scale():
     plot_heatmap(mse_matrix, scale_values,loc_values, 'Scale', 'Location', f'ica_mse_heatmap_loc_scale_n{n_samples}.svg')
 
 
+
+def save_figure(filename):
+    import os
+
+    # Ensure the directory exists
+    figures_dir = 'figures/ica'
+    os.makedirs(figures_dir, exist_ok=True)
+    plt.savefig(os.path.join(figures_dir, filename), dpi=300, bbox_inches='tight')
+    plt.close()
 
 if __name__ == "__main__":
 
