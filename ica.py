@@ -12,8 +12,35 @@ from tueplots import bundles
 from mcc import calc_disent_metrics
 from plot_utils import plot_typography
 
-import numpy as np
-import os
+i#mport numpy as np
+import o
+
+def filter_indices(results_dict, sample_size, treatment_count=None, covariate_dim=None):
+    """
+    Filter indices based on sample size, treatment count, and covariate dimension.
+    Returns a list of indices that match the criteria.
+    """
+    return [
+        i for i, (s, t, d) in enumerate(
+            zip(results_dict['sample_sizes'],
+                results_dict['n_treatments'],
+                results_dict['n_covariates'])
+        )
+        if s == sample_size and (treatment_count is None or t == treatment_count)
+           and (covariate_dim is None or d == covariate_dim)
+    ]
+
+
+  def calculate_treatment_effect_diff(results_dict, indices):
+    """
+    Calculate the average norm difference between ICA treatment effect estimates and IV estimates.
+    """
+    est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
+    est_params_iv = [results_dict['treatment_effects_iv'][i] for i in indices]
+    return np.nanmean([
+        np.linalg.norm(est_ica - est_iv)
+        for est_ica, est_iv in zip(est_params_ica, est_params_iv)
+    
 
 
 
@@ -229,16 +256,7 @@ def main_multi():
         plt.close()
     # Refactored data filtering for heatmap preparation
 
-    def filter_indices(results_dict, sample_size, treatment_count=None, covariate_dim=None):
-        return [
-            i for i, (s, t, d) in enumerate(zip(results_dict['sample_sizes'], results_dict['n_treatments'], results_dict['n_covariates']))
-            if s == sample_size and (treatment_count is None or t == treatment_count) and (covariate_dim is None or d == covariate_dim)
-        ]
-
-    def calculate_treatment_effect_diff(results_dict, indices):
-        est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
-        est_params_iv = [results_dict['treatment_effects_iv'][i] for i in indices]
-        return np.nanmean([np.linalg.norm(est_ica - est_iv) for est_ica, est_iv in zip(est_params_ica, est_params_iv)])
+  #   return np.nanmean([np.linalg.norm(est_ica - est_iv) for est_ica, est_iv in zip(est_params_ica, est_params_iv)])
 
     # Prepare data for heatmap: x-axis is number of treatments, y-axis is sample size, covariate dimension is 10
     covariate_dimension = 10
