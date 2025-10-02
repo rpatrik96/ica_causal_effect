@@ -433,12 +433,14 @@ def plot_asymptotic_var_comparison(all_results, opts, asymptotic_var_versions=Fa
     plt.errorbar(x_values_ica_var_coeff, y_values_ica_biases, yerr=y_errors_ica, fmt='o', color='blue', alpha=0.75,
                  label='ICA')
     plt.errorbar(x_values_ica_var_coeff, y_values_homl_biases, yerr=y_errors_homl, fmt='o', color='red', alpha=0.75,
-                 label='Higher-order OML')
+                 label='HOML')
     plt.xlabel(r'$1+(b+a\theta)^2$')
     plt.xscale('log')
     plt.yscale('log')
-    plt.ylabel(r'$|\theta-\hat{\theta}|$')
-    plt.legend()
+    plt.ylabel(r'Mean squared $|\theta-\hat{\theta}|$')
+    plt.legend(
+        # loc='upper center',ncol=2, bbox_to_anchor=(0., -0.15)
+    )
     plt.tight_layout()
     plt.savefig(os.path.join(experiment_dir, 'errorbar_plot_ica_vs_homl.svg'), dpi=300, bbox_inches='tight')
     plt.close()
