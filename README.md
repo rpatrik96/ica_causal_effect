@@ -1,27 +1,25 @@
 # Introduction
 
-Code associated with paper: <a href="https://arxiv.org/abs/1711.00342">Orthogonal Machine Learning: Power and Limitations</a>, Mackey, Syrgkanis, Zadik, ICML 2018
+This repository contains code related to the paper: [Independent Component Analysis for Treatment Effect Estimation](https://arxiv.org/abs/2507.16467).
 
-# File descriptions
+# Repository Structure
 
-* `main_estimation.py` : contains the implementation of all the proposed second order orthogonal methods and all the benchmark first order orthogonal estimation methods for the partially linear model
+* `main_estimation.py`: Implements second-order orthogonal methods and benchmark first-order orthogonal estimation methods for the partially linear model.
 
-* `monte_carlo_single_instance_with_seed.py` and `monte_carlo_single_instance.py` : almost identical files that generate data from the partially linear model DGP and based on input parameters, and run the proposed second order orthogonal method and all the benchmarks and save the results in joblib dumps. The only difference is in the naming convention of the result files. The first is used in the generation of the plots with multiple instances and the second in the generation of the plots with a single instance and as we sweep over parameters. 
+* `monte_carlo_single_instance_with_seed.py` and `monte_carlo_single_instance.py`: Generate data from the partially linear model DGP based on input parameters, execute the proposed second-order orthogonal method and benchmarks, and save results in joblib dumps. The former is used for generating plots with multiple instances, while the latter is for single instance plots and parameter sweeps.
 
-* `plot_dumps_multi_instance.py` and `plot_dumps_single_instance.py` : plot the figures in the paper from the corresponding dumpes in the files above. 
+* `plot_dumps_multi_instance.py` and `plot_dumps_single_instance.py`: Generate figures from the corresponding dumps created by the above files.
 
-* `single_instance_parameter_sweep.sh` : shell script that runs a single instance as the parameters of the DGP vary and creates all the related plots
+* `single_instance_parameter_sweep.sh`: A shell script that runs a single instance as the DGP parameters vary, creating all related plots.
 
-* `multi_instance.sh` : shell script that runs multiple instances of the DGP for a fixed set of parameters and generated the related plots
+* `multi_instance.sh`: A shell script that runs multiple instances of the DGP for a fixed set of parameters, generating related plots.
+
+* `ica.py`: Contains functions for generating Independent Component Analysis (ICA) data, estimating treatment effects using ICA, and various main functions for running different ICA-related experiments.
+
+* `mcc.py`: Implements the Munkres algorithm (also known as the Hungarian algorithm) for solving the assignment problem and includes functions for calculating disentanglement metrics such as R2 and MCC.
+
+* `plot_utils.py`: Provides utility functions for plotting, including typography settings, estimate histograms, method comparisons, and multi-treatment plots.
 
 # Re-creating the Figures in the Paper
 
-To recreate the figures in the paper run the following script:
-```bash
-./single_instance_parameter_sweep.sh single_instance_dir
-./multi_instance.sh multi_instance_dir
-```
-
-This will create the figures in the relative folder: ./figures
-
-These scripts take a very long time (on a single machine  the script `multi_instance.sh` will take approx. 250 hours) and it is advisable that they run on a cluster. For our results we parallelized the for loops in each of these shell scripts and run it on multiple nodes on a cluster.
+To recreate the figures in the paper, execute the following scripts:
