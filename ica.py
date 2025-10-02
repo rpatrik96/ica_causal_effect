@@ -266,17 +266,17 @@ def main_multi():
     num_treatments = sorted(set(results_dict['n_treatments']))
     heatmap_data = np.array([[treatment_effect_diff.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
 
-    plot_heatmap(heatmap_data, num_treatments, sample_sizes, r'$|T|$', r'$n$',
+    plot_heatmap(heatmap_data, num_treatments, sample_sizes, r'Number of treatments $|T|$', r'Sample size $n$',
                  'Difference in Treatment Effects (Covariate Dimension = 10)', 'heatmap_multi_treatments_vs_samples.svg', center=0)
 
     # Create heatmap data for ICA error only
     heatmap_data_ica = np.array([[treatment_effect_ica.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
     heatmap_data_ica_std = np.array([[treatment_effect_ica_std.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
 
-    plot_heatmap(heatmap_data_ica, num_treatments, sample_sizes, r'$|T|$', r'$n$',
-                 'ICA Error Mean (Covariate Dimension = 10)', 'heatmap_ica_treatments_vs_samples.svg', center=None)
-    plot_heatmap(heatmap_data_ica_std, num_treatments, sample_sizes, r'$|T|$', r'$n$',
-                 'ICA Error Std (Covariate Dimension = 10)', 'heatmap_ica_treatments_vs_samples_std.svg', center=None)
+    plot_heatmap(heatmap_data_ica, num_treatments, sample_sizes, r'Number of treatments $|T|$', r'Sample size $n$',
+                 'ICA Rel. Error Mean (Covariate Dimension = 10)', 'heatmap_ica_treatments_vs_samples_rel.svg', center=None)
+    plot_heatmap(heatmap_data_ica_std, num_treatments, sample_sizes, r'Number of treatments $|T|$', r'Sample size $n$',
+                 'ICA Rel. Error Std (Covariate Dimension = 10)', 'heatmap_ica_treatments_vs_samples_rel_std.svg', center=None)
 
     # Prepare data for heatmap: x-axis is dimension, y-axis is sample size, number of treatments is 2
     num_treatments_fixed = 2
@@ -300,15 +300,15 @@ def main_multi():
     dimensions = sorted(set(results_dict['n_covariates']))
     heatmap_data_dim = np.array([[treatment_effect_diff_dim.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
 
-    plot_heatmap(heatmap_data_dim, dimensions, sample_sizes, r'$\dim X$', r'$n$',
+    plot_heatmap(heatmap_data_dim, dimensions, sample_sizes, r'Covariate dimension $d$', r'Sample size $n$',
                  'Difference in Treatment Effects (Number of Treatments = 2)', 'heatmap_multi_dimensions_vs_samples.svg', center=0)
 
     # Create heatmap data for ICA error only
     heatmap_data_ica_dim = np.array([[treatment_effect_ica_dim.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
     heatmap_data_ica_dim_std = np.array([[treatment_effect_ica_dim_std.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
 
-    plot_heatmap(heatmap_data_ica_dim, dimensions, sample_sizes, r'$\dim X$', r'$n$', 'ICA Error Mean (Number of Treatments = 2)', 'heatmap_ica_multi_dimensions_vs_samples.svg', center=None)
-    plot_heatmap(heatmap_data_ica_dim_std, dimensions, sample_sizes, r'$\dim X$', r'$n$', 'ICA Error Std (Number of Treatments = 2)', 'heatmap_ica_multi_dimensions_vs_samples_std.svg', center=None)
+    plot_heatmap(heatmap_data_ica_dim, dimensions, sample_sizes, r'Covariate dimension $d$', r'Sample size $n$', 'ICA Error Mean (Number of Treatments = 2)', 'heatmap_ica_multi_dimensions_vs_samples.svg', center=None)
+    plot_heatmap(heatmap_data_ica_dim_std, dimensions, sample_sizes, r'Covariate dimension $d$', r'Sample size $n$', 'ICA Error Std (Number of Treatments = 2)', 'heatmap_ica_multi_dimensions_vs_samples_std.svg', center=None)
 
 
 def main_nonlinear():
@@ -420,7 +420,7 @@ def main_nonlinear():
     plt.figure(figsize=(10, 8))
     sns.heatmap(heatmap_data, xticklabels=nonlinearities, yticklabels=dimensions, cmap="coolwarm", annot=True)
     plt.xlabel('Nonlinearity')
-    plt.ylabel(r'$\dim X$')
+    plt.ylabel(r'Covariate dimension $d$')
     # plt.title('Heatmap of MSEs: Dimension vs Nonlinearity')
     save_figure('heatmap_dimension_vs_nonlinearity.svg') #, dpi=300, bbox_inches='tight')
     plt.close()
@@ -428,7 +428,7 @@ def main_nonlinear():
     plt.figure(figsize=(10, 8))
     sns.heatmap(heatmap_data_std, xticklabels=nonlinearities, yticklabels=dimensions, cmap="coolwarm", annot=True)
     plt.xlabel('Nonlinearity')
-    plt.ylabel(r'$\dim X$')
+    plt.ylabel(r'Covariate dimension $d$')
     # plt.title('Heatmap of MSEs: Dimension vs Nonlinearity')
     save_figure('heatmap_dimension_vs_nonlinearity_std.svg') #, dpi=300, bbox_inches='tight')
     plt.close()
@@ -452,7 +452,7 @@ def main_nonlinear():
     plt.figure(figsize=(10, 8))
     sns.heatmap(heatmap_data, xticklabels=slopes, yticklabels=dimensions, cmap="coolwarm", annot=True)
     plt.xlabel('Slope')
-    plt.ylabel(r'$\dim X$')
+    plt.ylabel(r'Covariate dimension $d$')
     # plt.title('Heatmap of MCCs: Dimension vs Slope for Leaky ReLU')
     save_figure('heatmap_dimension_vs_slope_leaky_relu.svg')
     plt.close()
@@ -547,7 +547,7 @@ def main_fun():
 
     # # plt.xscale('log')
     # plt.yscale('log')
-    # plt.xlabel(r'$\dim X$')
+    # plt.xlabel(r'Covariate dimension $d$')
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     # plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     # plt.legend()
@@ -671,7 +671,7 @@ def main_gennorm():
         plt.errorbar(beta, np.nanmean(mse), yerr=np.nanstd(mse), fmt='o-', capsize=5, label=f'{beta:.2f}')
 
     plt.yscale('log')
-    plt.xlabel(r'$\beta$')
+    plt.xlabel(r'Gen. normal param. $\beta$')
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=plt.xticks()[0], labels=[f'{x:.1f}' for x in plt.xticks()[0]])
@@ -716,7 +716,7 @@ def main_gennorm_nonlinear():
         
 
     plt.yscale('log')
-    plt.xlabel(r'$\beta$')
+    plt.xlabel(r'Gen. normal param. $\beta$')
     plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=plt.xticks()[0], labels=[f'{x:.1f}' for x in plt.xticks()[0]])
