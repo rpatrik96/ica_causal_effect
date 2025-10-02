@@ -266,16 +266,16 @@ def main_multi():
     num_treatments = sorted(set(results_dict['n_treatments']))
     heatmap_data = np.array([[treatment_effect_diff.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
 
-    plot_heatmap(heatmap_data, num_treatments, sample_sizes, r'Number of treatments $|T|$', r'Sample size $n$',
+    plot_heatmap(heatmap_data, num_treatments, sample_sizes, r'Number of treatments $m$', r'Sample size $n$',
                  'Difference in Treatment Effects (Covariate Dimension = 10)', 'heatmap_multi_treatments_vs_samples.svg', center=0)
 
     # Create heatmap data for ICA error only
     heatmap_data_ica = np.array([[treatment_effect_ica.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
     heatmap_data_ica_std = np.array([[treatment_effect_ica_std.get((s, t), np.nan) for t in num_treatments] for s in sample_sizes])
 
-    plot_heatmap(heatmap_data_ica, num_treatments, sample_sizes, r'Number of treatments $|T|$', r'Sample size $n$',
+    plot_heatmap(heatmap_data_ica, num_treatments, sample_sizes, r'Number of treatments $m$', r'Sample size $n$',
                  'ICA Rel. Error Mean (Covariate Dimension = 10)', 'heatmap_ica_treatments_vs_samples_rel.svg', center=None)
-    plot_heatmap(heatmap_data_ica_std, num_treatments, sample_sizes, r'Number of treatments $|T|$', r'Sample size $n$',
+    plot_heatmap(heatmap_data_ica_std, num_treatments, sample_sizes, r'Number of treatments $m$', r'Sample size $n$',
                  'ICA Rel. Error Std (Covariate Dimension = 10)', 'heatmap_ica_treatments_vs_samples_rel_std.svg', center=None)
 
     # Prepare data for heatmap: x-axis is dimension, y-axis is sample size, number of treatments is 2
@@ -301,14 +301,14 @@ def main_multi():
     heatmap_data_dim = np.array([[treatment_effect_diff_dim.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
 
     plot_heatmap(heatmap_data_dim, dimensions, sample_sizes, r'Covariate dimension $d$', r'Sample size $n$',
-                 'Difference in Treatment Effects (Number of Treatments = 2)', 'heatmap_multi_dimensions_vs_samples.svg', center=0)
+                 'Difference in Treatment Effects (Number of Treatments = 2)', 'heatmap_multi_dimensions_vs_samples_rel.svg', center=0)
 
     # Create heatmap data for ICA error only
     heatmap_data_ica_dim = np.array([[treatment_effect_ica_dim.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
     heatmap_data_ica_dim_std = np.array([[treatment_effect_ica_dim_std.get((s, d), np.nan) for d in dimensions] for s in sample_sizes])
 
-    plot_heatmap(heatmap_data_ica_dim, dimensions, sample_sizes, r'Covariate dimension $d$', r'Sample size $n$', 'ICA Error Mean (Number of Treatments = 2)', 'heatmap_ica_multi_dimensions_vs_samples.svg', center=None)
-    plot_heatmap(heatmap_data_ica_dim_std, dimensions, sample_sizes, r'Covariate dimension $d$', r'Sample size $n$', 'ICA Error Std (Number of Treatments = 2)', 'heatmap_ica_multi_dimensions_vs_samples_std.svg', center=None)
+    plot_heatmap(heatmap_data_ica_dim, dimensions, sample_sizes, r'Covariate dimension $d$', r'Sample size $n$', 'ICA Rel. Error Mean (Number of Treatments = 2)', 'heatmap_ica_multi_dimensions_vs_samples_rel.svg', center=None)
+    plot_heatmap(heatmap_data_ica_dim_std, dimensions, sample_sizes, r'Covariate dimension $d$', r'Sample size $n$', 'ICA Rel. Error Std (Number of Treatments = 2)', 'heatmap_ica_multi_dimensions_vs_samples_std.svg', center=None)
 
 
 def main_nonlinear():
@@ -548,7 +548,7 @@ def main_fun():
     # # plt.xscale('log')
     # plt.yscale('log')
     # plt.xlabel(r'Covariate dimension $d$')
-    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    plt.ylabel(r'Mean squared $|(\theta-\hat{\theta})/\theta|$')
     # plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     # plt.legend()
     # plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
@@ -635,10 +635,11 @@ def main_sparsity():
     means = [np.mean(mse_by_sparsity[sparsity]) for sparsity in sorted_sparsities]
     std_devs = [np.std(mse_by_sparsity[sparsity]) for sparsity in sorted_sparsities]
 
-    plot_error_bars(sorted_sparsities, means, std_devs, r'Sparsity of $\mathrm{\mathbf{A}}$', r'$\Vert\theta-\hat{\theta} \Vert_2$', 'ica_mse_vs_dim_sparsity.svg')
+    plot_error_bars(sorted_sparsities, means, std_devs, r'Sparsity of $\mathrm{\mathbf{A}}$', r'Mean squared $|(\theta-\hat{\theta})/\theta|$', 'ica_mse_vs_dim_sparsity.svg')
 
 def main_gennorm():
     setup_plot()
+    plt.figure(figsize=(10, 6))
     results_file = 'results_main_gennorm.npy'
     n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
     import os
@@ -672,10 +673,11 @@ def main_gennorm():
 
     plt.yscale('log')
     plt.xlabel(r'Gen. normal param. $\beta$')
-    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    plt.ylabel(r'Mean squared $|(\theta-\hat{\theta})/\theta|$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=plt.xticks()[0], labels=[f'{x:.1f}' for x in plt.xticks()[0]])
-    plt.legend()
+    # plt.legend()
+    plt.legend(loc='center right', bbox_to_anchor=(2, 0.5), ncol=2)
     save_figure(f'ica_mse_vs_beta_n{n_samples}.svg')
     plt.close()
 
@@ -713,11 +715,11 @@ def main_gennorm_nonlinear():
         mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
         plt.errorbar(beta, mean_mse:=np.nanmean(mse), yerr=(std_mse:=np.nanstd(mse)), fmt='o-', capsize=5, label=f'{beta:.2f}')
         print(f"{beta=:.2f}: {mean_mse:.4f}\pm{std_mse:.4f}")
-        
+
 
     plt.yscale('log')
     plt.xlabel(r'Gen. normal param. $\beta$')
-    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    plt.ylabel(r'Mean squared $|(\theta-\hat{\theta})/\theta|$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=plt.xticks()[0], labels=[f'{x:.1f}' for x in plt.xticks()[0]])
     plt.legend(loc='center right', bbox_to_anchor=(2, 0.5), ncol=2)
@@ -763,7 +765,7 @@ def main_nonlinear_theta():
 
     plt.yscale('log')
     plt.xlabel(r'$p(\theta)$')
-    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    plt.ylabel(r'Mean squared $|(\theta-\hat{\theta})/\theta|$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=range(len(theta_choices)), labels=theta_choices)
     save_figure(f'ica_mse_vs_theta_choice_nonlinear_n{n_samples}.svg')
@@ -815,7 +817,7 @@ def main_nonlinear_noise_split():
 
     plt.yscale('log')
     plt.xlabel(r'Gaussian $X$')
-    plt.ylabel(r'$\Vert\theta-\hat{\theta} \Vert_2$')
+    plt.ylabel(r'Mean squared $|(\theta-\hat{\theta})/\theta|$')
     plt.grid(True, which="both", linestyle='-.', linewidth=0.5)
     plt.xticks(ticks=range(len(noise_splits)), labels=noise_splits)
     save_figure(f'ica_mse_vs_noise_split_nonlinear_n{n_samples}.svg')
