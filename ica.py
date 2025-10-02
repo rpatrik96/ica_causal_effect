@@ -575,7 +575,7 @@ def save_results(filename, results_dict):
 def calculate_mse(true_params, est_params, relative_error=True):
     if est_params is not None:
         if relative_error:
-            errors = [np.linalg.norm(est - true) / (np.linalg.norm(true) + 1e-8) for est, true in zip(est_params, true_params)]
+            errors = [np.linalg.norm((est - true) / (np.linalg.norm(true) + 1e-8)) for est, true in zip(est_params, true_params)]
         else:
             errors = [np.linalg.norm(est - true) for est, true in zip(est_params, true_params)]
         return np.mean(errors)
