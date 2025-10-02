@@ -19,7 +19,7 @@ import os
 
 
 
-def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.4, beta=1., loc=0, scale=1, nonlinearity='leaky_relu', theta_choice='fixed', split_noise_dist=False):
+def generate_ica_data(n_covariates=1, n_treatments=1, batch_size=4096, slope=1., sparse_prob=0.3, beta=1., loc=0, scale=1, nonlinearity='leaky_relu', theta_choice='fixed', split_noise_dist=False):
     # Create sparse matrix of shape (n_treatments x n_covariates)
     binary_mask = torch.bernoulli(torch.ones(n_treatments, n_covariates) * sparse_prob)
     random_coeffs = torch.randn(n_treatments, n_covariates)
@@ -167,7 +167,7 @@ def main_multi():
                                                           n_covariates=n_covariates,
                                                       n_treatments=n_treatment,
                                                       slope=1.,
-                                                      sparse_prob=0.4)
+                                                      sparse_prob=0.3)
 
                 treatment_indices = torch.arange(n_covariates, n_covariates + n_treatment).numpy()
                 T = X[:, treatment_indices]
@@ -351,7 +351,7 @@ def main_nonlinear():
                                                                   n_covariates=n_covariates,
                                                                   n_treatments=1,
                                                                   slope=slope,
-                                                                  sparse_prob=0.4,
+                                                                  sparse_prob=0.3,
                                                                   nonlinearity=nonlinearity)
 
                             for seed in range(n_seeds):
@@ -375,7 +375,7 @@ def main_nonlinear():
                                                               n_covariates=n_covariates,
                                                               n_treatments=1,
                                                               slope=1.0,  # Default slope for other nonlinearities
-                                                              sparse_prob=0.4,
+                                                              sparse_prob=0.3,
                                                               nonlinearity=nonlinearity)
 
                         for seed in range(n_seeds):
@@ -486,7 +486,7 @@ def main_fun():
                                             n_covariates=n_covariates,
                                             n_treatments=n_treatment,
                                             slope=1.,
-                                            sparse_prob=0.4)
+                                            sparse_prob=0.3)
     fun_options = ["logcosh", "exp", "cube"]
 
     for fun in fun_options:
@@ -651,7 +651,7 @@ def main_gennorm():
         results_dict = initialize_results_dict(['sample_sizes', 'n_covariates', 'n_treatments', 'true_params', 'treatment_effects', 'mccs', 'beta_values'])
 
         for beta in beta_values:
-            S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=1., sparse_prob=0.4, beta=beta)
+            S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=1., sparse_prob=0.3, beta=beta)
             for seed in range(n_seeds):
                 treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment)
                 results_dict['sample_sizes'].append(n_samples)
@@ -695,7 +695,7 @@ def main_gennorm_nonlinear():
         results_dict = initialize_results_dict(['sample_sizes', 'n_covariates', 'n_treatments', 'true_params', 'treatment_effects', 'mccs', 'beta_values'])
 
         for beta in beta_values:
-            S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=.2, sparse_prob=0.4, beta=beta, nonlinearity='leaky_relu')
+            S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=.2, sparse_prob=0.3, beta=beta, nonlinearity='leaky_relu')
             for seed in range(n_seeds):
                 treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment)
                 results_dict['sample_sizes'].append(n_samples)
@@ -740,8 +740,8 @@ def main_nonlinear_theta():
         results_dict = initialize_results_dict(['sample_sizes', 'n_covariates', 'n_treatments', 'true_params', 'treatment_effects', 'mccs', 'theta_choices'])
 
         for theta_choice in theta_choices:
-            S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=.2, sparse_prob=0.4, beta=1.0, nonlinearity='leaky_relu', theta_choice=theta_choice)
             for seed in range(n_seeds):
+                S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=.2, sparse_prob=0.3, beta=1.0, nonlinearity='leaky_relu', theta_choice=theta_choice)
                 treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment)
                 results_dict['sample_sizes'].append(n_samples)
                 results_dict['n_covariates'].append(n_covariates)
@@ -789,7 +789,7 @@ def main_nonlinear_noise_split():
 
         for noise_split in noise_splits:
             S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates,
-                                                  n_treatments=n_treatment, slope=.2, sparse_prob=0.4, beta=1.0,
+                                                  n_treatments=n_treatment, slope=.2, sparse_prob=0.3, beta=1.0,
                                                   nonlinearity='leaky_relu',split_noise_dist=noise_split)
             for seed in range(n_seeds):
                 treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed,
@@ -840,7 +840,7 @@ def main_loc_scale():
             for scale in scale_values:
                 mse_list = []
                 for seed in range(n_seeds):
-                    S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=1., sparse_prob=0.4, beta=1.0, loc=loc, scale=scale)
+                    S, X, true_params = generate_ica_data(batch_size=n_samples, n_covariates=n_covariates, n_treatments=n_treatment, slope=1., sparse_prob=0.3, beta=1.0, loc=loc, scale=scale)
                     treatment_effects, mcc = ica_treatment_effect_estimation(X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment)
                     mse_list.append(calculate_mse(true_params, treatment_effects))
 
