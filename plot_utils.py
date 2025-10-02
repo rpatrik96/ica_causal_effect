@@ -234,7 +234,10 @@ def plot_gennorm(all_results, opts, filter_type='support', filter_value=10, comp
                 'support_size', 'n_samples', value_key, diff_index=diff_index, beta_filter=filter_value)
             x_label = r'Covariate dimension $d$'
             filename_suffix = f'dim_{compare_method if compare_method else "ica"}'
-        
+
+        plot_heatmap(data_matrix_mean, x_labels, sample_sizes, x_label, r'Sample size $n$',
+                     f'{filename_prefix}_sample_size_vs_{filename_suffix}_mean.svg', experiment_dir, center=0)
+
         if plot_binary:
             plot_heatmap(data_matrix, x_labels, sample_sizes, x_label, r'Sample size $n$',
                      f'{filename_prefix}_sample_size_vs_{filename_suffix}.svg', experiment_dir, center=0)
