@@ -291,8 +291,9 @@ def main_multi():
                 treatment_effect_diff_dim[(n_samples, dimension)] = diff
                 # Calculate ICA error only
                 est_params_ica = [results_dict['treatment_effects'][i] for i in indices]
-                true_params = [results_dict['true_params'][i] for i in indices]
-                ica_error = [np.linalg.norm(est_ica - true.numpy()) for est_ica, true in zip(est_params_ica, true_params)]
+                true_params = [results_dict['true_params'][i].numpy() for i in indices]
+                ica_error = calculate_mse(true_params, est_params_ica, relative_error=True)
+                # ica_error = [np.linalg.norm(est_ica - true.numpy()) for est_ica, true in zip(est_params_ica, true_params)]
                 treatment_effect_ica_dim[(n_samples, dimension)] = np.nanmean(ica_error)
                 treatment_effect_ica_dim_std[(n_samples, dimension)] = np.nanstd(ica_error)
 
