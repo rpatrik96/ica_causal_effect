@@ -2,7 +2,7 @@ dir=$1
 mkdir -p $dir
 echo $dir
 
-for n_samples in 2000 5000 10000; 
+for n_samples in 2000 5000 10000;
 do
     for n_experiments in 2000;
     do
@@ -23,4 +23,4 @@ mkdir -p figures
 mkdir -p figures/single_instance
 python3 plot_dumps_single_instance.py --input_dir $dir --output_dir figures/single_instance
 
-echo "Saved figures in figures/single_instance!" 
+echo "Saved figures in figures/single_instance!"
