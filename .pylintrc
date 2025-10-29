@@ -16,6 +16,8 @@ disable=
     R0914,  # Too many local variables
     R0915,  # Too many statements
     R0912,  # Too many branches
+    R0917,  # Too many positional arguments
+    R1702,  # Too many nested blocks
     W0212,  # Access to protected member (common in scientific code)
     W0511,  # TODO/FIXME comments
     R0801,  # Similar lines in multiple files
