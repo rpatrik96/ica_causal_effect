@@ -1112,7 +1112,11 @@ if __name__ == "__main__":
     print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
     main_sparsity()
 
-    # Alternative runs (commented out):
-    # print("Running the loss function ablation...")  # main_fun()
-    # print("Running the gennorm ablation...")  # main_gennorm()
-    # print("Running the loc scale ablation...")  # main_loc_scale()
+    # print("Running the loss function ablation for treatment effect estimation with ICA in linear PLR...")
+    # main_fun()
+    #
+    # print("Running the gennorm ablation for treatment effect estimation with ICA...")
+    # main_gennorm()
+    #
+    # print("Running the loc scale ablation for treatment effect estimation with ICA...")
+    # main_loc_scale()

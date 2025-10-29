@@ -29,6 +29,7 @@ disable=
     C0411,  # Wrong import order
     C0415,  # Import outside toplevel (needed for optional dependencies)
     R0401,  # Cyclic import (intentional runtime imports in refactored functions)
+    C0413,  # Wrong import position
 
 [FORMAT]
 # Maximum number of characters on a single line.
