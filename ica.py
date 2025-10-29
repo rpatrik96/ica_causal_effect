@@ -2,13 +2,13 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 import torch
 import torch.nn.functional as F
-from bartpy2.sklearnmodel import SklearnModel
+from linearmodels.iv import IV2SLS
 from scipy.stats import gennorm
 from sklearn.decomposition import FastICA
-from sklearn.linear_model import LinearRegression
-from torch.distributions import Laplace
 from tueplots import bundles
 
 from mcc import calc_disent_metrics
@@ -58,12 +58,12 @@ def generate_ica_data(
     # Define activation function based on the nonlinearity parameter
     activation_functions = {
         "leaky_relu": lambda x: F.leaky_relu(x, negative_slope=slope),
-        "relu": lambda x: F.relu(x),
-        "sigmoid": lambda x: torch.sigmoid(x),
-        "tanh": lambda x: torch.tanh(x),
+        "relu": F.relu,
+        "sigmoid": torch.sigmoid,
+        "tanh": torch.tanh,
     }
 
-    if nonlinearity not in activation_functions.keys():
+    if nonlinearity not in activation_functions:
         raise ValueError(f"Unsupported nonlinearity: {nonlinearity}")
 
     activation = activation_functions[nonlinearity]
@@ -95,10 +95,11 @@ def generate_ica_data(
 def ica_treatment_effect_estimation(
     X, S, random_state=0, whiten="unit-variance", check_convergence=True, n_treatments=1, verbose=True, fun="logcosh"
 ):
-    from warnings import catch_warnings
+    from warnings import catch_warnings  # pylint: disable=import-outside-toplevel
 
     tol = 1e-4  # Initial tolerance
-    max_tol = 1e-2  # Maximum tolerance to try
+    # Maximum tolerance to try (unused but kept for future enhancement)
+    # _max_tol = 1e-2
     # random_state = 12143
 
     for attempt in range(5):
@@ -119,8 +120,8 @@ def ica_treatment_effect_estimation(
                 if verbose:
                     print(f"warning at {attempt=}")
                 # Increase tolerance for next attempt
-                # tol = min(tol * 2, max_tol)
-                # if tol >= max_tol:  # Stop if max tolerance reached
+                # tol = min(tol * 2, _max_tol)
+                # if tol >= _max_tol:  # Stop if max tolerance reached
                 print("Max tolerance reached without convergence")
                 return (
                     np.nan
@@ -129,10 +130,9 @@ def ica_treatment_effect_estimation(
                     ),
                     None,
                 )
-            else:
-                if verbose:
-                    print(f"success at {attempt=}")
-                break
+            if verbose:
+                print(f"success at {attempt=}")
+            break
 
     results = calc_disent_metrics(S, S_hat)
     # resolve the permutations
@@ -147,8 +147,6 @@ def ica_treatment_effect_estimation(
 
 
 def main_multi():
-    import matplotlib.pyplot as plt
-
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
 
@@ -167,9 +165,6 @@ def main_multi():
         "treatment_effects_iv": [],
         "mccs": [],
     }
-    import os
-
-    import numpy as np
 
     results_file = "results_multi_treatment.npy"
     if os.path.exists(results_file):
@@ -201,8 +196,6 @@ def main_multi():
                         -1,
                     )
 
-                    import pandas as pd
-
                     # Create a pandas dataframe with separate columns for Y, each column of T, and each column of X
                     data = {
                         "Y": Y,
@@ -227,7 +220,6 @@ def main_multi():
                         )
 
                         # Fit the IV regression model
-                        from linearmodels.iv import IV2SLS
 
                         iv_model = IV2SLS.from_formula(formula, iv_df).fit()
                         treatment_effects_iv = iv_model.params[T_names]
@@ -244,11 +236,7 @@ def main_multi():
         # Save results dictionary
         np.save(results_file, results_dict)
 
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import seaborn as sns
-
-    def plot_heatmap(data, x_labels, y_labels, x_label, y_label, title, filename, center=0):
+    def plot_heatmap(data, x_labels, y_labels, x_label, y_label, _title, filename, center=0):
         plt.figure(figsize=(10, 8))
         sns.heatmap(
             data, xticklabels=x_labels, yticklabels=y_labels, cmap="coolwarm", annot=True, fmt=".2f", center=center
@@ -360,7 +348,8 @@ def main_multi():
                 est_params_ica = [results_dict["treatment_effects"][i] for i in indices]
                 true_params = [results_dict["true_params"][i].numpy() for i in indices]
                 ica_error = calculate_mse(true_params, est_params_ica, relative_error=True)
-                # ica_error = [np.linalg.norm(est_ica - true.numpy()) for est_ica, true in zip(est_params_ica, true_params)]
+                # Alternative: ica_error = [np.linalg.norm(est_ica - true.numpy())
+                #              for est_ica, true in zip(est_params_ica, true_params)]
                 treatment_effect_ica_dim[(n_samples, dimension)] = np.nanmean(ica_error)
                 treatment_effect_ica_dim_std[(n_samples, dimension)] = np.nanstd(ica_error)
 
@@ -475,7 +464,8 @@ def main_nonlinear():
                             batch_size=n_samples,
                             n_covariates=n_covariates,
                             n_treatments=1,
-                            slope=1.0,  # Default slope for other nonlinearities
+                            slope=1.0,
+                            # Default slope for other nonlinearities
                             sparse_prob=0.3,
                             nonlinearity=nonlinearity,
                         )
@@ -599,8 +589,6 @@ def main_nonlinear():
 
 
 def main_fun():
-    import matplotlib.pyplot as plt
-
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
 
@@ -642,12 +630,7 @@ def main_fun():
             results_dict["fun_options"].append(fun)
 
     # Save results dictionary
-    import numpy as np
-
     np.save("results_main_fun.npy", results_dict)
-
-    import matplotlib.pyplot as plt
-    import numpy as np
 
     plt.figure(figsize=(10, 6))
 
@@ -691,13 +674,8 @@ def main_fun():
     # plt.legend()
     # plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
 
-    save_figure(f"ica_mse_fun.svg")
+    save_figure("ica_mse_fun.svg")
     plt.close()
-
-
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns
 
 
 def setup_plot():
@@ -726,7 +704,7 @@ def calculate_mse(true_params, est_params, relative_error=True):
     return np.nan
 
 
-def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, x_ticks=None):
+def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, _x_ticks=None):
     plt.figure(figsize=(10, 6))
     bar_positions = np.arange(len(x_values))
     plt.errorbar(bar_positions, means, yerr=std_devs, fmt="o", capsize=5)
@@ -754,7 +732,6 @@ def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename):
 def main_sparsity():
     setup_plot()
     results_file = "results_main_sparsity.npy"
-    import os
 
     if os.path.exists(results_file):
         print(f"Results file '{results_file}' already exists. Loading data.")
@@ -813,7 +790,6 @@ def main_gennorm():
     plt.figure(figsize=(10, 6))
     results_file = "results_main_gennorm.npy"
     n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
-    import os
 
     if os.path.exists(results_file):
         print(f"Results file '{results_file}' already exists. Loading data.")
@@ -870,7 +846,6 @@ def main_gennorm_nonlinear():
     plt.figure(figsize=(10, 6))
     results_file = "results_main_gennorm_nonlinear.npy"
     n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
-    import os
 
     if os.path.exists(results_file):
         print(f"Results file '{results_file}' already exists. Loading data.")
@@ -918,7 +893,7 @@ def main_gennorm_nonlinear():
             capsize=5,
             label=f"{beta:.2f}",
         )
-        print(f"{beta=:.2f}: {mean_mse:.4f}\pm{std_mse:.4f}")
+        print(rf"{beta=:.2f}: {mean_mse:.4f}\pm{std_mse:.4f}")
 
     plt.yscale("log")
     plt.xlabel(r"Gen. normal param. $\beta$")
@@ -935,7 +910,6 @@ def main_nonlinear_theta():
     plt.figure(figsize=(10, 6))
     results_file = "results_main_gennorm_nonlinear_theta.npy"
     n_samples, n_covariates, n_treatment, n_seeds = 5000, 10, 1, 20
-    import os
 
     if os.path.exists(results_file):
         print(f"Results file '{results_file}' already exists. Loading data.")
@@ -993,7 +967,7 @@ def main_nonlinear_theta():
             capsize=5,
             label=f"{theta_choice}",
         )
-        print(f"{theta_choice}: {mean_mse:.4f}\pm{std_mse:.4f}")
+        print(rf"{theta_choice}: {mean_mse:.4f}\pm{std_mse:.4f}")
 
     plt.yscale("log")
     plt.xlabel(r"$p(\theta)$")
@@ -1009,7 +983,6 @@ def main_nonlinear_noise_split():
     plt.figure(figsize=(10, 6))
     results_file = "results_main_gennorm_nonlinear_noise_split.npy"
     n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
-    import os
 
     if os.path.exists(results_file):
         print(f"Results file '{results_file}' already exists. Loading data.")
@@ -1059,7 +1032,7 @@ def main_nonlinear_noise_split():
             capsize=5,
             label=f"{noise_split}",
         )
-        print(f"{noise_split}: {mean_mse:.4f}\pm{std_mse:.4f}")
+        print(rf"{noise_split}: {mean_mse:.4f}\pm{std_mse:.4f}")
 
     plt.yscale("log")
     plt.xlabel(r"Gaussian $X$")
@@ -1073,7 +1046,6 @@ def main_nonlinear_noise_split():
 def main_loc_scale():
     setup_plot()
     results_file = "results_main_loc_scale.npy"
-    import os
 
     n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
     loc_values = np.linspace(-5, 5, num=10)
@@ -1098,7 +1070,7 @@ def main_loc_scale():
                         loc=loc,
                         scale=scale,
                     )
-                    treatment_effects, mcc = ica_treatment_effect_estimation(
+                    treatment_effects, _mcc = ica_treatment_effect_estimation(
                         X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment
                     )
                     mse_list.append(calculate_mse(true_params, treatment_effects))
@@ -1117,7 +1089,6 @@ def main_loc_scale():
 
 
 def save_figure(filename):
-    import os
 
     # Ensure the directory exists
     figures_dir = "figures/ica"
@@ -1127,7 +1098,6 @@ def save_figure(filename):
 
 
 if __name__ == "__main__":
-
     plot_typography()
 
     #
@@ -1150,11 +1120,7 @@ if __name__ == "__main__":
     print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
     main_sparsity()
 
-    # print("Running the loss function ablation for treatment effect estimation with ICA in linear PLR...")
-    # main_fun()
-    #
-    # print("Running the gennorm ablation for treatment effect estimation with ICA...")
-    # main_gennorm()
-    #
-    # print("Running the loc scale ablation for treatment effect estimation with ICA...")
-    # main_loc_scale()
+    # Alternative runs (commented out):
+    # print("Running the loss function ablation...")  # main_fun()
+    # print("Running the gennorm ablation...")  # main_gennorm()
+    # print("Running the loc scale ablation...")  # main_loc_scale()
