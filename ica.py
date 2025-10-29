@@ -6,11 +6,11 @@ import pandas as pd
 import seaborn as sns
 import torch
 import torch.nn.functional as F
-from linearmodels.iv import IV2SLS
 from scipy.stats import gennorm
 from sklearn.decomposition import FastICA
 from tueplots import bundles
 
+from ica_utils import calculate_mse
 from mcc import calc_disent_metrics
 from plot_utils import plot_typography
 
@@ -178,6 +178,8 @@ def main_multi():
         results_dict["treatment_effects_iv"].extend(loaded_results["treatment_effects_iv"])
         results_dict["mccs"].extend(loaded_results["mccs"])
     else:
+        from linearmodels.iv import IV2SLS
+
         for n_samples in sample_sizes:
             for n_covariates in n_dims:
                 for n_treatment in n_treatments:
@@ -691,19 +693,6 @@ def save_results(filename, results_dict):
     np.save(filename, results_dict)
 
 
-def calculate_mse(true_params, est_params, relative_error=True):
-    if est_params is not None:
-        if relative_error:
-            errors = [
-                np.linalg.norm((est - true) / (np.linalg.norm(true) + 1e-8))
-                for est, true in zip(est_params, true_params)
-            ]
-        else:
-            errors = [np.linalg.norm(est - true) for est, true in zip(est_params, true_params)]
-        return np.mean(errors)
-    return np.nan
-
-
 def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, _x_ticks=None):
     plt.figure(figsize=(10, 6))
     bar_positions = np.arange(len(x_values))
@@ -730,55 +719,53 @@ def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename):
 
 
 def main_sparsity():
-    setup_plot()
-    results_file = "results_main_sparsity.npy"
+    """Run sparsity ablation experiment for ICA treatment effect estimation."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import plot_error_bars, setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager, ResultsAnalyzer
 
-    if os.path.exists(results_file):
-        print(f"Results file '{results_file}' already exists. Loading data.")
-        results_dict = np.load(results_file, allow_pickle=True).item()
-    else:
-        n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+    setup_experiment_environment()
+
+    # Setup experiment configuration
+    results_manager = ExperimentResultsManager("results_main_sparsity.npy")
+    n_seeds = 20
+
+    # Load or create results
+    results_dict = results_manager.load_or_create(
+        ["sample_sizes", "n_covariates", "n_treatments", "true_params", "treatment_effects", "mccs", "sparsities"]
+    )
+
+    # Run experiments if not already done
+    if not results_manager.exists():
+        # Configure experiment
+        base_config = DataGenerationConfig(batch_size=5000, n_covariates=50, n_treatments=1, slope=1.0)
+        estimation_config = EstimationConfig(check_convergence=False)
+
+        # Define parameter grid
         sparsities = np.linspace(0, 1.0, num=11)[:-1]
-        results_dict = initialize_results_dict(
-            ["sample_sizes", "n_covariates", "n_treatments", "true_params", "treatment_effects", "mccs", "sparsities"]
+        param_grid = {"sparse_prob": sparsities}
+
+        # Run parameter sweep
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_parameter_sweep(
+            param_grid=param_grid, n_seeds=n_seeds, data_gen_config=base_config, results_dict=results_dict
         )
 
-        for sparsity in sparsities:
-            for seed in range(n_seeds):
-                S, X, true_params = generate_ica_data(
-                    batch_size=n_samples,
-                    n_covariates=n_covariates,
-                    n_treatments=n_treatment,
-                    slope=1.0,
-                    sparse_prob=sparsity,
-                )
-                treatment_effects, mcc = ica_treatment_effect_estimation(
-                    X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment
-                )
-                results_dict["sample_sizes"].append(n_samples)
-                results_dict["n_covariates"].append(n_covariates)
-                results_dict["n_treatments"].append(n_treatment)
-                results_dict["true_params"].append(true_params)
-                results_dict["treatment_effects"].append(treatment_effects)
-                results_dict["mccs"].append(mcc)
-                results_dict["sparsities"].append(sparsity)
+        # Rename sparse_prob to sparsities for consistency with original
+        results_dict["sparsities"] = results_dict.pop("sparse_prob")
 
-        save_results(results_file, results_dict)
+        results_manager.save(results_dict)
 
-    mse_by_sparsity = {sparsity: [] for sparsity in set(results_dict["sparsities"])}
-    for true_param, est_param, sparsity_label in zip(
-        results_dict["true_params"], results_dict["treatment_effects"], results_dict["sparsities"]
-    ):
-        mse_by_sparsity[sparsity_label].append(calculate_mse(true_param, est_param))
+    # Analyze results
+    sorted_sparsities, means, stds = ResultsAnalyzer.prepare_error_bar_data(
+        results_dict, parameter_key="sparsities", relative_error=False
+    )
 
-    sorted_sparsities = sorted(set(results_dict["sparsities"]))
-    means = [np.mean(mse_by_sparsity[sparsity]) for sparsity in sorted_sparsities]
-    std_devs = [np.std(mse_by_sparsity[sparsity]) for sparsity in sorted_sparsities]
-
+    # Create plot
     plot_error_bars(
         sorted_sparsities,
         means,
-        std_devs,
+        stds,
         r"Sparsity of $\mathrm{\mathbf{A}}$",
         r"Mean squared $|(\theta-\hat{\theta})/\theta|$",
         "ica_mse_vs_dim_sparsity.svg",
@@ -786,303 +773,308 @@ def main_sparsity():
 
 
 def main_gennorm():
-    setup_plot()
-    plt.figure(figsize=(10, 6))
-    results_file = "results_main_gennorm.npy"
-    n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+    """Run generalized normal distribution parameter ablation (linear PLR)."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import plot_error_bars as plot_error_bars_new
+    from ica_plotting import setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager, ResultsAnalyzer
 
-    if os.path.exists(results_file):
-        print(f"Results file '{results_file}' already exists. Loading data.")
-        results_dict = np.load(results_file, allow_pickle=True).item()
-    else:
+    setup_experiment_environment()
+
+    results_manager = ExperimentResultsManager("results_main_gennorm.npy")
+    n_seeds = 20
+    n_samples = 5000
+
+    results_dict = results_manager.load_or_create(
+        ["sample_sizes", "n_covariates", "n_treatments", "true_params", "treatment_effects", "mccs", "beta"]
+    )
+
+    if not results_manager.exists():
+        base_config = DataGenerationConfig(
+            batch_size=n_samples, n_covariates=50, n_treatments=1, slope=1.0, sparse_prob=0.3
+        )
+        estimation_config = EstimationConfig(check_convergence=False)
+
         beta_values = np.linspace(0.5, 5, num=10)
-        results_dict = initialize_results_dict(
-            ["sample_sizes", "n_covariates", "n_treatments", "true_params", "treatment_effects", "mccs", "beta_values"]
+        param_grid = {"beta": beta_values}
+
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_parameter_sweep(
+            param_grid=param_grid, n_seeds=n_seeds, data_gen_config=base_config, results_dict=results_dict
         )
 
-        for beta in beta_values:
-            S, X, true_params = generate_ica_data(
-                batch_size=n_samples,
-                n_covariates=n_covariates,
-                n_treatments=n_treatment,
-                slope=1.0,
-                sparse_prob=0.3,
-                beta=beta,
-            )
-            for seed in range(n_seeds):
-                treatment_effects, mcc = ica_treatment_effect_estimation(
-                    X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment
-                )
-                results_dict["sample_sizes"].append(n_samples)
-                results_dict["n_covariates"].append(n_covariates)
-                results_dict["n_treatments"].append(n_treatment)
-                results_dict["true_params"].append(true_params)
-                results_dict["treatment_effects"].append(treatment_effects)
-                results_dict["mccs"].append(mcc)
-                results_dict["beta_values"].append(beta)
+        results_manager.save(results_dict)
 
-        save_results(results_file, results_dict)
+    # Prepare and plot data
+    beta_values, means, stds = ResultsAnalyzer.prepare_error_bar_data(
+        results_dict, parameter_key="beta", relative_error=True
+    )
 
-    for beta in set(results_dict["beta_values"]):
-        indices = [i for i, b in enumerate(results_dict["beta_values"]) if b == beta]
-        true_params = [results_dict["true_params"][i] for i in indices]
-        est_params_ica = [results_dict["treatment_effects"][i] for i in indices]
-        mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
-        plt.errorbar(beta, np.nanmean(mse), yerr=np.nanstd(mse), fmt="o-", capsize=5, label=f"{beta:.2f}")
-
-    plt.yscale("log")
-    plt.xlabel(r"Gen. normal param. $\beta$")
-    plt.ylabel(r"Mean squared $|(\theta-\hat{\theta})/\theta|$")
-    plt.grid(True, which="both", linestyle="-.", linewidth=0.5)
-    plt.xticks(ticks=plt.xticks()[0], labels=[f"{x:.1f}" for x in plt.xticks()[0]])
-    # plt.legend()
-    plt.legend(loc="center right", bbox_to_anchor=(2, 0.5), ncol=2)
-    save_figure(f"ica_mse_vs_beta_n{n_samples}.svg")
-    plt.close()
+    plot_error_bars_new(
+        x_values=beta_values,
+        means=means,
+        std_devs=stds,
+        xlabel=r"Gen. normal param. $\beta$",
+        ylabel=r"Mean squared $|(\theta-\hat{\theta})/\theta|$",
+        filename=f"ica_mse_vs_beta_n{n_samples}.svg",
+        use_log_scale=True,
+    )
 
 
 def main_gennorm_nonlinear():
-    setup_plot()
-    plt.figure(figsize=(10, 6))
-    results_file = "results_main_gennorm_nonlinear.npy"
-    n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+    """Run generalized normal distribution parameter ablation (nonlinear PLR)."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import plot_error_bars as plot_error_bars_new
+    from ica_plotting import setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager, ResultsAnalyzer
 
-    if os.path.exists(results_file):
-        print(f"Results file '{results_file}' already exists. Loading data.")
-        results_dict = np.load(results_file, allow_pickle=True).item()
-    else:
+    setup_experiment_environment()
+
+    results_manager = ExperimentResultsManager("results_main_gennorm_nonlinear.npy")
+    n_seeds = 20
+    n_samples = 5000
+
+    results_dict = results_manager.load_or_create(
+        ["sample_sizes", "n_covariates", "n_treatments", "true_params", "treatment_effects", "mccs", "beta"]
+    )
+
+    if not results_manager.exists():
+        base_config = DataGenerationConfig(
+            batch_size=n_samples,
+            n_covariates=50,
+            n_treatments=1,
+            slope=0.2,
+            sparse_prob=0.3,
+            nonlinearity="leaky_relu",
+        )
+        estimation_config = EstimationConfig(check_convergence=False)
+
         beta_values = np.linspace(0.5, 5, num=10)
-        results_dict = initialize_results_dict(
-            ["sample_sizes", "n_covariates", "n_treatments", "true_params", "treatment_effects", "mccs", "beta_values"]
+        param_grid = {"beta": beta_values}
+
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_parameter_sweep(
+            param_grid=param_grid, n_seeds=n_seeds, data_gen_config=base_config, results_dict=results_dict
         )
 
-        for beta in beta_values:
-            S, X, true_params = generate_ica_data(
-                batch_size=n_samples,
-                n_covariates=n_covariates,
-                n_treatments=n_treatment,
-                slope=0.2,
-                sparse_prob=0.3,
-                beta=beta,
-                nonlinearity="leaky_relu",
-            )
-            for seed in range(n_seeds):
-                treatment_effects, mcc = ica_treatment_effect_estimation(
-                    X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment
-                )
-                results_dict["sample_sizes"].append(n_samples)
-                results_dict["n_covariates"].append(n_covariates)
-                results_dict["n_treatments"].append(n_treatment)
-                results_dict["true_params"].append(true_params)
-                results_dict["treatment_effects"].append(treatment_effects)
-                results_dict["mccs"].append(mcc)
-                results_dict["beta_values"].append(beta)
+        results_manager.save(results_dict)
 
-        save_results(results_file, results_dict)
+    # Prepare and plot data
+    beta_values, means, stds = ResultsAnalyzer.prepare_error_bar_data(
+        results_dict, parameter_key="beta", relative_error=True
+    )
 
-    for beta in set(results_dict["beta_values"]):
-        indices = [i for i, b in enumerate(results_dict["beta_values"]) if b == beta]
-        true_params = [results_dict["true_params"][i] for i in indices]
-        est_params_ica = [results_dict["treatment_effects"][i] for i in indices]
-        mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
-        plt.errorbar(
-            beta,
-            mean_mse := np.nanmean(mse),
-            yerr=(std_mse := np.nanstd(mse)),
-            fmt="o-",
-            capsize=5,
-            label=f"{beta:.2f}",
-        )
-        print(rf"{beta=:.2f}: {mean_mse:.4f}\pm{std_mse:.4f}")
+    # Print statistics
+    for beta, mean_mse, std_mse in zip(beta_values, means, stds):
+        print(rf"beta={beta:.2f}: {mean_mse:.4f}±{std_mse:.4f}")
 
-    plt.yscale("log")
-    plt.xlabel(r"Gen. normal param. $\beta$")
-    plt.ylabel(r"Mean squared $|(\theta-\hat{\theta})/\theta|$")
-    plt.grid(True, which="both", linestyle="-.", linewidth=0.5)
-    plt.xticks(ticks=plt.xticks()[0], labels=[f"{x:.1f}" for x in plt.xticks()[0]])
-    plt.legend(loc="center right", bbox_to_anchor=(2, 0.5), ncol=2)
-    save_figure(f"ica_mse_vs_beta_nonlinear_n{n_samples}.svg")
-    plt.close()
+    plot_error_bars_new(
+        x_values=beta_values,
+        means=means,
+        std_devs=stds,
+        xlabel=r"Gen. normal param. $\beta$",
+        ylabel=r"Mean squared $|(\theta-\hat{\theta})/\theta|$",
+        filename=f"ica_mse_vs_beta_nonlinear_n{n_samples}.svg",
+        use_log_scale=True,
+    )
 
 
 def main_nonlinear_theta():
-    setup_plot()
-    plt.figure(figsize=(10, 6))
-    results_file = "results_main_gennorm_nonlinear_theta.npy"
-    n_samples, n_covariates, n_treatment, n_seeds = 5000, 10, 1, 20
+    """Run theta distribution ablation experiment."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import plot_error_bars as plot_error_bars_new
+    from ica_plotting import setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager, ResultsAnalyzer
 
-    if os.path.exists(results_file):
-        print(f"Results file '{results_file}' already exists. Loading data.")
-        results_dict = np.load(results_file, allow_pickle=True).item()
-    else:
+    setup_experiment_environment()
+
+    results_manager = ExperimentResultsManager("results_main_gennorm_nonlinear_theta.npy")
+    n_seeds = 20
+    n_samples = 5000
+
+    results_dict = results_manager.load_or_create(
+        ["sample_sizes", "n_covariates", "n_treatments", "true_params", "treatment_effects", "mccs", "theta_choice"]
+    )
+
+    if not results_manager.exists():
+        base_config = DataGenerationConfig(
+            batch_size=n_samples,
+            n_covariates=10,
+            n_treatments=1,
+            slope=0.2,
+            sparse_prob=0.3,
+            beta=1.0,
+            nonlinearity="leaky_relu",
+        )
+        estimation_config = EstimationConfig(check_convergence=False)
+
         theta_choices = ["fixed", "uniform", "gaussian"]
-        results_dict = initialize_results_dict(
-            [
-                "sample_sizes",
-                "n_covariates",
-                "n_treatments",
-                "true_params",
-                "treatment_effects",
-                "mccs",
-                "theta_choices",
-            ]
+        param_grid = {"theta_choice": theta_choices}
+
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_parameter_sweep(
+            param_grid=param_grid, n_seeds=n_seeds, data_gen_config=base_config, results_dict=results_dict
         )
 
-        for theta_choice in theta_choices:
-            for seed in range(n_seeds):
-                S, X, true_params = generate_ica_data(
-                    batch_size=n_samples,
-                    n_covariates=n_covariates,
-                    n_treatments=n_treatment,
-                    slope=0.2,
-                    sparse_prob=0.3,
-                    beta=1.0,
-                    nonlinearity="leaky_relu",
-                    theta_choice=theta_choice,
-                )
-                treatment_effects, mcc = ica_treatment_effect_estimation(
-                    X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment
-                )
-                results_dict["sample_sizes"].append(n_samples)
-                results_dict["n_covariates"].append(n_covariates)
-                results_dict["n_treatments"].append(n_treatment)
-                results_dict["true_params"].append(true_params)
-                results_dict["treatment_effects"].append(treatment_effects)
-                results_dict["mccs"].append(mcc)
-                results_dict["theta_choices"].append(theta_choice)
+        results_manager.save(results_dict)
 
-        save_results(results_file, results_dict)
+    # Prepare data for plotting
+    theta_choices = sorted(set(results_dict["theta_choice"]))
+    means = []
+    stds = []
 
-    theta_choices = list(set(results_dict["theta_choices"]))
-    for theta_idx, theta_choice in enumerate(theta_choices):
-        indices = [i for i, t in enumerate(results_dict["theta_choices"]) if t == theta_choice]
-        true_params = [results_dict["true_params"][i] for i in indices]
-        est_params_ica = [results_dict["treatment_effects"][i] for i in indices]
-        mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
-        plt.errorbar(
-            theta_idx,
-            mean_mse := np.nanmean(mse),
-            yerr=(std_mse := np.nanstd(mse)),
-            fmt="o-",
-            capsize=5,
-            label=f"{theta_choice}",
+    for theta_choice in theta_choices:
+        mean_stat, std_stat = ResultsAnalyzer.compute_method_statistics(
+            results_dict,
+            ResultsAnalyzer.filter_by_parameter(results_dict, "theta_choice", theta_choice),
+            relative_error=True,
         )
-        print(rf"{theta_choice}: {mean_mse:.4f}\pm{std_mse:.4f}")
+        means.append(mean_stat)
+        stds.append(std_stat)
+        print(rf"{theta_choice}: {mean_stat:.4f}±{std_stat:.4f}")
 
-    plt.yscale("log")
-    plt.xlabel(r"$p(\theta)$")
-    plt.ylabel(r"Mean squared $|(\theta-\hat{\theta})/\theta|$")
-    plt.grid(True, which="both", linestyle="-.", linewidth=0.5)
-    plt.xticks(ticks=range(len(theta_choices)), labels=theta_choices)
-    save_figure(f"ica_mse_vs_theta_choice_nonlinear_n{n_samples}.svg")
-    plt.close()
+    plot_error_bars_new(
+        x_values=list(range(len(theta_choices))),
+        means=means,
+        std_devs=stds,
+        xlabel=r"$p(\theta)$",
+        ylabel=r"Mean squared $|(\theta-\hat{\theta})/\theta|$",
+        filename=f"ica_mse_vs_theta_choice_nonlinear_n{n_samples}.svg",
+        x_ticks=theta_choices,
+        use_log_scale=True,
+    )
 
 
 def main_nonlinear_noise_split():
-    setup_plot()
-    plt.figure(figsize=(10, 6))
-    results_file = "results_main_gennorm_nonlinear_noise_split.npy"
-    n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
+    """Run noise distribution split ablation experiment."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import plot_error_bars as plot_error_bars_new
+    from ica_plotting import setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager, ResultsAnalyzer
 
-    if os.path.exists(results_file):
-        print(f"Results file '{results_file}' already exists. Loading data.")
-        results_dict = np.load(results_file, allow_pickle=True).item()
-    else:
+    setup_experiment_environment()
+
+    results_manager = ExperimentResultsManager("results_main_gennorm_nonlinear_noise_split.npy")
+    n_seeds = 20
+    n_samples = 5000
+
+    results_dict = results_manager.load_or_create(
+        ["sample_sizes", "n_covariates", "n_treatments", "true_params", "treatment_effects", "mccs", "split_noise_dist"]
+    )
+
+    if not results_manager.exists():
+        base_config = DataGenerationConfig(
+            batch_size=n_samples,
+            n_covariates=50,
+            n_treatments=1,
+            slope=0.2,
+            sparse_prob=0.3,
+            beta=1.0,
+            nonlinearity="leaky_relu",
+        )
+        estimation_config = EstimationConfig(check_convergence=False)
+
         noise_splits = [True, False]
-        results_dict = initialize_results_dict(
-            ["sample_sizes", "n_covariates", "n_treatments", "true_params", "treatment_effects", "mccs", "noise_splits"]
+        param_grid = {"split_noise_dist": noise_splits}
+
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_parameter_sweep(
+            param_grid=param_grid, n_seeds=n_seeds, data_gen_config=base_config, results_dict=results_dict
         )
 
-        for noise_split in noise_splits:
-            S, X, true_params = generate_ica_data(
-                batch_size=n_samples,
-                n_covariates=n_covariates,
-                n_treatments=n_treatment,
-                slope=0.2,
-                sparse_prob=0.3,
-                beta=1.0,
-                nonlinearity="leaky_relu",
-                split_noise_dist=noise_split,
-            )
-            for seed in range(n_seeds):
-                treatment_effects, mcc = ica_treatment_effect_estimation(
-                    X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment
-                )
-                results_dict["sample_sizes"].append(n_samples)
-                results_dict["n_covariates"].append(n_covariates)
-                results_dict["n_treatments"].append(n_treatment)
-                results_dict["true_params"].append(true_params)
-                results_dict["treatment_effects"].append(treatment_effects)
-                results_dict["mccs"].append(mcc)
-                results_dict["noise_splits"].append(noise_split)
+        results_manager.save(results_dict)
 
-        save_results(results_file, results_dict)
+    # Prepare data for plotting
+    noise_splits = sorted(set(results_dict["split_noise_dist"]))
+    means = []
+    stds = []
 
-    noise_splits = list(set(results_dict["noise_splits"]))
-    for noise_idx, noise_split in enumerate(noise_splits):
-        indices = [i for i, t in enumerate(results_dict["noise_splits"]) if t == noise_split]
-        true_params = [results_dict["true_params"][i] for i in indices]
-        est_params_ica = [results_dict["treatment_effects"][i] for i in indices]
-        mse = [calculate_mse(true_param, est_param) for true_param, est_param in zip(true_params, est_params_ica)]
-        plt.errorbar(
-            noise_idx,
-            mean_mse := np.nanmean(mse),
-            yerr=(std_mse := np.nanstd(mse)),
-            fmt="o-",
-            capsize=5,
-            label=f"{noise_split}",
+    for noise_split in noise_splits:
+        mean_stat, std_stat = ResultsAnalyzer.compute_method_statistics(
+            results_dict,
+            ResultsAnalyzer.filter_by_parameter(results_dict, "split_noise_dist", noise_split),
+            relative_error=True,
         )
-        print(rf"{noise_split}: {mean_mse:.4f}\pm{std_mse:.4f}")
+        means.append(mean_stat)
+        stds.append(std_stat)
+        print(rf"{noise_split}: {mean_stat:.4f}±{std_stat:.4f}")
 
-    plt.yscale("log")
-    plt.xlabel(r"Gaussian $X$")
-    plt.ylabel(r"Mean squared $|(\theta-\hat{\theta})/\theta|$")
-    plt.grid(True, which="both", linestyle="-.", linewidth=0.5)
-    plt.xticks(ticks=range(len(noise_splits)), labels=noise_splits)
-    save_figure(f"ica_mse_vs_noise_split_nonlinear_n{n_samples}.svg")
-    plt.close()
+    plot_error_bars_new(
+        x_values=list(range(len(noise_splits))),
+        means=means,
+        std_devs=stds,
+        xlabel=r"Gaussian $X$",
+        ylabel=r"Mean squared $|(\theta-\hat{\theta})/\theta|$",
+        filename=f"ica_mse_vs_noise_split_nonlinear_n{n_samples}.svg",
+        x_ticks=noise_splits,
+        use_log_scale=True,
+    )
 
 
 def main_loc_scale():
-    setup_plot()
-    results_file = "results_main_loc_scale.npy"
+    """Run location and scale parameter ablation experiment."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager
 
-    n_samples, n_covariates, n_treatment, n_seeds = 5000, 50, 1, 20
-    loc_values = np.linspace(-5, 5, num=10)
-    scale_values = np.linspace(0.5, 5, num=10)
-    if os.path.exists(results_file):
-        print(f"Results file '{results_file}' already exists. Loading data.")
-        results_dict = np.load(results_file, allow_pickle=True).item()
-    else:
-        results_dict = initialize_results_dict(["loc_values", "scale_values", "mse_values"])
+    setup_experiment_environment()
 
-        for loc in loc_values:
-            for scale in scale_values:
-                mse_list = []
-                for seed in range(n_seeds):
-                    S, X, true_params = generate_ica_data(
-                        batch_size=n_samples,
-                        n_covariates=n_covariates,
-                        n_treatments=n_treatment,
-                        slope=1.0,
-                        sparse_prob=0.3,
-                        beta=1.0,
-                        loc=loc,
-                        scale=scale,
-                    )
-                    treatment_effects, _mcc = ica_treatment_effect_estimation(
-                        X, S, random_state=seed, check_convergence=False, n_treatments=n_treatment
-                    )
-                    mse_list.append(calculate_mse(true_params, treatment_effects))
+    # Setup experiment configuration
+    results_manager = ExperimentResultsManager("results_main_loc_scale.npy")
+    n_seeds = 20
+    n_samples = 5000
 
-                avg_mse = np.nanmean(mse_list)
-                results_dict["loc_values"].append(loc)
-                results_dict["scale_values"].append(scale)
-                results_dict["mse_values"].append(avg_mse)
+    # Load or create results
+    results_dict = results_manager.load_or_create(
+        ["sample_sizes", "n_covariates", "n_treatments", "true_params", "treatment_effects", "mccs", "loc", "scale"]
+    )
 
-        save_results(results_file, results_dict)
+    # Run experiments if not already done
+    if not results_manager.exists():
+        # Configure experiment
+        base_config = DataGenerationConfig(
+            batch_size=n_samples,
+            n_covariates=50,
+            n_treatments=1,
+            slope=1.0,
+            sparse_prob=0.3,
+            beta=1.0,
+        )
+        estimation_config = EstimationConfig(check_convergence=False)
 
-    mse_matrix = np.array(results_dict["mse_values"]).reshape(len(loc_values), len(scale_values))
+        # Define parameter grid
+        loc_values = np.linspace(-5, 5, num=10)
+        scale_values = np.linspace(0.5, 5, num=10)
+        param_grid = {"loc": loc_values, "scale": scale_values}
+
+        # Run parameter sweep
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_parameter_sweep(
+            param_grid=param_grid, n_seeds=n_seeds, data_gen_config=base_config, results_dict=results_dict
+        )
+
+        results_manager.save(results_dict)
+
+    # Prepare data for heatmap
+    loc_values = sorted(set(results_dict["loc"]))
+    scale_values = sorted(set(results_dict["scale"]))
+    mse_matrix = np.zeros((len(loc_values), len(scale_values)))
+
+    for i, loc in enumerate(loc_values):
+        for j, scale in enumerate(scale_values):
+            indices = [
+                idx
+                for idx, (l, s) in enumerate(zip(results_dict["loc"], results_dict["scale"]))
+                if l == loc and s == scale
+            ]
+            if indices:
+                mse_values = [
+                    calculate_mse(results_dict["true_params"][idx], results_dict["treatment_effects"][idx])
+                    for idx in indices
+                ]
+                mse_matrix[i, j] = np.nanmean(mse_values)
+
+    # Plot heatmap
     plot_heatmap(
         mse_matrix, scale_values, loc_values, "Scale", "Location", f"ica_mse_heatmap_loc_scale_n{n_samples}.svg"
     )

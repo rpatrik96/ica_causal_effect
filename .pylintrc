@@ -27,6 +27,8 @@ disable=
     E1101,  # No member (often false positive with numpy/torch)
     W0621,  # Redefining name from outer scope
     C0411,  # Wrong import order
+    C0415,  # Import outside toplevel (needed for optional dependencies)
+    R0401,  # Cyclic import (intentional runtime imports in refactored functions)
 
 [FORMAT]
 # Maximum number of characters on a single line.
