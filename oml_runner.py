@@ -319,15 +319,25 @@ def setup_treatment_outcome_coefs(
         Tuple of (outcome_coef, outcome_coefficient, outcome_support,
                  treatment_coef, treatment_support)
     """
-    treatment_support = np.random.choice(cov_dim_max, size=support_size, replace=False)
-    outcome_support = treatment_support
+    # Adjust coefficient matching based on configuration
+    if config.asymptotic_var:
+        outcome_coefficient = treatment_coefficient
 
-    if config.scalar_coeffs:
-        treatment_coef_list[treatment_support] = treatment_coefficient
-        outcome_coef_list[outcome_support] = outcome_coefficient
-        treatment_coef = treatment_coef_list[treatment_support]
-        outcome_coef = outcome_coef_list[outcome_support]
+    if config.matched_coefficients:
+        outcome_coefficient = -treatment_coefficient
+
+    if config.asymptotic_var or config.scalar_coeffs:
+        # Scalar coefficient mode
+        treatment_coef_list[0] = treatment_coefficient
+        outcome_coef_list[0] = outcome_coefficient
+
+        outcome_support = treatment_support = np.array(range(support_size))
+
+        treatment_coef = treatment_coef_list[:support_size]
+        outcome_coef = outcome_coef_list[:support_size]
     else:
+        # Full coefficient array mode
+        outcome_support = treatment_support = np.random.choice(range(cov_dim_max), size=support_size, replace=False)
         treatment_coef = treatment_coef_array[treatment_support]
         outcome_coef = outcome_coef_array[outcome_support]
 
