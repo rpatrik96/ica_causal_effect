@@ -208,8 +208,7 @@ def generate_all_oml_plots(
     plot_asymptotic_var_comparison(all_results, config, save_subfolder=False)
 
     # Generate multi-treatment plots
-    for treatment_effect in treatment_effects:
-        plot_multi_treatment(all_results, config, treatment_effect)
+    plot_multi_treatment(all_results, config, treatment_effects)
 
     print("All plots generated successfully!")
 
