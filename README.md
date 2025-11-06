@@ -1,5 +1,9 @@
 # Introduction
 
+[![CI](https://github.com/rpatrik96/ica_causal_effect/actions/workflows/ci.yml/badge.svg)](https://github.com/rpatrik96/ica_causal_effect/actions/workflows/ci.yml)
+[![Pre-commit](https://github.com/rpatrik96/ica_causal_effect/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/rpatrik96/ica_causal_effect/actions/workflows/pre-commit.yml)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 This repository contains code related to the paper: [Independent Component Analysis for Treatment Effect Estimation](https://arxiv.org/abs/2507.16467).
 
 # Repository Structure
