@@ -313,6 +313,8 @@ def run_experiments_for_configuration(
         "ica_asymptotic_var_num": ica_asymptotic_var_num,
         "homl_asymptotic_var": homl_asymptotic_var,
         "homl_asymptotic_var_num": homl_asymptotic_var_num,
+        "treatment_coefficient": treatment_coefficient if treatment_coefficient is not None else treatment_coef_array,
+        "outcome_coefficient": outcome_coefficient if outcome_coefficient is not None else outcome_coef_array,
     }
 
     return result_dict
