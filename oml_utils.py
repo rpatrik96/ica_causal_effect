@@ -92,6 +92,7 @@ class OMLParameterGrid:
             # Adjust for asymptotic_var or scalar_coeffs modes
             if config.asymptotic_var or config.scalar_coeffs:
                 grid.support_sizes = [10]
+                grid.treatment_effects = [1]
 
             if config.asymptotic_var:
                 grid.data_samples = [10**4]
