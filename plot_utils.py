@@ -40,17 +40,17 @@ def plot_estimates(
     estimate_list, true_tau, treatment_effect, title="Histogram of estimates", plot=False, relative_error=False
 ):
     # the histogram of the data
-    n, bins, patches = plt.hist(estimate_list, 40, facecolor="green", alpha=0.75)
+    _, bins, _ = plt.hist(estimate_list, 40, facecolor="green", alpha=0.75)
     sigma = float(np.nanstd(estimate_list))
     mu = float(np.nanmean(estimate_list))
     # add a 'best fit' line
     from scipy.stats import norm
 
     y = norm.pdf(bins.astype(float), mu, sigma)
-    l = plt.plot(bins, y, "r--", linewidth=1)
+    plt.plot(bins, y, "r--", linewidth=1)
     if plot:
         plt.plot([treatment_effect, treatment_effect], [0, np.max(y)], "b--", label="true effect")
-        plt.title("{}. mean: {:.2f}, sigma: {:.2f}".format(title, mu, sigma))
+        plt.title(f"{title}. mean: {mu:.2f}, sigma: {sigma:.2f}")
         plt.legend()
 
     if relative_error:
@@ -77,7 +77,7 @@ def plot_method_comparison(
     verbose=False,
 ):
     # Create subfolder for the experiment
-    experiment_dir = os.path.join(output_dir, f"recovered_coefficients")
+    experiment_dir = os.path.join(output_dir, "recovered_coefficients")
     os.makedirs(experiment_dir, exist_ok=True)
 
     # First figure - histograms
@@ -138,17 +138,17 @@ def plot_method_comparison(
         plt.savefig(
             os.path.join(
                 experiment_dir,
-                "recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}_beta_{}.svg".format(
-                    n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta
-                ),
+                f"recovered_coefficients_from_each_method_n_samples_{n_samples}_n_dim_{n_dim}"
+                f"_n_exp_{n_experiments}_support_{support_size}_sigma_outcome_{sigma_outcome}"
+                f"_pdf_{covariate_pdf}_beta_{beta}.svg",
             ),
             dpi=300,
             bbox_inches="tight",
         )
 
     if verbose:
-        print("Ortho ML MSE: {}".format(bias_ortho**2 + sigma_ortho**2))
-        print("Second Order ML MSE: {}".format(bias_second**2 + sigma_ortho**2))
+        print(f"Ortho ML MSE: {bias_ortho**2 + sigma_ortho**2}")
+        print(f"Second Order ML MSE: {bias_second**2 + sigma_ortho**2}")
         print(f"ICA: {bias_ica=}, {sigma_ica=}")
 
     # Return lists of biases and standard deviations for each method
@@ -173,7 +173,7 @@ def plot_and_save_model_errors(
     save=False,
 ):
     # Create subfolder for the experiment
-    experiment_dir = os.path.join(output_dir, f"model_errors")
+    experiment_dir = os.path.join(output_dir, "model_errors")
     os.makedirs(experiment_dir, exist_ok=True)
 
     filename_base = "model_errors"
@@ -197,8 +197,10 @@ def plot_and_save_model_errors(
 
     # Save the data
     if save:
-        coef_filename = "recovered_coefficients_from_each_method_n_samples_{}_n_dim_{}_n_exp_{}_support_{}_sigma_outcome_{}_pdf_{}_beta_{}".format(
-            n_samples, n_dim, n_experiments, support_size, sigma_outcome, covariate_pdf, beta
+        coef_filename = (
+            f"recovered_coefficients_from_each_method_n_samples_{n_samples}_n_dim_{n_dim}"
+            f"_n_exp_{n_experiments}_support_{support_size}_sigma_outcome_{sigma_outcome}"
+            f"_pdf_{covariate_pdf}_beta_{beta}"
         )
         joblib.dump(ortho_rec_tau, os.path.join(experiment_dir, coef_filename))
         joblib.dump(first_stage_mse, os.path.join(experiment_dir, filename_base))
@@ -206,7 +208,7 @@ def plot_and_save_model_errors(
 
 def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, beta):
     # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, f"error_bars")
+    experiment_dir = os.path.join(opts.output_dir, "error_bars")
     os.makedirs(experiment_dir, exist_ok=True)
 
     # Create a high-quality error bar plot comparing errors across dimensions
@@ -255,9 +257,8 @@ def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, bet
     plt.savefig(
         os.path.join(
             experiment_dir,
-            "error_by_dimension_n_samples_{}_n_dim_{}_n_exp_{}_pdf_{}_beta_{}.svg".format(
-                n_samples, n_dim, n_experiments, opts.covariate_pdf, beta
-            ),
+            f"error_by_dimension_n_samples_{n_samples}_n_dim_{n_dim}_n_exp_{n_experiments}"
+            f"_pdf_{opts.covariate_pdf}_beta_{beta}.svg",
         ),
         dpi=600,
         bbox_inches="tight",
@@ -327,6 +328,8 @@ def plot_gennorm(
             )
             x_label = r"Covariate dimension $d$"
             filename_suffix = f'dim_{compare_method if compare_method else "ica"}'
+        else:
+            raise ValueError("Invalid filter_type. Use 'support' or 'beta'.")
 
         if filter_ica_var_coeff:
             filename_suffix = f'{filename_suffix}_filtered_{ica_var_threshold}_{"below" if filter_below else "above"}'
@@ -457,7 +460,7 @@ def plot_asymptotic_var_comparison(
             opts.output_dir, "asymptotic_var_comparison", f"treatment_effect_{treatment_effect_value}"
         )
     else:
-        experiment_dir = os.path.join(opts.output_dir, f"asymptotic_var_comparison")
+        experiment_dir = os.path.join(opts.output_dir, "asymptotic_var_comparison")
     os.makedirs(experiment_dir, exist_ok=True)
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
@@ -473,7 +476,7 @@ def plot_asymptotic_var_comparison(
         y_errors_homl = [res["sigmas"][3] / np.sqrt(res["n_samples"]) for res in all_results]
 
         # Create a figure with 3 subplots
-        fig, axs = plt.subplots(1, 1, figsize=(10, 8))
+        _, axs = plt.subplots(1, 1, figsize=(10, 8))
 
         # Subplot 1: x-axis is x_values_ica_var_coeff
         axs.errorbar(
@@ -688,7 +691,7 @@ def plot_asymptotic_var_comparison(
 
         # Create subplots for treatment and outcome coefficients if coeff_plots is true
         if coeff_plots:
-            fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+            _, axs = plt.subplots(1, 2, figsize=(12, 6))
 
             # Subplot 2: x-axis is treatment_coef
             axs[0].errorbar(
@@ -882,24 +885,20 @@ def prepare_heatmap_data(
     relative_error=False,
 ):
     x_values = sorted(
-        set(
-            [
-                res[x_key]
-                for res in all_results
-                if (beta_filter is None or res["beta"] == beta_filter)
-                and (support_size_filter is None or res["support_size"] == support_size_filter)
-            ]
-        )
+        {
+            res[x_key]
+            for res in all_results
+            if (beta_filter is None or res["beta"] == beta_filter)
+            and (support_size_filter is None or res["support_size"] == support_size_filter)
+        }
     )
     y_values = sorted(
-        set(
-            [
-                res[y_key]
-                for res in all_results
-                if (beta_filter is None or res["beta"] == beta_filter)
-                and (support_size_filter is None or res["support_size"] == support_size_filter)
-            ]
-        ),
+        {
+            res[y_key]
+            for res in all_results
+            if (beta_filter is None or res["beta"] == beta_filter)
+            and (support_size_filter is None or res["support_size"] == support_size_filter)
+        },
         reverse=True,
     )
     data_matrix = np.zeros((len(y_values), len(x_values)))
