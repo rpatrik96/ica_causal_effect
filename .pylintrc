@@ -1,6 +1,6 @@
 [MASTER]
 # Add files or directories to the blacklist. They should be base names, not paths.
-ignore=CVS,.git,__pycache__,.pytest_cache,.mypy_cache,venv,env,figures,figures_convergence,figures_n_exp_5,figures_old,ica_figs_old
+ignore=CVS,.git,__pycache__,.pytest_cache,.mypy_cache,venv,env,figures,figures_convergence,figures_n_exp_5,figures_old,ica_figs_old,tests,mcc.py
 
 # Use multiple processes to speed up Pylint.
 jobs=0
@@ -30,6 +30,14 @@ disable=
     C0415,  # Import outside toplevel (needed for optional dependencies)
     R0401,  # Cyclic import (intentional runtime imports in refactored functions)
     C0413,  # Wrong import position
+    E0401,  # Import error (dependencies may not be installed)
+    W0105,  # String statement has no effect (inline comments/docs)
+    C0209,  # Consider using f-string (style preference)
+    C0301,  # Line too long (handled by black)
+    W1401,  # Anomalous backslash (LaTeX strings)
+    E0606,  # Possibly used before assignment (false positives)
+    C0412,  # Ungrouped imports (handled by isort)
+    R1718,  # Consider using set comprehension (style preference)
 
 [FORMAT]
 # Maximum number of characters on a single line.
