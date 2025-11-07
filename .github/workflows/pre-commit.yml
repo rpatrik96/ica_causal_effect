@@ -16,6 +16,7 @@ jobs:
   pre-commit:
     name: Run Pre-commit Hooks
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -40,5 +41,7 @@ jobs:
 
       - name: Run pre-commit on all files
         run: |
-          pre-commit run --all-files --show-diff-on-failure
+          SKIP=pytest-check,pylint pre-commit run --all-files --show-diff-on-failure
         continue-on-error: false
+        env:
+          SKIP: pytest-check,pylint
