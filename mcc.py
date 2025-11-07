@@ -258,8 +258,8 @@ __docformat__ = "restructuredtext"
 # Imports
 # ---------------------------------------------------------------------------
 
-import sys
 import copy
+import sys
 
 # ---------------------------------------------------------------------------
 # Exports
@@ -444,11 +444,7 @@ class Munkres:
         n = self.n
         for i in range(n):
             for j in range(n):
-                if (
-                    (self.C[i][j] == 0)
-                    and (not self.col_covered[j])
-                    and (not self.row_covered[i])
-                ):
+                if (self.C[i][j] == 0) and (not self.col_covered[j]) and (not self.row_covered[i]):
                     self.marked[i][j] = 1
                     self.col_covered[j] = True
                     self.row_covered[i] = True
@@ -583,11 +579,7 @@ class Munkres:
         while not done:
             j = 0
             while True:
-                if (
-                    (self.C[i][j] == 0)
-                    and (not self.row_covered[i])
-                    and (not self.col_covered[j])
-                ):
+                if (self.C[i][j] == 0) and (not self.row_covered[i]) and (not self.col_covered[j]):
                     row = i
                     col = j
                     done = True
@@ -737,17 +729,15 @@ def print_matrix(matrix, msg=None):
 
 """Disentanglement evaluation scores such as R2 and MCC."""
 
-from sklearn import metrics
-from sklearn import linear_model
-import torch
+from typing import Union
+
 import numpy as np
 import scipy as sp
-from typing import Union
+import torch
+from sklearn import linear_model, metrics
 from typing_extensions import Literal
 
-__Mode = Union[
-    Literal["r2"], Literal["adjusted_r2"], Literal["pearson"], Literal["spearman"]
-]
+__Mode = Union[Literal["r2"], Literal["adjusted_r2"], Literal["pearson"], Literal["spearman"]]
 
 
 def _disentanglement(z, hz, mode: __Mode = "r2", reorder=None):
@@ -869,9 +859,7 @@ def permutation_disentanglement(
     if mode == "r2" or mode == "adjusted_r2":
         assert solver == "naive", "R2 coefficient is only supported with naive solver"
 
-    if cache_permutations and not hasattr(
-        permutation_disentanglement, "permutation_matrices"
-    ):
+    if cache_permutations and not hasattr(permutation_disentanglement, "permutation_matrices"):
         permutation_disentanglement.permutation_matrices = dict()
 
     if torch.is_tensor(hz):
@@ -940,9 +928,7 @@ def permutation_disentanglement(
     if cache_permutations and not solver == "munkres":
         key = (rescaling, n)
         if not key in permutation_disentanglement.permutation_matrices:
-            permutation_disentanglement.permutation_matrices[key] = list(
-                gen_permutations(n)
-            )
+            permutation_disentanglement.permutation_matrices[key] = list(gen_permutations(n))
         permutations = permutation_disentanglement.permutation_matrices[key]
     else:
         if solver == "naive":
@@ -960,9 +946,7 @@ def permutation_disentanglement(
 
 
 def calc_disent_metrics(z, hz):
-    (lin_dis_score, _), _, coef_, intercept_ = linear_disentanglement(
-        z, hz, mode="r2"
-    )
+    (lin_dis_score, _), _, coef_, intercept_ = linear_disentanglement(z, hz, mode="r2")
 
     (
         permutation_disentanglement_score,
