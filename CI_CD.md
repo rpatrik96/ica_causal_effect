@@ -40,8 +40,24 @@ The repository uses GitHub Actions for automated testing, code quality checks, a
 
 **Jobs:**
 - Runs all pre-commit hooks defined in `.pre-commit-config.yaml`
+- Skips `pytest-check` and `pylint` hooks (covered by main CI workflow)
 - Validates code formatting, linting, and other code quality checks
 - Uses cached pre-commit environments for faster execution
+- Timeout: 15 minutes
+
+### 3. Quick Test Workflow (`.github/workflows/quick-test.yml`)
+
+**Triggers:**
+- Push to any branch
+- Pull requests to any branch
+
+**Jobs:**
+- Fast test execution on Python 3.10 only
+- No code quality checks (only tests)
+- Uses pip caching for faster execution
+- Fails fast on first test failure (`-x` flag)
+- Timeout: 30 minutes
+- Ideal for quick feedback during development
 
 ## Status Badges
 
@@ -200,8 +216,26 @@ strategy:
 **Issue**: Pre-commit hooks are slow
 - **Solution**: Caching is enabled; subsequent runs should be faster
 
+**Issue**: Pre-commit workflow fails with pytest errors
+- **Solution**: The pytest-check hook is now skipped in CI (it's covered by the main test workflow)
+
+**Issue**: Workflow times out
+- **Solution**: All workflows now have timeout settings (15-30 minutes). If legitimate work exceeds this, increase timeout in workflow file
+
+**Issue**: Code quality checks fail but you want to proceed
+- **Solution**: Code quality checks are non-blocking (continue-on-error: true). Tests must still pass.
+
 **Issue**: Codecov upload fails
 - **Solution**: This is non-blocking and won't fail the build; check Codecov dashboard for details
+
+### Workflow Timeout Settings
+
+All workflows have timeout protection:
+- Quick Test: 30 minutes
+- Code Quality: 20 minutes
+- Test Suite: 30 minutes per Python version
+- Integration Tests: 20 minutes
+- Pre-commit: 15 minutes
 
 ## Additional Resources
 
