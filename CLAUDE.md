@@ -17,7 +17,7 @@ The codebase follows a modular pipeline structure:
    - Supports various distributions (Gaussian, uniform, generalized normal)
    - Configurable treatment/outcome relationships with sparsity patterns
 
-2. **Estimation Methods** (`main_estimation.py`, `ica.py:ica_treatment_effect_estimation()`):
+2. **Estimation Methods** (`main_estimation.py`, `ica.py:ica_treatment_effect_estimation()`, `ica_variants.py`):
    - `all_together()`: Sample-split based estimation
    - `all_together_cross_fitting()`: Cross-fitted estimation with K-fold
    - Methods implemented:
@@ -26,6 +26,9 @@ The codebase follows a modular pipeline structure:
      - **Robust Ortho ML (Est.)**: Second-order with estimated moments
      - **Robust Ortho ML (Split)**: Second-order with nested splitting
      - **ICA**: Treatment effect estimation via FastICA
+     - **Triangular ICA**: ICA with triangular unmixing matrix constraint
+     - **Constrained ICA**: ICA with orthogonality/non-negativity constraints
+     - **Regularized ICA**: ICA with L1/L2 regularization
 
 3. **Disentanglement Metrics** (`mcc.py`):
    - Hungarian algorithm (Munkres) for optimal permutation matching
@@ -76,6 +79,30 @@ python ica.py  # Runs main_sparsity() by default (see __main__ block)
 # - main_nonlinear_theta(): Different theta distributions
 # - main_nonlinear_noise_split(): Noise distribution ablations
 ```
+
+**ICA variants and initialization ablation:**
+```bash
+# Run initialization ablation study (compares triangular, constrained, regularized ICA)
+python ica_initialization_ablation.py
+
+# Quick validation (no pytest required)
+python validate_ica_variants.py
+
+# Test ICA variants
+pytest tests/test_ica_variants.py -v
+```
+
+This ablation study compares:
+- **Triangular ICA**: Enforces triangular unmixing matrix structure
+- **Constrained ICA**: Supports orthogonality and non-negativity constraints
+- **Regularized ICA**: Adds L1/L2 regularization
+
+With three initialization strategies:
+- `random_triangular`: Random triangular matrix initialization (new)
+- `standard`: Standard random initialization
+- `identity`: Identity matrix initialization
+
+See `ICA_INITIALIZATION_ABLATION.md` for detailed documentation.
 
 **Common command-line flags:**
 - `--n_samples`: Sample size (default: 500)
@@ -222,5 +249,6 @@ Pre-commit hooks automatically run before each commit. See `TESTING.md` for deta
 Tests are located in `tests/` directory:
 - `test_main_estimation.py` - Estimation methods (all_together, cross-fitting)
 - `test_ica.py` - ICA data generation and treatment effect estimation
+- `test_ica_variants.py` - Triangular, constrained, and regularized ICA variants
 - `test_mcc.py` - Disentanglement metrics (R², MCC, Munkres)
 - `test_plot_utils.py` - Data preparation and plotting utilities
