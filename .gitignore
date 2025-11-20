@@ -57,17 +57,16 @@ venv.bak/
 dmypy.json
 
 # Project specific
-#figures/
-#figures_convergence/
-#figures_n_exp_5/
+figures/
+figures_convergence/
+figures_n_exp_5/
 figures_old/
-#ica_figs_old/
-#*.npy
+ica_figs_old/
+*.npy
 results_*.npy
 all_results_*.npy
 *.pdf
 *.png
-*.svg
 
 # Pre-commit
 .pre-commit-config.yaml.bak
