@@ -33,6 +33,7 @@ repos:
       - id: flake8
         args: ['--max-line-length=120', '--extend-ignore=E203,W503,E501,D100,D101,D102,D103,D104,D105,D202,D205,D401,F401,F541,F811,F841,E266,E731,E741,E402,W605']
         additional_dependencies: [flake8-docstrings]
+        exclude: '^mcc\.py$'
 
   - repo: local
     hooks:
@@ -46,7 +47,7 @@ repos:
             '-rn', # Only display messages
             '--rcfile=.pylintrc',
           ]
-        exclude: '^(figures|__pycache__|\.npy)/'
+        exclude: '^(figures|__pycache__|\.npy|mcc\.py|tests/)'
 
   - repo: local
     hooks:
