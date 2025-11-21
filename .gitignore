@@ -62,7 +62,6 @@ figures_convergence/
 figures_n_exp_5/
 figures_old/
 ica_figs_old/
-*.npy
 results_*.npy
 all_results_*.npy
 *.pdf
