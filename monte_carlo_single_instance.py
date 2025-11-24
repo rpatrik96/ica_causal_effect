@@ -331,13 +331,13 @@ def main(args):
     # Parse arguments
     parser = argparse.ArgumentParser(description="Second order orthogonal ML!")
     parser.add_argument("--n_samples", dest="n_samples", type=int, help="n_samples", default=500)
-    parser.add_argument("--n_experiments", dest="n_experiments", type=int, help="n_experiments", default=5)
+    parser.add_argument("--n_experiments", dest="n_experiments", type=int, help="n_experiments", default=20)
     parser.add_argument("--seed", dest="seed", type=int, help="seed", default=12143)
     parser.add_argument("--sigma_outcome", dest="sigma_outcome", type=float, help="sigma_outcome", default=np.sqrt(3.0))
     parser.add_argument("--covariate_pdf", dest="covariate_pdf", type=str, help="pdf of covariates", default="gennorm")
     parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
     parser.add_argument(
-        "--check_convergence", dest="check_convergence", type=bool, help="check convergence", default=True
+        "--check_convergence", dest="check_convergence", type=bool, help="check convergence", default=False
     )
     parser.add_argument(
         "--asymptotic_var", dest="asymptotic_var", type=bool, help="Flag to ablate asymptotic variance", default=False
@@ -357,7 +357,7 @@ def main(args):
         dest="scalar_coeffs",
         type=bool,
         help="Flag to indicate if only one coefficient is non-zero",
-        default=True,
+        default=False,
     )
 
     opts = parser.parse_args(args)
