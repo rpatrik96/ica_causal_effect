@@ -161,32 +161,58 @@ def run_experiments_for_configuration(
         print(f"Treatment support: {treatment_support}")
         print(f"Treatment coefficients: {treatment_coef}")
 
-    # Setup noise distributions
-    discounts, eta_sample, mean_discount, probs = setup_treatment_noise()
+    # Setup noise distributions based on config
+    eta_noise_dist = getattr(config, "eta_noise_dist", "discrete")
+    discounts_or_params, eta_sample, mean_discount, probs = setup_treatment_noise(distribution=eta_noise_dist)
 
     # Calculate asymptotic variances
     var_calculator = AsymptoticVarianceCalculator()
 
-    (
-        eta_cubed_variance,
-        eta_fourth_moment,
-        eta_non_gauss_cond,
-        eta_second_moment,
-        eta_third_moment,
-        homl_asymptotic_var,
-        homl_asymptotic_var_num,
-    ) = var_calculator.calc_homl_asymptotic_var(discounts, mean_discount, probs)
+    # Use distribution-aware methods for asymptotic variance calculation
+    if eta_noise_dist == "discrete":
+        # Use original discrete-based calculation
+        (
+            eta_cubed_variance,
+            eta_fourth_moment,
+            eta_non_gauss_cond,
+            eta_second_moment,
+            eta_third_moment,
+            homl_asymptotic_var,
+            homl_asymptotic_var_num,
+        ) = var_calculator.calc_homl_asymptotic_var(discounts_or_params, mean_discount, probs)
 
-    (
-        eta_excess_kurtosis,
-        eta_skewness_squared,
-        ica_asymptotic_var,
-        ica_asymptotic_var_hyvarinen,
-        ica_asymptotic_var_num,
-        ica_var_coeff,
-    ) = var_calculator.calc_ica_asymptotic_var(
-        treatment_coef, outcome_coef, treatment_effect, discounts, mean_discount, probs, eta_cubed_variance
-    )
+        (
+            eta_excess_kurtosis,
+            eta_skewness_squared,
+            ica_asymptotic_var,
+            ica_asymptotic_var_hyvarinen,
+            ica_asymptotic_var_num,
+            ica_var_coeff,
+        ) = var_calculator.calc_ica_asymptotic_var(
+            treatment_coef, outcome_coef, treatment_effect, discounts_or_params, mean_discount, probs, eta_cubed_variance
+        )
+    else:
+        # Use distribution-based calculation for continuous distributions
+        (
+            eta_cubed_variance,
+            eta_fourth_moment,
+            eta_non_gauss_cond,
+            eta_second_moment,
+            eta_third_moment,
+            homl_asymptotic_var,
+            homl_asymptotic_var_num,
+        ) = var_calculator.calc_homl_asymptotic_var_from_distribution(eta_noise_dist, discounts_or_params, probs)
+
+        (
+            eta_excess_kurtosis,
+            eta_skewness_squared,
+            ica_asymptotic_var,
+            ica_asymptotic_var_hyvarinen,
+            ica_asymptotic_var_num,
+            ica_var_coeff,
+        ) = var_calculator.calc_ica_asymptotic_var_from_distribution(
+            treatment_coef, outcome_coef, treatment_effect, eta_noise_dist, discounts_or_params, probs
+        )
 
     # Outcome noise distribution
     epsilon_sample = lambda x: np.random.uniform(  # pylint: disable=unnecessary-lambda-assignment
@@ -294,6 +320,7 @@ def run_experiments_for_configuration(
         "treatment_effect": treatment_effect,
         "cov_dim_max": cov_dim_max,
         "sigma_outcome": config.sigma_outcome,
+        "eta_noise_dist": eta_noise_dist,
         "ortho_rec_tau": ortho_rec_tau,
         "first_stage_mse": first_stage_mse,
         "biases": error_stats["absolute"][0],
@@ -359,6 +386,13 @@ def main(args):
         help="Flag to indicate if only one coefficient is non-zero",
         default=False,
     )
+    parser.add_argument(
+        "--eta_noise_dist",
+        dest="eta_noise_dist",
+        type=str,
+        help="Distribution for treatment noise eta: discrete, laplace, uniform, rademacher, gennorm_heavy, gennorm_light",
+        default="discrete",
+    )
 
     opts = parser.parse_args(args)
 
@@ -377,6 +411,7 @@ def main(args):
         small_data=opts.small_data,
         matched_coefficients=opts.matched_coefficients,
         scalar_coeffs=opts.scalar_coeffs,
+        eta_noise_dist=opts.eta_noise_dist,
     )
 
     # Set random seed

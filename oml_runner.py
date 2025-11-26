@@ -245,28 +245,113 @@ class OMLExperimentRunner:
         return results
 
 
-def setup_treatment_noise(rademacher: bool = False) -> Tuple[np.ndarray, Callable, float, np.ndarray]:
+def setup_treatment_noise(
+    distribution: str = "discrete", rademacher: bool = False, scale: float = 1.0
+) -> Tuple[np.ndarray, Callable, float, np.ndarray]:
     """Setup treatment noise distribution.
 
+    Supports discrete (default), heavy-tailed (Laplace), and bounded (uniform, Rademacher) distributions.
+
     Args:
-        rademacher: Whether to use Rademacher distribution
+        distribution: Type of noise distribution. Options:
+            - "discrete": Default discrete distribution with fixed discounts
+            - "laplace": Heavy-tailed Laplace distribution (scale=1/sqrt(2) gives var=1)
+            - "uniform": Bounded uniform distribution on [-sqrt(3), sqrt(3)] (var=1)
+            - "rademacher": Bounded Rademacher distribution {-1, +1} with equal probability
+            - "gennorm_heavy": Generalized normal with beta=1 (equivalent to Laplace)
+            - "gennorm_light": Generalized normal with beta=4 (lighter tails than Gaussian)
+        rademacher: Legacy parameter - if True and distribution="discrete", uses Rademacher
+        scale: Scale parameter for continuous distributions (default 1.0 gives unit variance)
 
     Returns:
-        Tuple of (discounts, eta_sample, mean_discount, probs)
+        Tuple of (discounts_or_params, eta_sample, mean_discount, probs_or_None)
+        For continuous distributions, discounts_or_params contains distribution parameters
+        and probs_or_None is None.
     """
-    if not rademacher:
-        discounts = np.array([0, -0.5, -2.0, -4.0])
-        probs = np.array([0.65, 0.2, 0.1, 0.05])
-    else:
-        discounts = np.array([1, -1])
+    if distribution == "discrete":
+        # Original discrete distribution
+        if not rademacher:
+            discounts = np.array([0, -0.5, -2.0, -4.0])
+            probs = np.array([0.65, 0.2, 0.1, 0.05])
+        else:
+            discounts = np.array([1, -1])
+            probs = np.array([0.5, 0.5])
+
+        mean_discount = np.dot(discounts, probs)
+
+        def eta_sample(x):
+            return np.array(
+                [discounts[i] - mean_discount for i in np.argmax(np.random.multinomial(1, probs, x), axis=1)]
+            )
+
+        return discounts, eta_sample, mean_discount, probs
+
+    elif distribution == "laplace":
+        # Heavy-tailed Laplace distribution
+        # Laplace(0, b) has variance 2*b^2, so b=1/sqrt(2) gives var=1
+        laplace_scale = scale / np.sqrt(2)
+        params = np.array([0.0, laplace_scale])  # [loc, scale]
+
+        def eta_sample(x):
+            return np.random.laplace(loc=0.0, scale=laplace_scale, size=x)
+
+        return params, eta_sample, 0.0, None
+
+    elif distribution == "uniform":
+        # Bounded uniform distribution
+        # Uniform(-a, a) has variance a^2/3, so a=sqrt(3)*scale gives var=scale^2
+        half_width = np.sqrt(3) * scale
+        params = np.array([-half_width, half_width])  # [low, high]
+
+        def eta_sample(x):
+            return np.random.uniform(low=-half_width, high=half_width, size=x)
+
+        return params, eta_sample, 0.0, None
+
+    elif distribution == "rademacher":
+        # Bounded Rademacher distribution: {-scale, +scale} with equal probability
+        # Variance = scale^2
+        discounts = np.array([scale, -scale])
         probs = np.array([0.5, 0.5])
 
-    mean_discount = np.dot(discounts, probs)
+        def eta_sample(x):
+            return np.random.choice(discounts, size=x, p=probs)
 
-    def eta_sample(x):
-        return np.array([discounts[i] - mean_discount for i in np.argmax(np.random.multinomial(1, probs, x), axis=1)])
+        return discounts, eta_sample, 0.0, probs
 
-    return discounts, eta_sample, mean_discount, probs
+    elif distribution == "gennorm_heavy":
+        # Generalized normal with beta=1 (equivalent to Laplace, heavy tails)
+        from scipy.stats import gennorm
+
+        beta = 1.0
+        # gennorm variance = Gamma(3/beta) / Gamma(1/beta), for beta=1 this is 2
+        # To get unit variance, scale by sqrt(variance)
+        gn_scale = scale / np.sqrt(gennorm.var(beta))
+        params = np.array([beta, 0.0, gn_scale])  # [beta, loc, scale]
+
+        def eta_sample(x):
+            return gennorm.rvs(beta, loc=0.0, scale=gn_scale, size=x)
+
+        return params, eta_sample, 0.0, None
+
+    elif distribution == "gennorm_light":
+        # Generalized normal with beta=4 (lighter tails than Gaussian)
+        from scipy.stats import gennorm
+
+        beta = 4.0
+        gn_scale = scale / np.sqrt(gennorm.var(beta))
+        params = np.array([beta, 0.0, gn_scale])  # [beta, loc, scale]
+
+        def eta_sample(x):
+            return gennorm.rvs(beta, loc=0.0, scale=gn_scale, size=x)
+
+        return params, eta_sample, 0.0, None
+
+    else:
+        raise ValueError(
+            f"Unknown distribution: {distribution}. "
+            "Valid options: discrete, laplace, uniform, rademacher, gennorm_heavy, gennorm_light"
+        )
 
 
 def setup_covariate_pdf(config: OMLExperimentConfig, beta: float) -> Callable:
