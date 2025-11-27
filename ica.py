@@ -1405,7 +1405,7 @@ def main_sample_size_comparison():
     )
 
     if not results_manager.exists():
-        base_config = DataGenerationConfig(n_covariates=50, n_treatments=1, slope=1.0, sparse_prob=0.3, beta=1.0)
+        base_config = DataGenerationConfig(n_covariates=10, n_treatments=1, slope=1.0, sparse_prob=0.3, beta=1.0)
         estimation_config = EstimationConfig(check_convergence=False, verbose=False)
 
         sample_sizes = [100, 200, 500, 1000, 2000, 5000]
@@ -1488,6 +1488,228 @@ def main_sample_size_comparison():
         )
 
 
+def main_n_covariates_comparison():
+    """Run covariate dimension ablation experiment comparing ICA and DirectLiNGAM."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import plot_multiple_error_bars, plot_runtime_comparison, setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager
+
+    setup_experiment_environment()
+
+    n_samples = 1000
+    results_manager = ExperimentResultsManager(f"results_main_n_covariates_comparison_n{n_samples}.npy")
+    n_seeds = 20
+
+    results_dict = results_manager.load_or_create(
+        [
+            "sample_sizes",
+            "n_covariates",
+            "n_treatments",
+            "true_params",
+            "treatment_effects_ica",
+            "treatment_effects_directlingam",
+            "aux_result_ica",
+            "aux_result_directlingam",
+            "runtime_ica",
+            "runtime_directlingam",
+        ]
+    )
+
+    if not results_manager.exists():
+        base_config = DataGenerationConfig(batch_size=n_samples, n_treatments=1, slope=1.0, sparse_prob=0.3, beta=1.0)
+        estimation_config = EstimationConfig(check_convergence=False, verbose=False)
+
+        n_covariates_values = [2, 5, 10, 20, 50]
+        param_grid = {"n_covariates": n_covariates_values}
+
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_multi_method_sweep(
+            param_grid=param_grid,
+            n_seeds=n_seeds,
+            data_gen_config=base_config,
+            results_dict=results_dict,
+            methods=["ica", "directlingam"],
+        )
+
+        results_manager.save(results_dict)
+
+    # Analyze results
+    n_covariates_values = sorted(set(results_dict["n_covariates"]))
+
+    series_data = {}
+    runtime_data = {}
+    for method in ["ica", "directlingam"]:
+        te_key = f"treatment_effects_{method}"
+        runtime_key = f"runtime_{method}"
+        means = []
+        stds = []
+        runtime_means = []
+        runtime_stds = []
+
+        for n_cov in n_covariates_values:
+            # Filter indices for this n_covariates value
+            indices = [i for i, nc in enumerate(results_dict["n_covariates"]) if nc == n_cov]
+
+            if indices:
+                errors = []
+                runtimes = []
+                for idx in indices:
+                    true_params = results_dict["true_params"][idx]
+                    est_params = results_dict[te_key][idx]
+                    if hasattr(true_params, "numpy"):
+                        true_params = true_params.numpy()
+                    error = calculate_mse(true_params, est_params, relative_error=True)
+                    errors.append(error)
+                    if runtime_key in results_dict:
+                        runtimes.append(results_dict[runtime_key][idx])
+
+                means.append(np.nanmean(errors))
+                stds.append(np.nanstd(errors))
+                if runtimes:
+                    runtime_means.append(np.nanmean(runtimes))
+                    runtime_stds.append(np.nanstd(runtimes))
+            else:
+                means.append(np.nan)
+                stds.append(np.nan)
+                runtime_means.append(np.nan)
+                runtime_stds.append(np.nan)
+
+        method_label = "FastICA" if method == "ica" else "DirectLiNGAM"
+        series_data[method_label] = (means, stds)
+        if runtime_means:
+            runtime_data[method_label] = (runtime_means, runtime_stds)
+
+    plot_multiple_error_bars(
+        parameter_values=n_covariates_values,
+        series_data=series_data,
+        xlabel=r"Covariate dimension $d$",
+        ylabel=r"Mean squared $|(\theta-\hat{\theta})/\theta|$",
+        filename=f"ica_vs_directlingam_n_covariates_n{n_samples}.svg",
+        use_log_scale=True,
+    )
+
+    # Create runtime comparison plot
+    if runtime_data:
+        plot_runtime_comparison(
+            parameter_values=n_covariates_values,
+            series_data=runtime_data,
+            xlabel=r"Covariate dimension $d$",
+            filename=f"ica_vs_directlingam_n_covariates_runtime_n{n_samples}.svg",
+            use_log_scale=True,
+        )
+
+
+def main_n_treatments_comparison():
+    """Run number of treatments ablation experiment comparing ICA and DirectLiNGAM."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import plot_multiple_error_bars, plot_runtime_comparison, setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager
+
+    setup_experiment_environment()
+
+    n_samples = 1000
+    results_manager = ExperimentResultsManager(f"results_main_n_treatments_comparison_n{n_samples}.npy")
+    n_seeds = 20
+
+    results_dict = results_manager.load_or_create(
+        [
+            "sample_sizes",
+            "n_covariates",
+            "n_treatments",
+            "true_params",
+            "treatment_effects_ica",
+            "treatment_effects_directlingam",
+            "aux_result_ica",
+            "aux_result_directlingam",
+            "runtime_ica",
+            "runtime_directlingam",
+        ]
+    )
+
+    if not results_manager.exists():
+        base_config = DataGenerationConfig(batch_size=n_samples, n_covariates=10, slope=1.0, sparse_prob=0.3, beta=1.0)
+        estimation_config = EstimationConfig(check_convergence=False, verbose=False)
+
+        n_treatments_values = [1, 2, 3, 4, 5]
+        param_grid = {"n_treatments": n_treatments_values}
+
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_multi_method_sweep(
+            param_grid=param_grid,
+            n_seeds=n_seeds,
+            data_gen_config=base_config,
+            results_dict=results_dict,
+            methods=["ica", "directlingam"],
+        )
+
+        results_manager.save(results_dict)
+
+    # Analyze results
+    n_treatments_values = sorted(set(results_dict["n_treatments"]))
+
+    series_data = {}
+    runtime_data = {}
+    for method in ["ica", "directlingam"]:
+        te_key = f"treatment_effects_{method}"
+        runtime_key = f"runtime_{method}"
+        means = []
+        stds = []
+        runtime_means = []
+        runtime_stds = []
+
+        for n_treat in n_treatments_values:
+            # Filter indices for this n_treatments value
+            indices = [i for i, nt in enumerate(results_dict["n_treatments"]) if nt == n_treat]
+
+            if indices:
+                errors = []
+                runtimes = []
+                for idx in indices:
+                    true_params = results_dict["true_params"][idx]
+                    est_params = results_dict[te_key][idx]
+                    if hasattr(true_params, "numpy"):
+                        true_params = true_params.numpy()
+                    error = calculate_mse(true_params, est_params, relative_error=True)
+                    errors.append(error)
+                    if runtime_key in results_dict:
+                        runtimes.append(results_dict[runtime_key][idx])
+
+                means.append(np.nanmean(errors))
+                stds.append(np.nanstd(errors))
+                if runtimes:
+                    runtime_means.append(np.nanmean(runtimes))
+                    runtime_stds.append(np.nanstd(runtimes))
+            else:
+                means.append(np.nan)
+                stds.append(np.nan)
+                runtime_means.append(np.nan)
+                runtime_stds.append(np.nan)
+
+        method_label = "FastICA" if method == "ica" else "DirectLiNGAM"
+        series_data[method_label] = (means, stds)
+        if runtime_means:
+            runtime_data[method_label] = (runtime_means, runtime_stds)
+
+    plot_multiple_error_bars(
+        parameter_values=n_treatments_values,
+        series_data=series_data,
+        xlabel=r"Number of treatments $m$",
+        ylabel=r"Mean squared $|(\theta-\hat{\theta})/\theta|$",
+        filename=f"ica_vs_directlingam_n_treatments_n{n_samples}.svg",
+        use_log_scale=True,
+    )
+
+    # Create runtime comparison plot
+    if runtime_data:
+        plot_runtime_comparison(
+            parameter_values=n_treatments_values,
+            series_data=runtime_data,
+            xlabel=r"Number of treatments $m$",
+            filename=f"ica_vs_directlingam_n_treatments_runtime_n{n_samples}.svg",
+            use_log_scale=True,
+        )
+
+
 def save_figure(filename):
 
     # Ensure the directory exists
@@ -1533,8 +1755,8 @@ if __name__ == "__main__":
     # print("\nRunning sparsity comparison (ICA vs DirectLiNGAM)...")
     # main_sparsity_comparison()
 
-    print("\nRunning gennorm comparison (ICA vs DirectLiNGAM)...")
-    main_gennorm_comparison()
+    # print("\nRunning gennorm comparison (ICA vs DirectLiNGAM)...")
+    # main_gennorm_comparison()
 
-    # print("\nRunning sample size comparison (ICA vs DirectLiNGAM)...")
-    # main_sample_size_comparison()
+    print("\nRunning sample size comparison (ICA vs DirectLiNGAM)...")
+    main_sample_size_comparison()
