@@ -911,12 +911,9 @@ def prepare_heatmap_data(
 
     for i, x_val in enumerate(x_values):
         for j, y_val in enumerate(y_values):
-            ica_mean = [
-                (
-                    res[value_key + value_key_suffix][-1]
-                    if value_key != "first_stage_mse"
-                    else np.mean([z[-1] for z in res[value_key]])
-                )
+            # Filter results matching current (x_val, y_val) and filter criteria
+            matching_results = [
+                res
                 for res in all_results
                 if (
                     res[x_key] == x_val
@@ -924,48 +921,30 @@ def prepare_heatmap_data(
                     and (beta_filter is None or res["beta"] == beta_filter)
                     and (support_size_filter is None or res["support_size"] == support_size_filter)
                 )
-            ][0]
-            ica_std = [
-                res[sigmas_key][-1] if value_key != "first_stage_mse" else np.std([z[-1] for z in res[value_key]])
-                for res in all_results
-                if (
-                    res[x_key] == x_val
-                    and res[y_key] == y_val
-                    and (beta_filter is None or res["beta"] == beta_filter)
-                    and (support_size_filter is None or res["support_size"] == support_size_filter)
-                )
-            ][0]
+            ]
+
+            if not matching_results:
+                # No matching results for this combination, use NaN
+                data_matrix_mean[j, i] = np.nan
+                data_matrix_std[j, i] = np.nan
+                data_matrix[j, i] = 0
+                continue
+
+            res = matching_results[0]
+
+            ica_mean = (
+                res[value_key + value_key_suffix][-1]
+                if value_key != "first_stage_mse"
+                else np.mean([z[-1] for z in res[value_key]])
+            )
+            ica_std = res[sigmas_key][-1] if value_key != "first_stage_mse" else np.std([z[-1] for z in res[value_key]])
 
             if diff_index is not None:
-                compare_mean = [
-                    res[value_key + value_key_suffix][diff_index]
-                    for res in all_results
-                    if (
-                        res[x_key] == x_val
-                        and res[y_key] == y_val
-                        and (beta_filter is None or res["beta"] == beta_filter)
-                        and (support_size_filter is None or res["support_size"] == support_size_filter)
-                    )
-                ][0]
-                compare_std = [
-                    res[sigmas_key][diff_index]
-                    for res in all_results
-                    if (
-                        res[x_key] == x_val
-                        and res[y_key] == y_val
-                        and (beta_filter is None or res["beta"] == beta_filter)
-                        and (support_size_filter is None or res["support_size"] == support_size_filter)
-                    )
-                ][0]
+                compare_mean = res[value_key + value_key_suffix][diff_index]
+                compare_std = res[sigmas_key][diff_index]
                 diffs = [
-                    res[value_key + value_key_suffix][-1] - res[value_key + value_key_suffix][diff_index]
-                    for res in all_results
-                    if (
-                        res[x_key] == x_val
-                        and res[y_key] == y_val
-                        and (beta_filter is None or res["beta"] == beta_filter)
-                        and (support_size_filter is None or res["support_size"] == support_size_filter)
-                    )
+                    r[value_key + value_key_suffix][-1] - r[value_key + value_key_suffix][diff_index]
+                    for r in matching_results
                 ]
 
                 if (ica_mean + ica_std) < (compare_mean - compare_std):

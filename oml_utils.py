@@ -72,7 +72,7 @@ class OMLParameterGrid:
     treatment_effects: List[float] = field(default_factory=lambda: [0.01, 0.1, 0.5, 1.0, 3.0, 10])
     treatment_coefs: List[float] = field(default_factory=lambda: [-0.002, 0.05, -0.43, 1.56])
     outcome_coefs: List[float] = field(default_factory=lambda: [0.003, -0.02, 0.63, -1.45])
-    beta_filter: int = 4
+    beta_filter: float = 4.0
     support_filter: int = 10
 
     @classmethod

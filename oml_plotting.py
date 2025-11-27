@@ -124,6 +124,10 @@ def plot_gennorm_suite(
     """
     from plot_utils import plot_gennorm
 
+    # Get available values in results
+    available_betas = {res["beta"] for res in all_results}
+    available_supports = {res["support_size"] for res in all_results}
+
     # Define plotting configurations
     plot_configs = [
         {
@@ -131,22 +135,35 @@ def plot_gennorm_suite(
             "filter_value": param_grid.beta_filter,
             "compare_method": "homl",
             "plot_type": "bias",
+            "available_values": available_betas,
         },
         {
             "filter_type": "support",
             "filter_value": param_grid.support_filter,
             "compare_method": "homl",
             "plot_type": "bias",
+            "available_values": available_supports,
         },
     ]
 
     # Execute each plotting configuration
     for plot_config in plot_configs:
+        filter_value = plot_config["filter_value"]
+        available_values = plot_config["available_values"]
+
+        # Skip if filter value not in results
+        if filter_value not in available_values:
+            print(
+                f"Skipping {plot_config['filter_type']} plot: filter value {filter_value} "
+                f"not in available values {sorted(available_values)}"
+            )
+            continue
+
         plot_gennorm(
             all_results,
             config,
             filter_type=plot_config["filter_type"],
-            filter_value=plot_config["filter_value"],
+            filter_value=filter_value,
             compare_method=plot_config["compare_method"],
             plot_type=plot_config["plot_type"],
             save_subfolder=save_subfolder,
