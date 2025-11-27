@@ -6,6 +6,7 @@ import pandas as pd
 import seaborn as sns
 import torch
 import torch.nn.functional as F
+from lingam import DirectLiNGAM
 from scipy.stats import gennorm
 from sklearn.decomposition import FastICA
 from tueplots import bundles
@@ -144,6 +145,67 @@ def ica_treatment_effect_estimation(
     treatment_effect_estimate = permuted_scaled_mixing[-1, n_covariates:-1]
 
     return treatment_effect_estimate, results["permutation_disentanglement_score"]
+
+
+def directlingam_treatment_effect_estimation(X, n_treatments=1, random_state=0, verbose=True, prior_knowledge=None):
+    """Estimate treatment effects using DirectLiNGAM.
+
+    DirectLiNGAM is a causal discovery method that identifies the causal structure
+    and estimates causal effects in linear non-Gaussian acyclic models.
+
+    Args:
+        X: Observed data matrix (n_samples x n_variables).
+            Variables should be ordered as [covariates, treatments, outcome].
+        n_treatments: Number of treatment variables.
+        random_state: Random seed for reproducibility.
+        verbose: Whether to print progress information.
+        prior_knowledge: Optional prior knowledge matrix for DirectLiNGAM.
+            -1: no prior knowledge (default)
+             0: no causal relation from j to i
+             1: causal relation from j to i
+
+    Returns:
+        treatment_effect_estimate: Estimated treatment effects (array of shape n_treatments).
+        adjacency_matrix: Estimated adjacency matrix from DirectLiNGAM.
+    """
+    np.random.seed(random_state)
+
+    n_variables = X.shape[1]
+    n_covariates = n_variables - n_treatments - 1  # Subtract treatments and outcome
+
+    # Convert to numpy if tensor
+    if hasattr(X, "numpy"):
+        X_np = X.numpy()
+    else:
+        X_np = np.array(X)
+
+    # Fit DirectLiNGAM model
+    model = DirectLiNGAM(random_state=random_state, prior_knowledge=prior_knowledge)
+
+    try:
+        model.fit(X_np)
+    except (ValueError, np.linalg.LinAlgError, RuntimeError) as e:
+        if verbose:
+            print(f"DirectLiNGAM fitting failed: {e}")
+        return np.nan * np.ones(n_treatments), None
+
+    # Extract adjacency matrix (causal effects)
+    adjacency_matrix = model.adjacency_matrix_
+
+    # Treatment effect is the coefficient from treatment(s) to outcome
+    # In our setup: outcome is the last variable (index -1)
+    # Treatments are at indices [n_covariates, n_covariates + n_treatments)
+    outcome_idx = n_variables - 1
+    treatment_indices = list(range(n_covariates, n_covariates + n_treatments))
+
+    # The adjacency matrix B has B[i,j] = effect of j on i
+    # So treatment effect on outcome is B[outcome_idx, treatment_idx]
+    treatment_effect_estimate = adjacency_matrix[outcome_idx, treatment_indices]
+
+    if verbose:
+        print(f"DirectLiNGAM estimated causal order: {model.causal_order_}")
+
+    return treatment_effect_estimate, adjacency_matrix
 
 
 def main_multi():
@@ -1080,6 +1142,274 @@ def main_loc_scale():
     )
 
 
+def main_sparsity_comparison():
+    """Run sparsity ablation experiment comparing ICA and DirectLiNGAM."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import plot_multiple_error_bars, setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager
+
+    setup_experiment_environment()
+
+    # Setup experiment configuration
+    results_manager = ExperimentResultsManager("results_main_sparsity_comparison.npy")
+    n_seeds = 20
+    n_samples = 5000
+
+    # Load or create results
+    results_dict = results_manager.load_or_create(
+        [
+            "sample_sizes",
+            "n_covariates",
+            "n_treatments",
+            "true_params",
+            "treatment_effects_ica",
+            "treatment_effects_directlingam",
+            "aux_result_ica",
+            "aux_result_directlingam",
+            "sparse_prob",
+        ]
+    )
+
+    # Run experiments if not already done
+    if not results_manager.exists():
+        # Configure experiment
+        base_config = DataGenerationConfig(batch_size=n_samples, n_covariates=50, n_treatments=1, slope=1.0)
+        estimation_config = EstimationConfig(check_convergence=False, verbose=False)
+
+        # Define parameter grid
+        sparsities = np.linspace(0, 1.0, num=11)[:-1]  # Exclude 1.0
+        param_grid = {"sparse_prob": sparsities}
+
+        # Run parameter sweep with both methods
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_multi_method_sweep(
+            param_grid=param_grid,
+            n_seeds=n_seeds,
+            data_gen_config=base_config,
+            results_dict=results_dict,
+            methods=["ica", "directlingam"],
+        )
+
+        results_manager.save(results_dict)
+
+    # Analyze and plot results
+    sparsities = sorted(set(results_dict["sparse_prob"]))
+
+    # Compute statistics for each method
+    # Each row has both methods' results, so we filter by parameter only
+    series_data = {}
+    for method in ["ica", "directlingam"]:
+        te_key = f"treatment_effects_{method}"
+        means = []
+        stds = []
+
+        for sparsity in sparsities:
+            # Filter indices for this sparsity value
+            indices = [i for i, sp in enumerate(results_dict["sparse_prob"]) if sp == sparsity]
+
+            if indices:
+                errors = []
+                for idx in indices:
+                    true_params = results_dict["true_params"][idx]
+                    est_params = results_dict[te_key][idx]
+                    if hasattr(true_params, "numpy"):
+                        true_params = true_params.numpy()
+                    error = calculate_mse(true_params, est_params, relative_error=False)
+                    errors.append(error)
+
+                means.append(np.nanmean(errors))
+                stds.append(np.nanstd(errors))
+            else:
+                means.append(np.nan)
+                stds.append(np.nan)
+
+        method_label = "FastICA" if method == "ica" else "DirectLiNGAM"
+        series_data[method_label] = (means, stds)
+
+    # Create comparison plot
+    plot_multiple_error_bars(
+        parameter_values=sparsities,
+        series_data=series_data,
+        xlabel=r"Sparsity of $\mathrm{\mathbf{A}}$",
+        ylabel=r"Mean squared $|\theta-\hat{\theta}|$",
+        filename=f"ica_vs_directlingam_sparsity_n{n_samples}.svg",
+        use_log_scale=True,
+    )
+
+
+def main_gennorm_comparison():
+    """Run generalized normal distribution ablation comparing ICA and DirectLiNGAM."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import plot_multiple_error_bars, setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager
+
+    setup_experiment_environment()
+
+    results_manager = ExperimentResultsManager("results_main_gennorm_comparison.npy")
+    n_seeds = 20
+    n_samples = 5000
+
+    results_dict = results_manager.load_or_create(
+        [
+            "sample_sizes",
+            "n_covariates",
+            "n_treatments",
+            "true_params",
+            "treatment_effects_ica",
+            "treatment_effects_directlingam",
+            "aux_result_ica",
+            "aux_result_directlingam",
+            "beta",
+        ]
+    )
+
+    if not results_manager.exists():
+        base_config = DataGenerationConfig(
+            batch_size=n_samples, n_covariates=50, n_treatments=1, slope=1.0, sparse_prob=0.3
+        )
+        estimation_config = EstimationConfig(check_convergence=False, verbose=False)
+
+        beta_values = np.linspace(0.5, 5, num=10)
+        param_grid = {"beta": beta_values}
+
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_multi_method_sweep(
+            param_grid=param_grid,
+            n_seeds=n_seeds,
+            data_gen_config=base_config,
+            results_dict=results_dict,
+            methods=["ica", "directlingam"],
+        )
+
+        results_manager.save(results_dict)
+
+    # Analyze results
+    beta_values = sorted(set(results_dict["beta"]))
+
+    series_data = {}
+    for method in ["ica", "directlingam"]:
+        te_key = f"treatment_effects_{method}"
+        means = []
+        stds = []
+
+        for beta in beta_values:
+            # Filter indices for this beta value
+            indices = [i for i, b in enumerate(results_dict["beta"]) if b == beta]
+
+            if indices:
+                errors = []
+                for idx in indices:
+                    true_params = results_dict["true_params"][idx]
+                    est_params = results_dict[te_key][idx]
+                    if hasattr(true_params, "numpy"):
+                        true_params = true_params.numpy()
+                    error = calculate_mse(true_params, est_params, relative_error=True)
+                    errors.append(error)
+
+                means.append(np.nanmean(errors))
+                stds.append(np.nanstd(errors))
+            else:
+                means.append(np.nan)
+                stds.append(np.nan)
+
+        method_label = "FastICA" if method == "ica" else "DirectLiNGAM"
+        series_data[method_label] = (means, stds)
+
+    plot_multiple_error_bars(
+        parameter_values=beta_values,
+        series_data=series_data,
+        xlabel=r"Gen. normal param. $\beta$",
+        ylabel=r"Mean squared $|(\theta-\hat{\theta})/\theta|$",
+        filename=f"ica_vs_directlingam_gennorm_n{n_samples}.svg",
+        use_log_scale=True,
+    )
+
+
+def main_sample_size_comparison():
+    """Run sample size ablation experiment comparing ICA and DirectLiNGAM."""
+    from experiment_runner import ExperimentRunner
+    from ica_plotting import plot_multiple_error_bars, setup_experiment_environment
+    from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager
+
+    setup_experiment_environment()
+
+    results_manager = ExperimentResultsManager("results_main_sample_size_comparison.npy")
+    n_seeds = 20
+
+    results_dict = results_manager.load_or_create(
+        [
+            "sample_sizes",
+            "n_covariates",
+            "n_treatments",
+            "true_params",
+            "treatment_effects_ica",
+            "treatment_effects_directlingam",
+            "aux_result_ica",
+            "aux_result_directlingam",
+            "batch_size",
+        ]
+    )
+
+    if not results_manager.exists():
+        base_config = DataGenerationConfig(n_covariates=50, n_treatments=1, slope=1.0, sparse_prob=0.3, beta=1.0)
+        estimation_config = EstimationConfig(check_convergence=False, verbose=False)
+
+        sample_sizes = [100, 200, 500, 1000, 2000, 5000]
+        param_grid = {"batch_size": sample_sizes}
+
+        runner = ExperimentRunner(estimation_config)
+        results_dict = runner.run_multi_method_sweep(
+            param_grid=param_grid,
+            n_seeds=n_seeds,
+            data_gen_config=base_config,
+            results_dict=results_dict,
+            methods=["ica", "directlingam"],
+        )
+
+        results_manager.save(results_dict)
+
+    # Analyze results
+    sample_sizes = sorted(set(results_dict["batch_size"]))
+
+    series_data = {}
+    for method in ["ica", "directlingam"]:
+        te_key = f"treatment_effects_{method}"
+        means = []
+        stds = []
+
+        for n in sample_sizes:
+            # Filter indices for this batch_size value
+            indices = [i for i, bs in enumerate(results_dict["batch_size"]) if bs == n]
+
+            if indices:
+                errors = []
+                for idx in indices:
+                    true_params = results_dict["true_params"][idx]
+                    est_params = results_dict[te_key][idx]
+                    if hasattr(true_params, "numpy"):
+                        true_params = true_params.numpy()
+                    error = calculate_mse(true_params, est_params, relative_error=True)
+                    errors.append(error)
+
+                means.append(np.nanmean(errors))
+                stds.append(np.nanstd(errors))
+            else:
+                means.append(np.nan)
+                stds.append(np.nan)
+
+        method_label = "FastICA" if method == "ica" else "DirectLiNGAM"
+        series_data[method_label] = (means, stds)
+
+    plot_multiple_error_bars(
+        parameter_values=sample_sizes,
+        series_data=series_data,
+        xlabel=r"Sample size $n$",
+        ylabel=r"Mean squared $|(\theta-\hat{\theta})/\theta|$",
+        filename="ica_vs_directlingam_sample_size.svg",
+        use_log_scale=True,
+    )
+
+
 def save_figure(filename):
 
     # Ensure the directory exists
@@ -1120,3 +1450,13 @@ if __name__ == "__main__":
     #
     # print("Running the loc scale ablation for treatment effect estimation with ICA...")
     # main_loc_scale()
+
+    # ===== Comparison experiments (ICA vs DirectLiNGAM) =====
+    print("\nRunning sparsity comparison (ICA vs DirectLiNGAM)...")
+    main_sparsity_comparison()
+
+    # print("\nRunning gennorm comparison (ICA vs DirectLiNGAM)...")
+    # main_gennorm_comparison()
+
+    # print("\nRunning sample size comparison (ICA vs DirectLiNGAM)...")
+    # main_sample_size_comparison()

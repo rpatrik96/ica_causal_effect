@@ -8,7 +8,7 @@ across different experimental configurations.
 import itertools
 from typing import Any, Callable, Dict, List
 
-from ica import generate_ica_data, ica_treatment_effect_estimation
+from ica import directlingam_treatment_effect_estimation, generate_ica_data, ica_treatment_effect_estimation
 from ica_utils import DataGenerationConfig, EstimationConfig
 
 
@@ -156,6 +156,149 @@ class ExperimentRunner:
         results_dict["true_params"].append(true_params)
         results_dict["treatment_effects"].append(treatment_effects)
         results_dict["mccs"].append(mcc)
+
+        # Store parameter-specific values
+        for param_name, param_value in param_dict.items():
+            if param_name not in results_dict:
+                results_dict[param_name] = []
+            results_dict[param_name].append(param_value)
+
+    def run_multi_method_sweep(
+        self,
+        param_grid: Dict[str, List[Any]],
+        n_seeds: int,
+        data_gen_config: DataGenerationConfig,
+        results_dict: dict,
+        methods: List[str] = None,
+    ) -> dict:
+        """Run experiments across a parameter grid with multiple estimation methods.
+
+        Each row in results corresponds to one (seed, param) combination,
+        with all methods' results stored in the same row.
+
+        Args:
+            param_grid: Dictionary mapping parameter names to lists of values
+            n_seeds: Number of random seeds to run for each configuration
+            data_gen_config: Base configuration for data generation
+            results_dict: Dictionary to store results (modified in-place)
+            methods: List of methods to run ('ica', 'directlingam'). Defaults to both.
+
+        Returns:
+            Updated results_dict with experiment results for all methods
+        """
+        if methods is None:
+            methods = ["ica", "directlingam"]
+
+        # Create all parameter combinations
+        param_names = list(param_grid.keys())
+        param_values_list = list(param_grid.values())
+
+        for param_values in itertools.product(*param_values_list):
+            # Create configuration for this parameter combination
+            config_dict = dict(zip(param_names, param_values))
+
+            # Update data generation config with current parameters
+            current_config = self._update_config(data_gen_config, config_dict)
+
+            # Run experiments for this configuration
+            for seed in range(n_seeds):
+                # Generate data once per seed/config (shared across methods)
+                S, X, true_params = generate_ica_data(
+                    n_covariates=current_config.n_covariates,
+                    n_treatments=current_config.n_treatments,
+                    batch_size=current_config.batch_size,
+                    slope=current_config.slope,
+                    sparse_prob=current_config.sparse_prob,
+                    beta=current_config.beta,
+                    loc=current_config.loc,
+                    scale=current_config.scale,
+                    nonlinearity=current_config.nonlinearity,
+                    theta_choice=current_config.theta_choice,
+                    split_noise_dist=current_config.split_noise_dist,
+                )
+
+                # Collect results from all methods for this (config, seed) combination
+                method_results = {}
+                for method in methods:
+                    if method == "ica":
+                        treatment_effects, aux_result = ica_treatment_effect_estimation(
+                            X,
+                            S,
+                            random_state=seed,
+                            whiten=self.estimation_config.whiten,
+                            check_convergence=self.estimation_config.check_convergence,
+                            n_treatments=current_config.n_treatments,
+                            verbose=self.estimation_config.verbose,
+                            fun=self.estimation_config.fun,
+                        )
+                    elif method == "directlingam":
+                        treatment_effects, aux_result = directlingam_treatment_effect_estimation(
+                            X,
+                            n_treatments=current_config.n_treatments,
+                            random_state=seed,
+                            verbose=self.estimation_config.verbose,
+                        )
+                    else:
+                        raise ValueError(f"Unknown method: {method}")
+
+                    method_results[method] = (treatment_effects, aux_result)
+
+                # Store all results for this (config, seed) in a single row
+                self._store_multi_method_results(
+                    results_dict, current_config, config_dict, true_params, method_results, methods
+                )
+
+        return results_dict
+
+    def _store_multi_method_results(
+        self,
+        results_dict: dict,
+        config: DataGenerationConfig,
+        param_dict: Dict[str, Any],
+        true_params: Any,
+        method_results: Dict[str, tuple],
+        methods: List[str],
+    ):
+        """Store experiment results for multi-method runs.
+
+        Each call stores one row corresponding to a unique (param, seed) combination,
+        with results from all methods in the same row.
+
+        Args:
+            results_dict: Dictionary to store results in
+            config: Data generation configuration used
+            param_dict: Parameter values for this run
+            true_params: True parameter values
+            method_results: Dict mapping method name to (treatment_effects, aux_result)
+            methods: List of method names
+        """
+        # Initialize keys if needed
+        for key in ["sample_sizes", "n_covariates", "n_treatments", "true_params"]:
+            if key not in results_dict:
+                results_dict[key] = []
+
+        # Initialize method-specific keys
+        for method in methods:
+            te_key = f"treatment_effects_{method}"
+            aux_key = f"aux_result_{method}"
+            if te_key not in results_dict:
+                results_dict[te_key] = []
+            if aux_key not in results_dict:
+                results_dict[aux_key] = []
+
+        # Store common data (one row per seed/param combo)
+        results_dict["sample_sizes"].append(config.batch_size)
+        results_dict["n_covariates"].append(config.n_covariates)
+        results_dict["n_treatments"].append(config.n_treatments)
+        results_dict["true_params"].append(true_params)
+
+        # Store method-specific results
+        for method in methods:
+            te_key = f"treatment_effects_{method}"
+            aux_key = f"aux_result_{method}"
+            treatment_effects, aux_result = method_results[method]
+            results_dict[te_key].append(treatment_effects)
+            results_dict[aux_key].append(aux_result)
 
         # Store parameter-specific values
         for param_name, param_value in param_dict.items():

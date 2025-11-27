@@ -9,3 +9,4 @@ joblib>=1.0.0
 tueplots>=0.0.5
 linearmodels>=4.25
 bartpy2>=0.0.1
+lingam>=1.8.0
