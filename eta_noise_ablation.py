@@ -698,7 +698,6 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     ax.set_yscale("log")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "rmse_comparison_homl_ica.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "rmse_comparison_homl_ica.pdf"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 2: Bias comparison (HOML vs ICA only)
@@ -720,7 +719,6 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     ax.set_yscale("log")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "bias_comparison_homl_ica.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "bias_comparison_homl_ica.pdf"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 3: Standard deviation comparison (HOML vs ICA only)
@@ -742,7 +740,6 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     ax.set_yscale("log")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "std_comparison_homl_ica.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "std_comparison_homl_ica.pdf"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 4: RMSE difference (ICA - HOML) bar plot
@@ -765,7 +762,6 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     ax.set_title("RMSE Difference: ICA - HOML\n(Green = ICA better, Red = HOML better)", fontsize=10)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "rmse_diff_homl_ica.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "rmse_diff_homl_ica.pdf"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 5: Bias difference (|ICA bias| - |HOML bias|) bar plot
@@ -788,7 +784,6 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     ax.set_title("Absolute Bias Difference: ICA - HOML\n(Green = ICA better, Red = HOML better)", fontsize=10)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "bias_diff_homl_ica.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "bias_diff_homl_ica.pdf"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 6: RMSE/Bias diff vs ICA variance coefficient (scatter)
@@ -831,7 +826,6 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "diff_vs_ica_var_coeff.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "diff_vs_ica_var_coeff.pdf"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 7: Distribution properties table (simplified for HOML and ICA)
@@ -867,7 +861,13 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     print(f"\nPlots saved to {output_dir}")
 
 
-def plot_noise_ablation_coeff_scatter(results: dict, output_dir: str = "figures/noise_ablation"):
+def plot_noise_ablation_coeff_scatter(
+    results: dict,
+    output_dir: str = "figures/noise_ablation",
+    n_configs: int = 0,
+    coef_range: Tuple[float, float] = (-2.0, 2.0),
+    treatment_effect_range: Tuple[float, float] = (0.1, 5.0),
+):
     """Plot RMSE/bias differences vs coefficient values when using randomized coefficients.
 
     Creates scatter plots showing how RMSE and bias differences vary with
@@ -876,7 +876,13 @@ def plot_noise_ablation_coeff_scatter(results: dict, output_dir: str = "figures/
     Args:
         results: Dictionary with results for each noise distribution (must have config_results)
         output_dir: Directory to save figures
+        n_configs: Number of random configs (for filename)
+        coef_range: Range for coefficients (for filename)
+        treatment_effect_range: Range for treatment effect (for filename)
     """
+    # Create filename suffix with config info
+    suffix = f"_n{n_configs}_coef{coef_range[0]:.1f}to{coef_range[1]:.1f}_te{treatment_effect_range[0]:.1f}to{treatment_effect_range[1]:.1f}"
+
     os.makedirs(output_dir, exist_ok=True)
 
     plt.rcParams.update(bundles.icml2022(usetex=True))
@@ -947,8 +953,7 @@ def plot_noise_ablation_coeff_scatter(results: dict, output_dir: str = "figures/
     ax.set_title("RMSE Diff vs ICA Var Coeff (by distribution)", fontsize=10)
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "coeff_scatter_rmse_vs_ica_var.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "coeff_scatter_rmse_vs_ica_var.pdf"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(output_dir, f"coeff_scatter_rmse_vs_ica_var{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 2: Bias diff vs ICA variance coefficient
@@ -970,8 +975,7 @@ def plot_noise_ablation_coeff_scatter(results: dict, output_dir: str = "figures/
     ax.set_title("Bias Diff vs ICA Var Coeff (by distribution)", fontsize=10)
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "coeff_scatter_bias_vs_ica_var.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "coeff_scatter_bias_vs_ica_var.pdf"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(output_dir, f"coeff_scatter_bias_vs_ica_var{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 3: 2x2 grid showing RMSE diff vs each coefficient
@@ -1023,8 +1027,7 @@ def plot_noise_ablation_coeff_scatter(results: dict, output_dir: str = "figures/
         "RMSE Difference (ICA - HOML) vs Coefficient Values\n(Green = ICA better, Red = HOML better)", fontsize=11
     )
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "coeff_scatter_rmse_grid.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "coeff_scatter_rmse_grid.pdf"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(output_dir, f"coeff_scatter_rmse_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 4: 2x2 grid showing Bias diff vs each coefficient
@@ -1078,8 +1081,7 @@ def plot_noise_ablation_coeff_scatter(results: dict, output_dir: str = "figures/
         fontsize=11,
     )
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "coeff_scatter_bias_grid.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "coeff_scatter_bias_grid.pdf"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(output_dir, f"coeff_scatter_bias_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
     print(f"\nCoefficient scatter plots saved to {output_dir}")
@@ -1126,7 +1128,6 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "rmse_vs_ica_var_coeff.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "rmse_vs_ica_var_coeff.pdf"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 2: Bias vs ICA variance coefficient
@@ -1145,7 +1146,6 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "bias_vs_ica_var_coeff.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "bias_vs_ica_var_coeff.pdf"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 3: Error difference (ICA - HOML) vs ICA variance coefficient
@@ -1165,7 +1165,6 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "rmse_diff_vs_ica_var_coeff.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "rmse_diff_vs_ica_var_coeff.pdf"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 4: Combined plot with treatment effect as color
@@ -1197,7 +1196,6 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "rmse_vs_ica_var_coeff_by_treatment_effect.svg"), dpi=300, bbox_inches="tight")
-    plt.savefig(os.path.join(output_dir, "rmse_vs_ica_var_coeff_by_treatment_effect.pdf"), dpi=300, bbox_inches="tight")
     plt.close()
 
     print(f"\nCoefficient ablation plots saved to {output_dir}")
@@ -1272,21 +1270,21 @@ Examples:
     parser.add_argument(
         "--n_random_configs",
         type=int,
-        default=10,
+        default=20,
         help="Number of random coefficient configurations per distribution (when --randomize_coeffs)",
     )
     parser.add_argument(
         "--treatment_effect_range",
         nargs=2,
         type=float,
-        default=[0.1, 5.0],
+        default=[0.01, 5.0],
         help="Range for random treatment effect [min, max]",
     )
     parser.add_argument(
         "--coef_range",
         nargs=2,
         type=float,
-        default=[-2.0, 2.0],
+        default=[-1.5, 1.5],
         help="Range for random treatment/outcome coefficients [min, max]",
     )
 
@@ -1376,8 +1374,11 @@ Examples:
 
         # Use different results file for randomized vs fixed coefficients
         if opts.randomize_coeffs:
+            coef_range = tuple(opts.coef_range)
+            te_range = tuple(opts.treatment_effect_range)
             results_file = os.path.join(
-                opts.output_dir, f"noise_ablation_results_randomized_{opts.n_random_configs}configs.npy"
+                opts.output_dir,
+                f"noise_ablation_results_n{opts.n_random_configs}_coef{coef_range[0]:.1f}to{coef_range[1]:.1f}_te{te_range[0]:.1f}to{te_range[1]:.1f}.npy",
             )
         else:
             results_file = os.path.join(opts.output_dir, "noise_ablation_results.npy")
@@ -1413,7 +1414,13 @@ Examples:
 
         # Generate additional coefficient-specific plots if randomized
         if opts.randomize_coeffs:
-            plot_noise_ablation_coeff_scatter(results, opts.output_dir)
+            plot_noise_ablation_coeff_scatter(
+                results,
+                opts.output_dir,
+                n_configs=opts.n_random_configs,
+                coef_range=coef_range,
+                treatment_effect_range=te_range,
+            )
 
         # Print summary table (HOML and ICA only)
         print("\n" + "=" * 90)
