@@ -245,8 +245,11 @@ class OMLExperimentRunner:
         return results
 
 
-def setup_treatment_noise(
-    distribution: str = "discrete", rademacher: bool = False, scale: float = 1.0
+def setup_treatment_noise(  # pylint: disable=no-else-return
+    distribution: str = "discrete",
+    rademacher: bool = False,
+    scale: float = 1.0,
+    gennorm_beta: float = None,
 ) -> Tuple[np.ndarray, Callable, float, np.ndarray]:
     """Setup treatment noise distribution.
 
@@ -260,8 +263,10 @@ def setup_treatment_noise(
             - "rademacher": Bounded Rademacher distribution {-1, +1} with equal probability
             - "gennorm_heavy": Generalized normal with beta=1 (equivalent to Laplace)
             - "gennorm_light": Generalized normal with beta=4 (lighter tails than Gaussian)
+            - "gennorm": Generalized normal with custom beta (requires gennorm_beta parameter)
         rademacher: Legacy parameter - if True and distribution="discrete", uses Rademacher
         scale: Scale parameter for continuous distributions (default 1.0 gives unit variance)
+        gennorm_beta: Beta parameter for gennorm distribution (required when distribution="gennorm")
 
     Returns:
         Tuple of (discounts_or_params, eta_sample, mean_discount, probs_or_None)
@@ -347,10 +352,25 @@ def setup_treatment_noise(
 
         return params, eta_sample, 0.0, None
 
+    elif distribution == "gennorm":
+        # Generalized normal with custom beta
+        from scipy.stats import gennorm
+
+        if gennorm_beta is None:
+            raise ValueError("gennorm_beta parameter required for distribution='gennorm'")
+        beta = gennorm_beta
+        gn_scale = scale / np.sqrt(gennorm.var(beta))
+        params = np.array([beta, 0.0, gn_scale])  # [beta, loc, scale]
+
+        def eta_sample(x):
+            return gennorm.rvs(beta, loc=0.0, scale=gn_scale, size=x)
+
+        return params, eta_sample, 0.0, None
+
     else:
         raise ValueError(
             f"Unknown distribution: {distribution}. "
-            "Valid options: discrete, laplace, uniform, rademacher, gennorm_heavy, gennorm_light"
+            "Valid options: discrete, laplace, uniform, rademacher, gennorm_heavy, gennorm_light, gennorm"
         )
 
 
