@@ -313,8 +313,11 @@ class ExperimentRunner:
             if method_runtimes is not None:
                 results_dict[runtime_key].append(method_runtimes[method])
 
-        # Store parameter-specific values
+        # Store parameter-specific values (skip ones already stored in common data)
+        common_keys = {"batch_size", "n_covariates", "n_treatments", "sample_sizes"}
         for param_name, param_value in param_dict.items():
+            if param_name in common_keys:
+                continue  # Already stored above
             if param_name not in results_dict:
                 results_dict[param_name] = []
             results_dict[param_name].append(param_value)
