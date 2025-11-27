@@ -154,3 +154,60 @@ def plot_multiple_error_bars(
 
     plt.legend()
     save_figure(filename, output_dir)
+
+
+def plot_runtime_comparison(
+    parameter_values: List,
+    series_data: dict,
+    xlabel: str,
+    filename: str,
+    output_dir: str = "figures/ica",
+    use_log_scale: bool = False,
+    figsize: tuple = (10, 6),
+):
+    """Create runtime comparison bar plot with multiple series.
+
+    Args:
+        parameter_values: X-axis parameter values
+        series_data: Dict mapping series name to (means, stds) tuples of runtime in seconds
+        xlabel: Label for x-axis
+        filename: Filename to save the plot
+        output_dir: Directory to save the figure in
+        use_log_scale: Whether to use log scale for y-axis
+        figsize: Figure size as (width, height)
+    """
+    plt.figure(figsize=figsize)
+    bar_positions = np.arange(len(parameter_values))
+    n_series = len(series_data)
+    bar_width = 0.8 / n_series
+
+    for i, (series_name, (means, stds)) in enumerate(series_data.items()):
+        offset = (i - n_series / 2 + 0.5) * bar_width
+        plt.bar(
+            bar_positions + offset,
+            means,
+            bar_width,
+            yerr=stds,
+            label=series_name,
+            capsize=3,
+            alpha=0.8,
+        )
+
+    # Format x-ticks based on value type
+    if all(isinstance(x, (int, float)) for x in parameter_values):
+        if all(isinstance(x, int) or x == int(x) for x in parameter_values):
+            plt.xticks(bar_positions, [f"{int(x)}" for x in parameter_values])
+        else:
+            plt.xticks(bar_positions, [f"{x:.2f}" for x in parameter_values])
+    else:
+        plt.xticks(bar_positions, parameter_values)
+
+    plt.xlabel(xlabel)
+    plt.ylabel("Runtime (seconds)")
+
+    if use_log_scale:
+        plt.yscale("log")
+
+    plt.legend()
+    plt.grid(axis="y", linestyle="--", alpha=0.7)
+    save_figure(filename, output_dir)

@@ -1145,7 +1145,7 @@ def main_loc_scale():
 def main_sparsity_comparison():
     """Run sparsity ablation experiment comparing ICA and DirectLiNGAM."""
     from experiment_runner import ExperimentRunner
-    from ica_plotting import plot_multiple_error_bars, setup_experiment_environment
+    from ica_plotting import plot_multiple_error_bars, plot_runtime_comparison, setup_experiment_environment
     from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager
 
     setup_experiment_environment()
@@ -1166,6 +1166,8 @@ def main_sparsity_comparison():
             "treatment_effects_directlingam",
             "aux_result_ica",
             "aux_result_directlingam",
+            "runtime_ica",
+            "runtime_directlingam",
             "sparse_prob",
         ]
     )
@@ -1198,10 +1200,14 @@ def main_sparsity_comparison():
     # Compute statistics for each method
     # Each row has both methods' results, so we filter by parameter only
     series_data = {}
+    runtime_data = {}
     for method in ["ica", "directlingam"]:
         te_key = f"treatment_effects_{method}"
+        runtime_key = f"runtime_{method}"
         means = []
         stds = []
+        runtime_means = []
+        runtime_stds = []
 
         for sparsity in sparsities:
             # Filter indices for this sparsity value
@@ -1209,6 +1215,7 @@ def main_sparsity_comparison():
 
             if indices:
                 errors = []
+                runtimes = []
                 for idx in indices:
                     true_params = results_dict["true_params"][idx]
                     est_params = results_dict[te_key][idx]
@@ -1216,15 +1223,24 @@ def main_sparsity_comparison():
                         true_params = true_params.numpy()
                     error = calculate_mse(true_params, est_params, relative_error=False)
                     errors.append(error)
+                    if runtime_key in results_dict:
+                        runtimes.append(results_dict[runtime_key][idx])
 
                 means.append(np.nanmean(errors))
                 stds.append(np.nanstd(errors))
+                if runtimes:
+                    runtime_means.append(np.nanmean(runtimes))
+                    runtime_stds.append(np.nanstd(runtimes))
             else:
                 means.append(np.nan)
                 stds.append(np.nan)
+                runtime_means.append(np.nan)
+                runtime_stds.append(np.nan)
 
         method_label = "FastICA" if method == "ica" else "DirectLiNGAM"
         series_data[method_label] = (means, stds)
+        if runtime_means:
+            runtime_data[method_label] = (runtime_means, runtime_stds)
 
     # Create comparison plot
     plot_multiple_error_bars(
@@ -1236,18 +1252,28 @@ def main_sparsity_comparison():
         use_log_scale=True,
     )
 
+    # Create runtime comparison plot
+    if runtime_data:
+        plot_runtime_comparison(
+            parameter_values=sparsities,
+            series_data=runtime_data,
+            xlabel=r"Sparsity of $\mathrm{\mathbf{A}}$",
+            filename=f"ica_vs_directlingam_sparsity_runtime_n{n_samples}.svg",
+            use_log_scale=True,
+        )
+
 
 def main_gennorm_comparison():
     """Run generalized normal distribution ablation comparing ICA and DirectLiNGAM."""
     from experiment_runner import ExperimentRunner
-    from ica_plotting import plot_multiple_error_bars, setup_experiment_environment
+    from ica_plotting import plot_multiple_error_bars, plot_runtime_comparison, setup_experiment_environment
     from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager
 
     setup_experiment_environment()
 
-    results_manager = ExperimentResultsManager("results_main_gennorm_comparison.npy")
     n_seeds = 20
-    n_samples = 5000
+    n_samples = 200
+    results_manager = ExperimentResultsManager(f"results_main_gennorm_comparison_{n_samples}.npy")
 
     results_dict = results_manager.load_or_create(
         [
@@ -1259,13 +1285,15 @@ def main_gennorm_comparison():
             "treatment_effects_directlingam",
             "aux_result_ica",
             "aux_result_directlingam",
+            "runtime_ica",
+            "runtime_directlingam",
             "beta",
         ]
     )
 
     if not results_manager.exists():
         base_config = DataGenerationConfig(
-            batch_size=n_samples, n_covariates=50, n_treatments=1, slope=1.0, sparse_prob=0.3
+            batch_size=n_samples, n_covariates=10, n_treatments=1, slope=1.0, sparse_prob=0.3
         )
         estimation_config = EstimationConfig(check_convergence=False, verbose=False)
 
@@ -1287,10 +1315,14 @@ def main_gennorm_comparison():
     beta_values = sorted(set(results_dict["beta"]))
 
     series_data = {}
+    runtime_data = {}
     for method in ["ica", "directlingam"]:
         te_key = f"treatment_effects_{method}"
+        runtime_key = f"runtime_{method}"
         means = []
         stds = []
+        runtime_means = []
+        runtime_stds = []
 
         for beta in beta_values:
             # Filter indices for this beta value
@@ -1298,6 +1330,7 @@ def main_gennorm_comparison():
 
             if indices:
                 errors = []
+                runtimes = []
                 for idx in indices:
                     true_params = results_dict["true_params"][idx]
                     est_params = results_dict[te_key][idx]
@@ -1305,15 +1338,24 @@ def main_gennorm_comparison():
                         true_params = true_params.numpy()
                     error = calculate_mse(true_params, est_params, relative_error=True)
                     errors.append(error)
+                    if runtime_key in results_dict:
+                        runtimes.append(results_dict[runtime_key][idx])
 
                 means.append(np.nanmean(errors))
                 stds.append(np.nanstd(errors))
+                if runtimes:
+                    runtime_means.append(np.nanmean(runtimes))
+                    runtime_stds.append(np.nanstd(runtimes))
             else:
                 means.append(np.nan)
                 stds.append(np.nan)
+                runtime_means.append(np.nan)
+                runtime_stds.append(np.nan)
 
         method_label = "FastICA" if method == "ica" else "DirectLiNGAM"
         series_data[method_label] = (means, stds)
+        if runtime_means:
+            runtime_data[method_label] = (runtime_means, runtime_stds)
 
     plot_multiple_error_bars(
         parameter_values=beta_values,
@@ -1324,11 +1366,21 @@ def main_gennorm_comparison():
         use_log_scale=True,
     )
 
+    # Create runtime comparison plot
+    if runtime_data:
+        plot_runtime_comparison(
+            parameter_values=beta_values,
+            series_data=runtime_data,
+            xlabel=r"Gen. normal param. $\beta$",
+            filename=f"ica_vs_directlingam_gennorm_runtime_n{n_samples}.svg",
+            use_log_scale=True,
+        )
+
 
 def main_sample_size_comparison():
     """Run sample size ablation experiment comparing ICA and DirectLiNGAM."""
     from experiment_runner import ExperimentRunner
-    from ica_plotting import plot_multiple_error_bars, setup_experiment_environment
+    from ica_plotting import plot_multiple_error_bars, plot_runtime_comparison, setup_experiment_environment
     from ica_utils import DataGenerationConfig, EstimationConfig, ExperimentResultsManager
 
     setup_experiment_environment()
@@ -1346,6 +1398,8 @@ def main_sample_size_comparison():
             "treatment_effects_directlingam",
             "aux_result_ica",
             "aux_result_directlingam",
+            "runtime_ica",
+            "runtime_directlingam",
             "batch_size",
         ]
     )
@@ -1372,10 +1426,14 @@ def main_sample_size_comparison():
     sample_sizes = sorted(set(results_dict["batch_size"]))
 
     series_data = {}
+    runtime_data = {}
     for method in ["ica", "directlingam"]:
         te_key = f"treatment_effects_{method}"
+        runtime_key = f"runtime_{method}"
         means = []
         stds = []
+        runtime_means = []
+        runtime_stds = []
 
         for n in sample_sizes:
             # Filter indices for this batch_size value
@@ -1383,6 +1441,7 @@ def main_sample_size_comparison():
 
             if indices:
                 errors = []
+                runtimes = []
                 for idx in indices:
                     true_params = results_dict["true_params"][idx]
                     est_params = results_dict[te_key][idx]
@@ -1390,15 +1449,24 @@ def main_sample_size_comparison():
                         true_params = true_params.numpy()
                     error = calculate_mse(true_params, est_params, relative_error=True)
                     errors.append(error)
+                    if runtime_key in results_dict:
+                        runtimes.append(results_dict[runtime_key][idx])
 
                 means.append(np.nanmean(errors))
                 stds.append(np.nanstd(errors))
+                if runtimes:
+                    runtime_means.append(np.nanmean(runtimes))
+                    runtime_stds.append(np.nanstd(runtimes))
             else:
                 means.append(np.nan)
                 stds.append(np.nan)
+                runtime_means.append(np.nan)
+                runtime_stds.append(np.nan)
 
         method_label = "FastICA" if method == "ica" else "DirectLiNGAM"
         series_data[method_label] = (means, stds)
+        if runtime_means:
+            runtime_data[method_label] = (runtime_means, runtime_stds)
 
     plot_multiple_error_bars(
         parameter_values=sample_sizes,
@@ -1408,6 +1476,16 @@ def main_sample_size_comparison():
         filename="ica_vs_directlingam_sample_size.svg",
         use_log_scale=True,
     )
+
+    # Create runtime comparison plot
+    if runtime_data:
+        plot_runtime_comparison(
+            parameter_values=sample_sizes,
+            series_data=runtime_data,
+            xlabel=r"Sample size $n$",
+            filename="ica_vs_directlingam_sample_size_runtime.svg",
+            use_log_scale=True,
+        )
 
 
 def save_figure(filename):
@@ -1439,8 +1517,8 @@ if __name__ == "__main__":
     # print("Running treatment effect estimation with ICA in nonlinear PLR with different noises...")
     # main_nonlinear_noise_split()
 
-    print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
-    main_sparsity()
+    # print("Running the sparsity ablation for treatment effect estimation with ICA in linear PLR...")
+    # main_sparsity()
 
     # print("Running the loss function ablation for treatment effect estimation with ICA in linear PLR...")
     # main_fun()
@@ -1452,11 +1530,11 @@ if __name__ == "__main__":
     # main_loc_scale()
 
     # ===== Comparison experiments (ICA vs DirectLiNGAM) =====
-    print("\nRunning sparsity comparison (ICA vs DirectLiNGAM)...")
-    main_sparsity_comparison()
+    # print("\nRunning sparsity comparison (ICA vs DirectLiNGAM)...")
+    # main_sparsity_comparison()
 
-    # print("\nRunning gennorm comparison (ICA vs DirectLiNGAM)...")
-    # main_gennorm_comparison()
+    print("\nRunning gennorm comparison (ICA vs DirectLiNGAM)...")
+    main_gennorm_comparison()
 
     # print("\nRunning sample size comparison (ICA vs DirectLiNGAM)...")
     # main_sample_size_comparison()
