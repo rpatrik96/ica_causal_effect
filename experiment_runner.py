@@ -6,6 +6,7 @@ across different experimental configurations.
 """
 
 import itertools
+import time
 from typing import Any, Callable, Dict, List
 
 from ica import directlingam_treatment_effect_estimation, generate_ica_data, ica_treatment_effect_estimation
@@ -219,7 +220,9 @@ class ExperimentRunner:
 
                 # Collect results from all methods for this (config, seed) combination
                 method_results = {}
+                method_runtimes = {}
                 for method in methods:
+                    start_time = time.perf_counter()
                     if method == "ica":
                         treatment_effects, aux_result = ica_treatment_effect_estimation(
                             X,
@@ -240,12 +243,14 @@ class ExperimentRunner:
                         )
                     else:
                         raise ValueError(f"Unknown method: {method}")
+                    end_time = time.perf_counter()
 
                     method_results[method] = (treatment_effects, aux_result)
+                    method_runtimes[method] = end_time - start_time
 
                 # Store all results for this (config, seed) in a single row
                 self._store_multi_method_results(
-                    results_dict, current_config, config_dict, true_params, method_results, methods
+                    results_dict, current_config, config_dict, true_params, method_results, methods, method_runtimes
                 )
 
         return results_dict
@@ -258,6 +263,7 @@ class ExperimentRunner:
         true_params: Any,
         method_results: Dict[str, tuple],
         methods: List[str],
+        method_runtimes: Dict[str, float] = None,
     ):
         """Store experiment results for multi-method runs.
 
@@ -271,6 +277,7 @@ class ExperimentRunner:
             true_params: True parameter values
             method_results: Dict mapping method name to (treatment_effects, aux_result)
             methods: List of method names
+            method_runtimes: Dict mapping method name to runtime in seconds
         """
         # Initialize keys if needed
         for key in ["sample_sizes", "n_covariates", "n_treatments", "true_params"]:
@@ -281,10 +288,13 @@ class ExperimentRunner:
         for method in methods:
             te_key = f"treatment_effects_{method}"
             aux_key = f"aux_result_{method}"
+            runtime_key = f"runtime_{method}"
             if te_key not in results_dict:
                 results_dict[te_key] = []
             if aux_key not in results_dict:
                 results_dict[aux_key] = []
+            if runtime_key not in results_dict:
+                results_dict[runtime_key] = []
 
         # Store common data (one row per seed/param combo)
         results_dict["sample_sizes"].append(config.batch_size)
@@ -296,12 +306,18 @@ class ExperimentRunner:
         for method in methods:
             te_key = f"treatment_effects_{method}"
             aux_key = f"aux_result_{method}"
+            runtime_key = f"runtime_{method}"
             treatment_effects, aux_result = method_results[method]
             results_dict[te_key].append(treatment_effects)
             results_dict[aux_key].append(aux_result)
+            if method_runtimes is not None:
+                results_dict[runtime_key].append(method_runtimes[method])
 
-        # Store parameter-specific values
+        # Store parameter-specific values (skip ones already stored in common data)
+        common_keys = {"batch_size", "n_covariates", "n_treatments", "sample_sizes"}
         for param_name, param_value in param_dict.items():
+            if param_name in common_keys:
+                continue  # Already stored above
             if param_name not in results_dict:
                 results_dict[param_name] = []
             results_dict[param_name].append(param_value)

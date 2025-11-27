@@ -40,14 +40,8 @@ from tueplots import bundles
 
 from ica import ica_treatment_effect_estimation
 from main_estimation import all_together_cross_fitting
-from oml_runner import setup_covariate_pdf, setup_treatment_noise, setup_treatment_outcome_coefs
-from oml_utils import (
-    AsymptoticVarianceCalculator,
-    OMLExperimentConfig,
-    OMLParameterGrid,
-    OMLResultsManager,
-    compute_distribution_moments,
-)
+from oml_runner import setup_treatment_noise
+from oml_utils import AsymptoticVarianceCalculator
 from plot_utils import plot_typography
 
 
@@ -193,16 +187,22 @@ def run_noise_ablation_experiments(
     np.random.seed(seed)
 
     # Setup covariate sampling
-    config = OMLExperimentConfig(covariate_pdf=covariate_pdf)
-
     if covariate_pdf == "gennorm":
         from scipy.stats import gennorm
 
-        x_sample = lambda n, d: gennorm.rvs(beta, size=(n, d))
+        def x_sample(n, d):
+            return gennorm.rvs(beta, size=(n, d))
+
     elif covariate_pdf == "gauss":
-        x_sample = lambda n, d: np.random.normal(size=(n, d))
+
+        def x_sample(n, d):
+            return np.random.normal(size=(n, d))
+
     elif covariate_pdf == "uniform":
-        x_sample = lambda n, d: np.random.uniform(-1, 1, size=(n, d))
+
+        def x_sample(n, d):
+            return np.random.uniform(-1, 1, size=(n, d))
+
     else:
         raise ValueError(f"Unknown covariate PDF: {covariate_pdf}")
 
@@ -211,7 +211,8 @@ def run_noise_ablation_experiments(
     treatment_support = outcome_support = np.array(range(support_size))
 
     # Outcome noise distribution
-    epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
+    def epsilon_sample(x):
+        return np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
 
     # Compute regularization parameter
     lambda_reg = np.sqrt(np.log(cov_dim_max) / n_samples)
@@ -239,7 +240,7 @@ def run_noise_ablation_experiments(
 
         # Setup treatment noise for this distribution
         params_or_discounts, eta_sample, mean_discount, probs = setup_treatment_noise(
-            distribution=noise_dist, beta=gennorm_beta
+            distribution=noise_dist, gennorm_beta=gennorm_beta
         )
 
         # Calculate base moments for asymptotic variance (distribution-specific, not coef-dependent)
@@ -249,21 +250,21 @@ def run_noise_ablation_experiments(
             (
                 eta_cubed_variance,
                 eta_fourth_moment,
-                eta_non_gauss_cond,
+                _,  # eta_non_gauss_cond
                 eta_second_moment,
                 eta_third_moment,
                 homl_asymptotic_var,
-                homl_asymptotic_var_num,
+                _,  # homl_asymptotic_var_num
             ) = var_calculator.calc_homl_asymptotic_var(params_or_discounts, mean_discount, probs)
         else:
             (
                 eta_cubed_variance,
                 eta_fourth_moment,
-                eta_non_gauss_cond,
+                _,  # eta_non_gauss_cond
                 eta_second_moment,
                 eta_third_moment,
                 homl_asymptotic_var,
-                homl_asymptotic_var_num,
+                _,  # homl_asymptotic_var_num
             ) = var_calculator.calc_homl_asymptotic_var_from_distribution(noise_dist, params_or_discounts, probs)
 
         # Store per-config results when randomizing
@@ -291,8 +292,8 @@ def run_noise_ablation_experiments(
                     eta_excess_kurtosis,
                     eta_skewness_squared,
                     ica_asymptotic_var,
-                    ica_asymptotic_var_hyvarinen,
-                    ica_asymptotic_var_num,
+                    _,  # ica_asymptotic_var_hyvarinen
+                    _,  # ica_asymptotic_var_num
                     _,
                 ) = var_calculator.calc_ica_asymptotic_var(
                     treatment_coef,
@@ -308,8 +309,8 @@ def run_noise_ablation_experiments(
                     eta_excess_kurtosis,
                     eta_skewness_squared,
                     ica_asymptotic_var,
-                    ica_asymptotic_var_hyvarinen,
-                    ica_asymptotic_var_num,
+                    _,  # ica_asymptotic_var_hyvarinen
+                    _,  # ica_asymptotic_var_num
                     _,
                 ) = var_calculator.calc_ica_asymptotic_var_from_distribution(
                     treatment_coef, outcome_coef, current_treatment_effect, noise_dist, params_or_discounts, probs
@@ -340,7 +341,7 @@ def run_noise_ablation_experiments(
             ]
 
             if len(results) == 0:
-                print(f"    No experiments converged")
+                print("    No experiments converged")
                 continue
 
             # Extract results
@@ -493,21 +494,30 @@ def run_coefficient_ablation_experiments(
     if covariate_pdf == "gennorm":
         from scipy.stats import gennorm
 
-        x_sample = lambda n, d: gennorm.rvs(beta, size=(n, d))
+        def x_sample(n, d):
+            return gennorm.rvs(beta, size=(n, d))
+
     elif covariate_pdf == "gauss":
-        x_sample = lambda n, d: np.random.normal(size=(n, d))
+
+        def x_sample(n, d):
+            return np.random.normal(size=(n, d))
+
     elif covariate_pdf == "uniform":
-        x_sample = lambda n, d: np.random.uniform(-1, 1, size=(n, d))
+
+        def x_sample(n, d):
+            return np.random.uniform(-1, 1, size=(n, d))
+
     else:
         raise ValueError(f"Unknown covariate PDF: {covariate_pdf}")
 
     # Setup treatment noise
     params_or_discounts, eta_sample, mean_discount, probs = setup_treatment_noise(
-        distribution=noise_dist, beta=gennorm_beta
+        distribution=noise_dist, gennorm_beta=gennorm_beta
     )
 
     # Outcome noise distribution
-    epsilon_sample = lambda x: np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
+    def epsilon_sample(x):
+        return np.random.uniform(-sigma_outcome, sigma_outcome, size=x)
 
     # Compute regularization parameter
     cov_dim_max = support_size
@@ -521,23 +531,23 @@ def run_coefficient_ablation_experiments(
 
     if noise_dist == "discrete":
         (
-            eta_cubed_variance,
-            eta_fourth_moment,
-            eta_non_gauss_cond,
+            _,  # eta_cubed_variance
+            _,  # eta_fourth_moment
+            _,  # eta_non_gauss_cond
             eta_second_moment,
             eta_third_moment,
             homl_asymptotic_var,
-            homl_asymptotic_var_num,
+            _,  # homl_asymptotic_var_num
         ) = var_calculator.calc_homl_asymptotic_var(params_or_discounts, mean_discount, probs)
     else:
         (
-            eta_cubed_variance,
-            eta_fourth_moment,
-            eta_non_gauss_cond,
+            _,  # eta_cubed_variance
+            _,  # eta_fourth_moment
+            _,  # eta_non_gauss_cond
             eta_second_moment,
             eta_third_moment,
             homl_asymptotic_var,
-            homl_asymptotic_var_num,
+            _,  # homl_asymptotic_var_num
         ) = var_calculator.calc_homl_asymptotic_var_from_distribution(noise_dist, params_or_discounts, probs)
 
     all_results = []
@@ -591,7 +601,7 @@ def run_coefficient_ablation_experiments(
         print(f"  Experiments kept: {len(results)} out of {n_experiments}")
 
         if len(results) == 0:
-            print(f"  No experiments converged")
+            print("  No experiments converged")
             continue
 
         # Extract results - indices: 0=OrthoML, 1=RobustOrthoML(HOML), 2=RobustOrthoEst, 3=RobustOrthoSplit, 4+=ICA
@@ -678,7 +688,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     label_map = {d: get_dist_label(d) for d in noise_dists}
 
     # Plot 1: RMSE comparison (HOML vs ICA only)
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
     x = np.arange(len(noise_dists))
     width = 0.35
 
@@ -701,7 +711,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     plt.close()
 
     # Plot 2: Bias comparison (HOML vs ICA only)
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
 
     for i, (method_name, method_idx) in enumerate(zip(method_names, method_indices)):
         bias_values = [
@@ -722,7 +732,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     plt.close()
 
     # Plot 3: Standard deviation comparison (HOML vs ICA only)
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
 
     for i, (method_name, method_idx) in enumerate(zip(method_names, method_indices)):
         std_values = [
@@ -743,7 +753,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     plt.close()
 
     # Plot 4: RMSE difference (ICA - HOML) bar plot
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
 
     rmse_diff = [
         (results[dist]["rmse"][ICA_IDX] if ICA_IDX < len(results[dist]["rmse"]) else np.nan)
@@ -765,7 +775,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     plt.close()
 
     # Plot 5: Bias difference (|ICA bias| - |HOML bias|) bar plot
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
 
     bias_diff = [
         (np.abs(results[dist]["biases"][ICA_IDX]) if ICA_IDX < len(results[dist]["biases"]) else np.nan)
@@ -787,7 +797,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     plt.close()
 
     # Plot 6: RMSE/Bias diff vs ICA variance coefficient (scatter)
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    _, axes = plt.subplots(1, 2, figsize=(12, 5))
 
     ica_var_coeffs = [results[dist].get("ica_var_coeff", np.nan) for dist in noise_dists]
 
@@ -829,7 +839,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     plt.close()
 
     # Plot 7: Distribution properties table (simplified for HOML and ICA)
-    fig, ax = plt.subplots(figsize=(12, 4))
+    _, ax = plt.subplots(figsize=(12, 4))
     ax.axis("off")
 
     table_data = []
@@ -1113,7 +1123,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     ica_bias = [np.abs(r["biases"][ICA_IDX]) if ICA_IDX < len(r["biases"]) else np.nan for r in results]
 
     # Plot 1: RMSE vs ICA variance coefficient
-    fig, ax = plt.subplots(figsize=(8, 6))
+    _, ax = plt.subplots(figsize=(8, 6))
 
     ax.scatter(ica_var_coeffs, homl_rmse, c="#1f77b4", alpha=0.7, label="HOML", s=60, marker="o")
     ax.scatter(ica_var_coeffs, ica_rmse, c="#ff7f0e", alpha=0.7, label="ICA", s=60, marker="s")
@@ -1131,7 +1141,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     plt.close()
 
     # Plot 2: Bias vs ICA variance coefficient
-    fig, ax = plt.subplots(figsize=(8, 6))
+    _, ax = plt.subplots(figsize=(8, 6))
 
     ax.scatter(ica_var_coeffs, homl_bias, c="#1f77b4", alpha=0.7, label="HOML", s=60, marker="o")
     ax.scatter(ica_var_coeffs, ica_bias, c="#ff7f0e", alpha=0.7, label="ICA", s=60, marker="s")
@@ -1149,7 +1159,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     plt.close()
 
     # Plot 3: Error difference (ICA - HOML) vs ICA variance coefficient
-    fig, ax = plt.subplots(figsize=(8, 6))
+    _, ax = plt.subplots(figsize=(8, 6))
 
     rmse_diff = np.array(ica_rmse) - np.array(homl_rmse)
     colors = ["green" if d < 0 else "red" for d in rmse_diff]
@@ -1168,7 +1178,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     plt.close()
 
     # Plot 4: Combined plot with treatment effect as color
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
 
     treatment_effects = [r["treatment_effect"] for r in results]
     unique_tes = sorted(set(treatment_effects))
@@ -1338,7 +1348,7 @@ Examples:
         print("\n" + "=" * 100)
         print("SUMMARY: Coefficient Ablation Study")
         print("=" * 100)
-        print(f"\nExperiment settings:")
+        print("\nExperiment settings:")
         print(f"  noise_distribution: {opts.noise_distribution}")
         print(f"  n_samples: {opts.n_samples}")
         print(f"  n_experiments: {opts.n_experiments}")
@@ -1426,7 +1436,7 @@ Examples:
         print("\n" + "=" * 90)
         print("SUMMARY: Noise Distribution Ablation Study (HOML and ICA)")
         print("=" * 90)
-        print(f"\nExperiment settings:")
+        print("\nExperiment settings:")
         print(f"  n_samples: {opts.n_samples}")
         print(f"  n_experiments: {opts.n_experiments}")
         if opts.randomize_coeffs:

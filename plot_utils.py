@@ -310,21 +310,42 @@ def plot_gennorm(
         if plot_type == "bias":
             value_key = "biases"
             filename_prefix = "bias"
+        elif plot_type == "rmse":
+            value_key = "biases"
+            filename_prefix = "rmse"
         elif plot_type == "mcc":
             value_key = "first_stage_mse"
             filename_prefix = "mcc"
         else:
-            raise ValueError("Invalid plot_type. Use 'bias' or 'mcc'.")
+            raise ValueError("Invalid plot_type. Use 'bias', 'rmse', or 'mcc'.")
+
+        compute_rmse = plot_type == "rmse"
 
         if filter_type == "support":
-            data_matrix_mean, data_matrix_std, data_matrix, x_labels, sample_sizes = prepare_heatmap_data(
-                all_results, "beta", "n_samples", value_key, diff_index=diff_index, support_size_filter=filter_value
+            data_matrix_mean, data_matrix_std, data_matrix, x_labels, sample_sizes, data_matrix_rmse = (
+                prepare_heatmap_data(
+                    all_results,
+                    "beta",
+                    "n_samples",
+                    value_key,
+                    diff_index=diff_index,
+                    support_size_filter=filter_value,
+                    compute_rmse=compute_rmse,
+                )
             )
             x_label = r"Gen. normal param. $\beta$"
             filename_suffix = f'beta_{compare_method if compare_method else "ica"}'
         elif filter_type == "beta":
-            data_matrix_mean, data_matrix_std, data_matrix, x_labels, sample_sizes = prepare_heatmap_data(
-                all_results, "support_size", "n_samples", value_key, diff_index=diff_index, beta_filter=filter_value
+            data_matrix_mean, data_matrix_std, data_matrix, x_labels, sample_sizes, data_matrix_rmse = (
+                prepare_heatmap_data(
+                    all_results,
+                    "support_size",
+                    "n_samples",
+                    value_key,
+                    diff_index=diff_index,
+                    beta_filter=filter_value,
+                    compute_rmse=compute_rmse,
+                )
             )
             x_label = r"Covariate dimension $d$"
             filename_suffix = f'dim_{compare_method if compare_method else "ica"}'
@@ -334,20 +355,10 @@ def plot_gennorm(
         if filter_ica_var_coeff:
             filename_suffix = f'{filename_suffix}_filtered_{ica_var_threshold}_{"below" if filter_below else "above"}'
 
-        plot_heatmap(
-            data_matrix_mean,
-            x_labels,
-            sample_sizes,
-            x_label,
-            r"Sample size $n$",
-            f"{filename_prefix}_sample_size_vs_{filename_suffix}_mean.svg",
-            experiment_dir,
-            center=0,
-        )
-
-        if plot_binary:
+        # For RMSE plots, use the RMSE data matrix; otherwise use mean
+        if plot_type == "rmse" and data_matrix_rmse is not None:
             plot_heatmap(
-                data_matrix,
+                data_matrix_rmse,
                 x_labels,
                 sample_sizes,
                 x_label,
@@ -356,18 +367,41 @@ def plot_gennorm(
                 experiment_dir,
                 center=0,
             )
-
-        if compare_method is None:
+        else:
             plot_heatmap(
-                data_matrix_std,
+                data_matrix_mean,
                 x_labels,
                 sample_sizes,
                 x_label,
                 r"Sample size $n$",
-                f"{filename_prefix}_sample_size_vs_{filename_suffix}_std.svg",
+                f"{filename_prefix}_sample_size_vs_{filename_suffix}_mean.svg",
                 experiment_dir,
                 center=0,
             )
+
+            if plot_binary:
+                plot_heatmap(
+                    data_matrix,
+                    x_labels,
+                    sample_sizes,
+                    x_label,
+                    r"Sample size $n$",
+                    f"{filename_prefix}_sample_size_vs_{filename_suffix}.svg",
+                    experiment_dir,
+                    center=0,
+                )
+
+            if compare_method is None:
+                plot_heatmap(
+                    data_matrix_std,
+                    x_labels,
+                    sample_sizes,
+                    x_label,
+                    r"Sample size $n$",
+                    f"{filename_prefix}_sample_size_vs_{filename_suffix}_std.svg",
+                    experiment_dir,
+                    center=0,
+                )
 
 
 def plot_multi_treatment(all_results, opts, treatment_effects):
@@ -883,6 +917,7 @@ def prepare_heatmap_data(
     beta_filter=None,
     support_size_filter=None,
     relative_error=False,
+    compute_rmse=False,
 ):
     x_values = sorted(
         {
@@ -904,6 +939,7 @@ def prepare_heatmap_data(
     data_matrix = np.zeros((len(y_values), len(x_values)))
     data_matrix_mean = np.zeros((len(y_values), len(x_values)))
     data_matrix_std = np.zeros((len(y_values), len(x_values)))
+    data_matrix_rmse = np.zeros((len(y_values), len(x_values))) if compute_rmse else None
 
     # Determine the keys based on whether relative error is considered
     value_key_suffix = "_rel" if relative_error else ""
@@ -928,9 +964,13 @@ def prepare_heatmap_data(
                 data_matrix_mean[j, i] = np.nan
                 data_matrix_std[j, i] = np.nan
                 data_matrix[j, i] = 0
+                if compute_rmse:
+                    assert data_matrix_rmse is not None
+                    data_matrix_rmse[j, i] = np.nan  # pylint: disable=unsupported-assignment-operation
                 continue
 
             res = matching_results[0]
+            rmse_diffs = []  # Initialize for pylint
 
             ica_mean = (
                 res[value_key + value_key_suffix][-1]
@@ -947,6 +987,14 @@ def prepare_heatmap_data(
                     for r in matching_results
                 ]
 
+                if compute_rmse:
+                    # RMSE differences: RMSE_ICA - RMSE_compare for each result
+                    rmse_diffs = [
+                        np.sqrt(r[value_key + value_key_suffix][-1] ** 2 + r[sigmas_key][-1] ** 2)
+                        - np.sqrt(r[value_key + value_key_suffix][diff_index] ** 2 + r[sigmas_key][diff_index] ** 2)
+                        for r in matching_results
+                    ]
+
                 if (ica_mean + ica_std) < (compare_mean - compare_std):
                     data_matrix[j, i] = -1
                 elif (ica_mean - ica_std) > (compare_mean + compare_std):
@@ -956,10 +1004,19 @@ def prepare_heatmap_data(
 
             else:
                 diffs = ica_mean
+                if compute_rmse:
+                    # RMSE for each result (no comparison)
+                    rmse_diffs = [
+                        np.sqrt(r[value_key + value_key_suffix][-1] ** 2 + r[sigmas_key][-1] ** 2)
+                        for r in matching_results
+                    ]
 
             if diffs:
                 data_matrix_mean[j, i] = np.nanmean(diffs)
                 data_matrix_std[j, i] = ica_std
+                if compute_rmse:
+                    assert data_matrix_rmse is not None
+                    data_matrix_rmse[j, i] = np.nanmean(rmse_diffs)  # pylint: disable=unsupported-assignment-operation
 
     return (
         data_matrix_mean,
@@ -967,4 +1024,5 @@ def prepare_heatmap_data(
         data_matrix,
         x_values,
         y_values,
+        data_matrix_rmse,
     )
