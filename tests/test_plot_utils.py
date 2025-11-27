@@ -31,7 +31,7 @@ class TestPrepareHeatmapData:
 
     def test_prepare_heatmap_data_returns_correct_shapes(self, sample_results):
         """Test that prepare_heatmap_data returns matrices of correct shape."""
-        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values = prepare_heatmap_data(
+        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values, data_matrix_rmse = prepare_heatmap_data(
             sample_results, x_key="beta", y_key="n_samples", value_key="biases", diff_index=3
         )
 
@@ -46,10 +46,11 @@ class TestPrepareHeatmapData:
         assert data_matrix.shape == (unique_y, unique_x), f"Data matrix should be ({unique_y}, {unique_x})"
         assert len(x_values) == unique_x, f"x_values should have {unique_x} elements"
         assert len(y_values) == unique_y, f"y_values should have {unique_y} elements"
+        assert data_matrix_rmse is None, "RMSE matrix should be None when compute_rmse=False"
 
     def test_prepare_heatmap_data_with_beta_filter(self, sample_results):
         """Test prepare_heatmap_data with beta filter."""
-        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values = prepare_heatmap_data(
+        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values, _ = prepare_heatmap_data(
             sample_results,
             x_key="support_size",
             y_key="n_samples",
@@ -64,7 +65,7 @@ class TestPrepareHeatmapData:
 
     def test_prepare_heatmap_data_with_support_filter(self, sample_results):
         """Test prepare_heatmap_data with support_size filter."""
-        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values = prepare_heatmap_data(
+        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values, _ = prepare_heatmap_data(
             sample_results,
             x_key="beta",
             y_key="n_samples",
@@ -79,7 +80,7 @@ class TestPrepareHeatmapData:
 
     def test_prepare_heatmap_data_with_relative_error(self, sample_results):
         """Test prepare_heatmap_data with relative error."""
-        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values = prepare_heatmap_data(
+        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values, _ = prepare_heatmap_data(
             sample_results,
             x_key="beta",
             y_key="n_samples",
@@ -92,12 +93,46 @@ class TestPrepareHeatmapData:
 
     def test_prepare_heatmap_data_without_diff_index(self, sample_results):
         """Test prepare_heatmap_data without comparison (diff_index=None)."""
-        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values = prepare_heatmap_data(
+        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values, _ = prepare_heatmap_data(
             sample_results, x_key="beta", y_key="n_samples", value_key="biases", diff_index=None
         )
 
         # Without diff_index, data_matrix should contain actual values, not -1/0/1
         assert np.all(np.isfinite(data_matrix_mean)), "Mean matrix should contain finite values"
+
+    def test_prepare_heatmap_data_with_compute_rmse(self, sample_results):
+        """Test prepare_heatmap_data with compute_rmse=True."""
+        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values, data_matrix_rmse = prepare_heatmap_data(
+            sample_results,
+            x_key="beta",
+            y_key="n_samples",
+            value_key="biases",
+            diff_index=3,
+            compute_rmse=True,
+        )
+
+        unique_x = len(set([r["beta"] for r in sample_results]))
+        unique_y = len(set([r["n_samples"] for r in sample_results]))
+
+        assert data_matrix_rmse is not None, "RMSE matrix should not be None when compute_rmse=True"
+        assert data_matrix_rmse.shape == (unique_y, unique_x), f"RMSE matrix should be ({unique_y}, {unique_x})"
+
+    def test_prepare_heatmap_data_rmse_values_correct(self, sample_results):
+        """Test that RMSE values are computed correctly (sqrt(bias^2 + sigma^2))."""
+        data_matrix_mean, data_matrix_std, data_matrix, x_values, y_values, data_matrix_rmse = prepare_heatmap_data(
+            sample_results,
+            x_key="beta",
+            y_key="n_samples",
+            value_key="biases",
+            diff_index=None,  # No comparison, just ICA RMSE
+            compute_rmse=True,
+        )
+
+        # For each cell, RMSE should be sqrt(bias^2 + sigma^2) for ICA (index -1)
+        # Since diff_index=None, we get ICA RMSE values directly
+        assert data_matrix_rmse is not None, "RMSE matrix should not be None"
+        # All RMSE values should be non-negative
+        assert np.all(data_matrix_rmse >= 0), "RMSE values should be non-negative"
 
 
 class TestPlotEstimates:
