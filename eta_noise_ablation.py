@@ -1519,7 +1519,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     plt.savefig(os.path.join(output_dir, "rmse_vs_ica_var_coeff_by_treatment_effect.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
-    # Plot 5: Separate scatter plots for each treatment effect
+    # Plot 5: Separate scatter plots for each treatment effect (RMSE difference)
     n_tes = len(unique_tes)
     n_cols = min(3, n_tes)
     n_rows = (n_tes + n_cols - 1) // n_cols
@@ -1534,14 +1534,16 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
         te_homl_rmse = [homl_rmse[i] for i, m in enumerate(mask) if m]
         te_ica_rmse = [ica_rmse[i] for i, m in enumerate(mask) if m]
 
-        ax.scatter(te_ica_var, te_homl_rmse, c="#1f77b4", alpha=0.7, s=40, marker="o", label="HOML")
-        ax.scatter(te_ica_var, te_ica_rmse, c="#ff7f0e", alpha=0.7, s=40, marker="s", label="ICA")
+        # Calculate RMSE difference (ICA - HOML)
+        te_rmse_diff = [i - h for h, i in zip(te_homl_rmse, te_ica_rmse)]
+        te_colors = ["#2ca02c" if d < 0 else "#d62728" for d in te_rmse_diff]
+
+        ax.scatter(te_ica_var, te_rmse_diff, c=te_colors, alpha=0.7, s=40)
+        ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
 
         ax.set_xlabel(r"ICA Var Coeff", fontsize=9)
-        ax.set_ylabel("RMSE", fontsize=9)
+        ax.set_ylabel("RMSE Diff (ICA - HOML)", fontsize=9)
         ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.legend(loc="best", fontsize=7)
         ax.set_title(rf"$\theta = {te}$", fontsize=10)
         ax.grid(True, alpha=0.3)
         ax.tick_params(axis="both", labelsize=8)
@@ -1551,9 +1553,12 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
         row, col = idx // n_cols, idx % n_cols
         axes[row, col].set_visible(False)
 
-    fig.suptitle("RMSE vs ICA Variance Coefficient by Treatment Effect", fontsize=12)
+    fig.suptitle(
+        "RMSE Difference (ICA - HOML) vs ICA Var Coeff by Treatment Effect\n(Green = ICA better, Red = HOML better)",
+        fontsize=12,
+    )
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "rmse_vs_ica_var_coeff_separate_te.svg"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(output_dir, "rmse_diff_vs_ica_var_coeff_separate_te.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # Plot 6: Summary - Mean RMSE vs Treatment Effect
