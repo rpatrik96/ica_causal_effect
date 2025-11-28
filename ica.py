@@ -1195,6 +1195,16 @@ def main_sparsity_comparison():
         results_manager.save(results_dict)
 
     # Analyze and plot results
+    # Validate that all result lists have the same length
+    n_results = len(results_dict["sparse_prob"])
+    for key in ["true_params", "treatment_effects_ica", "treatment_effects_directlingam"]:
+        if key in results_dict and len(results_dict[key]) != n_results:
+            raise ValueError(
+                f"List length mismatch: sparse_prob has {n_results} entries, "
+                f"but {key} has {len(results_dict[key])} entries. "
+                f"Delete the results file and re-run experiments."
+            )
+
     sparsities = sorted(set(results_dict["sparse_prob"]))
 
     # Compute statistics for each method
@@ -1312,6 +1322,16 @@ def main_gennorm_comparison():
         results_manager.save(results_dict)
 
     # Analyze results
+    # Validate that all result lists have the same length
+    n_results = len(results_dict["beta"])
+    for key in ["true_params", "treatment_effects_ica", "treatment_effects_directlingam"]:
+        if key in results_dict and len(results_dict[key]) != n_results:
+            raise ValueError(
+                f"List length mismatch: beta has {n_results} entries, "
+                f"but {key} has {len(results_dict[key])} entries. "
+                f"Delete the results file and re-run experiments."
+            )
+
     beta_values = sorted(set(results_dict["beta"]))
 
     series_data = {}
@@ -1423,6 +1443,16 @@ def main_sample_size_comparison():
         results_manager.save(results_dict)
 
     # Analyze results
+    # Validate that all result lists have the same length
+    n_results = len(results_dict["batch_size"])
+    for key in ["true_params", "treatment_effects_ica", "treatment_effects_directlingam"]:
+        if key in results_dict and len(results_dict[key]) != n_results:
+            raise ValueError(
+                f"List length mismatch: batch_size has {n_results} entries, "
+                f"but {key} has {len(results_dict[key])} entries. "
+                f"Delete the results file and re-run experiments."
+            )
+
     sample_sizes = sorted(set(results_dict["batch_size"]))
 
     series_data = {}
@@ -1534,6 +1564,16 @@ def main_n_covariates_comparison():
         results_manager.save(results_dict)
 
     # Analyze results
+    # Validate that all result lists have the same length
+    n_results = len(results_dict["n_covariates"])
+    for key in ["true_params", "treatment_effects_ica", "treatment_effects_directlingam"]:
+        if key in results_dict and len(results_dict[key]) != n_results:
+            raise ValueError(
+                f"List length mismatch: n_covariates has {n_results} entries, "
+                f"but {key} has {len(results_dict[key])} entries. "
+                f"Delete the results file and re-run experiments."
+            )
+
     n_covariates_values = sorted(set(results_dict["n_covariates"]))
 
     series_data = {}
@@ -1645,6 +1685,16 @@ def main_n_treatments_comparison():
         results_manager.save(results_dict)
 
     # Analyze results
+    # Validate that all result lists have the same length
+    n_results = len(results_dict["n_treatments"])
+    for key in ["true_params", "treatment_effects_ica", "treatment_effects_directlingam"]:
+        if key in results_dict and len(results_dict[key]) != n_results:
+            raise ValueError(
+                f"List length mismatch: n_treatments has {n_results} entries, "
+                f"but {key} has {len(results_dict[key])} entries. "
+                f"Delete the results file and re-run experiments."
+            )
+
     n_treatments_values = sorted(set(results_dict["n_treatments"]))
 
     series_data = {}
@@ -1759,4 +1809,7 @@ if __name__ == "__main__":
     # main_gennorm_comparison()
 
     print("\nRunning sample size comparison (ICA vs DirectLiNGAM)...")
-    main_sample_size_comparison()
+    # main_sample_size_comparison()
+
+    main_n_treatments_comparison()
+    main_n_covariates_comparison()

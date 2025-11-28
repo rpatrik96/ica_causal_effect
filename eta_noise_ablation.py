@@ -35,6 +35,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from joblib import Parallel, delayed
+from scipy.stats import kurtosis as scipy_kurtosis
 from sklearn.linear_model import Lasso
 from tueplots import bundles
 
@@ -146,8 +147,8 @@ def experiment_with_noise_dist(
 
 def run_noise_ablation_experiments(
     noise_distributions: list,
-    n_samples: int = 5000,
-    n_experiments: int = 20,
+    n_samples: int = 50000,
+    n_experiments: int = 10,
     support_size: int = 10,
     treatment_effect: float = 1.0,
     beta: float = 1.0,
@@ -266,6 +267,14 @@ def run_noise_ablation_experiments(
                 homl_asymptotic_var,
                 _,  # homl_asymptotic_var_num
             ) = var_calculator.calc_homl_asymptotic_var_from_distribution(noise_dist, params_or_discounts, probs)
+
+        # Calculate empirical kurtosis from a large sample
+        empirical_eta_samples = eta_sample(100000)
+        empirical_excess_kurtosis = scipy_kurtosis(
+            empirical_eta_samples, fisher=True
+        )  # Fisher=True gives excess kurtosis
+        print(f"  Theoretical excess kurtosis: {eta_cubed_variance / eta_second_moment**2 - 3:.4f}")
+        print(f"  Empirical excess kurtosis: {empirical_excess_kurtosis:.4f}")
 
         # Store per-config results when randomizing
         config_results = []
@@ -394,8 +403,9 @@ def run_noise_ablation_experiments(
             sigmas = np.std(ortho_rec_tau_array, axis=0)
             rmse = np.sqrt(np.mean((ortho_rec_tau_array - all_treatment_effects[:, None]) ** 2, axis=0))
 
-            # Average ICA var coeff across configs
+            # Average ICA var coeff and asymptotic var across configs
             avg_ica_var_coeff = np.mean([cr["ica_var_coeff"] for cr in config_results])
+            avg_ica_asymptotic_var = np.mean([cr["ica_asymptotic_var"] for cr in config_results])
         else:
             # Single config - use its results directly
             cr = config_results[0]
@@ -403,6 +413,7 @@ def run_noise_ablation_experiments(
             sigmas = cr["sigmas"]
             rmse = cr["rmse"]
             avg_ica_var_coeff = cr["ica_var_coeff"]
+            avg_ica_asymptotic_var = cr["ica_asymptotic_var"]
             all_ortho_rec_tau = cr["ortho_rec_tau"]
 
         # Store results with full spec as key (preserves gennorm:beta format)
@@ -417,8 +428,10 @@ def run_noise_ablation_experiments(
             "eta_third_moment": eta_third_moment,
             "eta_fourth_moment": eta_fourth_moment,
             "eta_excess_kurtosis": eta_excess_kurtosis,
+            "eta_empirical_excess_kurtosis": empirical_excess_kurtosis,
             "eta_skewness_squared": eta_skewness_squared,
             "homl_asymptotic_var": homl_asymptotic_var,
+            "ica_asymptotic_var": avg_ica_asymptotic_var,
             "ica_var_coeff": avg_ica_var_coeff,
             "gennorm_beta": gennorm_beta,
             "randomize_coeffs": randomize_coeffs,
@@ -839,33 +852,331 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     plt.close()
 
     # Plot 7: Distribution properties table (simplified for HOML and ICA)
-    _, ax = plt.subplots(figsize=(12, 4))
+    _, ax = plt.subplots(figsize=(20, 4))
     ax.axis("off")
 
     table_data = []
-    headers = ["Distribution", "Kurtosis", "3rd Moment", "ICA Var Coeff", "HOML RMSE", "ICA RMSE"]
+    headers = [
+        "Distribution",
+        "Emp. Kurt.",
+        "HOML AVar",
+        "ICA AVar",
+        "Ratio",
+        "HOML Bias",
+        "HOML Std",
+        "HOML RMSE",
+        "ICA Bias",
+        "ICA Std",
+        "ICA RMSE",
+    ]
 
     for dist in noise_dists:
-        ica_var_coeff = results[dist].get("ica_var_coeff", "N/A")
+        homl_avar_val = results[dist].get("homl_asymptotic_var", np.nan)
+        ica_avar_val = results[dist].get("ica_asymptotic_var", np.nan)
+        avar_ratio_val = ica_avar_val / homl_avar_val if homl_avar_val != 0 and not np.isnan(homl_avar_val) else np.nan
+        homl_bias = results[dist]["biases"][HOML_IDX] if HOML_IDX < len(results[dist]["biases"]) else np.nan
+        homl_std = results[dist]["sigmas"][HOML_IDX] if HOML_IDX < len(results[dist]["sigmas"]) else np.nan
         homl_rmse = results[dist]["rmse"][HOML_IDX] if HOML_IDX < len(results[dist]["rmse"]) else np.nan
+        ica_bias = results[dist]["biases"][ICA_IDX] if ICA_IDX < len(results[dist]["biases"]) else np.nan
+        ica_std = results[dist]["sigmas"][ICA_IDX] if ICA_IDX < len(results[dist]["sigmas"]) else np.nan
         ica_rmse = results[dist]["rmse"][ICA_IDX] if ICA_IDX < len(results[dist]["rmse"]) else np.nan
+        empirical_kurt = results[dist].get("eta_empirical_excess_kurtosis", np.nan)
         row = [
             label_map.get(dist, dist),
-            f"{results[dist]['eta_excess_kurtosis']:.3f}",
-            f"{results[dist]['eta_third_moment']:.3f}",
-            f"{ica_var_coeff:.3f}" if isinstance(ica_var_coeff, (int, float)) else ica_var_coeff,
+            f"{empirical_kurt:.3f}" if not np.isnan(empirical_kurt) else "N/A",
+            f"{homl_avar_val:.3f}" if not np.isnan(homl_avar_val) else "N/A",
+            f"{ica_avar_val:.3f}" if not np.isnan(ica_avar_val) else "N/A",
+            f"{avar_ratio_val:.3f}" if not np.isnan(avar_ratio_val) else "N/A",
+            f"{homl_bias:.4f}" if not np.isnan(homl_bias) else "N/A",
+            f"{homl_std:.4f}" if not np.isnan(homl_std) else "N/A",
             f"{homl_rmse:.4f}" if not np.isnan(homl_rmse) else "N/A",
+            f"{ica_bias:.4f}" if not np.isnan(ica_bias) else "N/A",
+            f"{ica_std:.4f}" if not np.isnan(ica_std) else "N/A",
             f"{ica_rmse:.4f}" if not np.isnan(ica_rmse) else "N/A",
         ]
         table_data.append(row)
 
     table = ax.table(cellText=table_data, colLabels=headers, loc="center", cellLoc="center")
     table.auto_set_font_size(False)
-    table.set_fontsize(9)
+    table.set_fontsize(8)
     table.scale(1.2, 1.5)
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "distribution_properties_homl_ica.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Plot 8: RMSE vs Excess Kurtosis (scatter plot)
+    _, ax = plt.subplots(figsize=(8, 6))
+
+    # Get kurtosis values (use empirical if available, else theoretical)
+    kurtosis_values = []
+    for dist in noise_dists:
+        emp_kurt = results[dist].get("eta_empirical_excess_kurtosis", np.nan)
+        if not np.isnan(emp_kurt):
+            kurtosis_values.append(emp_kurt)
+        else:
+            kurtosis_values.append(results[dist]["eta_excess_kurtosis"])
+
+    homl_rmse_values = [
+        results[dist]["rmse"][HOML_IDX] if HOML_IDX < len(results[dist]["rmse"]) else np.nan for dist in noise_dists
+    ]
+    ica_rmse_values = [
+        results[dist]["rmse"][ICA_IDX] if ICA_IDX < len(results[dist]["rmse"]) else np.nan for dist in noise_dists
+    ]
+
+    ax.scatter(kurtosis_values, homl_rmse_values, c="#1f77b4", s=80, alpha=0.8, label="HOML", marker="o")
+    ax.scatter(kurtosis_values, ica_rmse_values, c="#ff7f0e", s=80, alpha=0.8, label="ICA", marker="s")
+
+    # Add distribution labels
+    for i, dist in enumerate(noise_dists):
+        ax.annotate(
+            label_map.get(dist, dist)[:8],
+            (kurtosis_values[i], homl_rmse_values[i]),
+            fontsize=6,
+            ha="center",
+            va="bottom",
+            xytext=(0, 5),
+            textcoords="offset points",
+        )
+
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
+    ax.set_ylabel("RMSE", fontsize=9)
+    ax.tick_params(axis="both", labelsize=8)
+    ax.legend(loc="best", fontsize=8)
+    ax.set_title("RMSE vs Excess Kurtosis", fontsize=10)
+    ax.grid(True, alpha=0.3)
+    ax.set_yscale("log")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "rmse_vs_kurtosis.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Plot 9: Bias vs Excess Kurtosis (scatter plot)
+    _, ax = plt.subplots(figsize=(8, 6))
+
+    homl_bias_values = [
+        np.abs(results[dist]["biases"][HOML_IDX]) if HOML_IDX < len(results[dist]["biases"]) else np.nan
+        for dist in noise_dists
+    ]
+    ica_bias_values = [
+        np.abs(results[dist]["biases"][ICA_IDX]) if ICA_IDX < len(results[dist]["biases"]) else np.nan
+        for dist in noise_dists
+    ]
+
+    ax.scatter(kurtosis_values, homl_bias_values, c="#1f77b4", s=80, alpha=0.8, label="HOML", marker="o")
+    ax.scatter(kurtosis_values, ica_bias_values, c="#ff7f0e", s=80, alpha=0.8, label="ICA", marker="s")
+
+    # Add distribution labels
+    for i, dist in enumerate(noise_dists):
+        ax.annotate(
+            label_map.get(dist, dist)[:8],
+            (kurtosis_values[i], homl_bias_values[i]),
+            fontsize=6,
+            ha="center",
+            va="bottom",
+            xytext=(0, 5),
+            textcoords="offset points",
+        )
+
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
+    ax.set_ylabel(r"$|\mathrm{Bias}|$", fontsize=9)
+    ax.tick_params(axis="both", labelsize=8)
+    ax.legend(loc="best", fontsize=8)
+    ax.set_title("Absolute Bias vs Excess Kurtosis", fontsize=10)
+    ax.grid(True, alpha=0.3)
+    ax.set_yscale("log")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "bias_vs_kurtosis.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Plot 10: RMSE/Bias Difference vs Excess Kurtosis
+    _, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # RMSE diff vs kurtosis
+    ax = axes[0]
+    colors_scatter = ["#2ca02c" if d < 0 else "#d62728" for d in rmse_diff]
+    ax.scatter(kurtosis_values, rmse_diff, c=colors_scatter, s=80, alpha=0.8)
+    ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
+    ax.set_ylabel("RMSE Diff (ICA - HOML)", fontsize=9)
+    ax.tick_params(axis="both", labelsize=8)
+    ax.set_title("RMSE Difference vs Kurtosis", fontsize=10)
+    ax.grid(True, alpha=0.3)
+    # Add distribution labels
+    for i, dist in enumerate(noise_dists):
+        ax.annotate(
+            label_map.get(dist, dist)[:8],
+            (kurtosis_values[i], rmse_diff[i]),
+            fontsize=6,
+            ha="center",
+            va="bottom",
+            xytext=(0, 5),
+            textcoords="offset points",
+        )
+
+    # Bias diff vs kurtosis
+    ax = axes[1]
+    colors_scatter = ["#2ca02c" if d < 0 else "#d62728" for d in bias_diff]
+    ax.scatter(kurtosis_values, bias_diff, c=colors_scatter, s=80, alpha=0.8)
+    ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
+    ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff (ICA - HOML)", fontsize=9)
+    ax.tick_params(axis="both", labelsize=8)
+    ax.set_title("Bias Difference vs Kurtosis", fontsize=10)
+    ax.grid(True, alpha=0.3)
+    for i, dist in enumerate(noise_dists):
+        ax.annotate(
+            label_map.get(dist, dist)[:8],
+            (kurtosis_values[i], bias_diff[i]),
+            fontsize=6,
+            ha="center",
+            va="bottom",
+            xytext=(0, 5),
+            textcoords="offset points",
+        )
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "diff_vs_kurtosis.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Plot 11: Standard deviation vs Excess Kurtosis
+    _, ax = plt.subplots(figsize=(8, 6))
+
+    homl_std_values = [
+        results[dist]["sigmas"][HOML_IDX] if HOML_IDX < len(results[dist]["sigmas"]) else np.nan for dist in noise_dists
+    ]
+    ica_std_values = [
+        results[dist]["sigmas"][ICA_IDX] if ICA_IDX < len(results[dist]["sigmas"]) else np.nan for dist in noise_dists
+    ]
+
+    ax.scatter(kurtosis_values, homl_std_values, c="#1f77b4", s=80, alpha=0.8, label="HOML", marker="o")
+    ax.scatter(kurtosis_values, ica_std_values, c="#ff7f0e", s=80, alpha=0.8, label="ICA", marker="s")
+
+    # Add distribution labels
+    for i, dist in enumerate(noise_dists):
+        ax.annotate(
+            label_map.get(dist, dist)[:8],
+            (kurtosis_values[i], homl_std_values[i]),
+            fontsize=6,
+            ha="center",
+            va="bottom",
+            xytext=(0, 5),
+            textcoords="offset points",
+        )
+
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
+    ax.set_ylabel("Standard Deviation", fontsize=9)
+    ax.tick_params(axis="both", labelsize=8)
+    ax.legend(loc="best", fontsize=8)
+    ax.set_title("Standard Deviation vs Excess Kurtosis", fontsize=10)
+    ax.grid(True, alpha=0.3)
+    ax.set_yscale("log")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "std_vs_kurtosis.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Plot 12: Asymptotic Variance Ratio (ICA / HOML) bar chart
+    _, ax = plt.subplots(figsize=(10, 6))
+
+    homl_avar = [results[dist].get("homl_asymptotic_var", np.nan) for dist in noise_dists]
+    ica_avar = [results[dist].get("ica_asymptotic_var", np.nan) for dist in noise_dists]
+    avar_ratio = [
+        ica / homl if homl != 0 and not np.isnan(homl) and not np.isnan(ica) else np.nan
+        for ica, homl in zip(ica_avar, homl_avar)
+    ]
+
+    colors_ratio = ["#2ca02c" if r < 1 else "#d62728" for r in avar_ratio]  # Green if ICA better, red if HOML better
+    ax.bar(x, avar_ratio, width=0.6, color=colors_ratio)
+    ax.axhline(y=1, color="black", linestyle="--", linewidth=1, label="Equal variance")
+    ax.set_xlabel("Noise Distribution", fontsize=9)
+    ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / HOML)", fontsize=9)
+    ax.set_xticks(x)
+    ax.set_xticklabels([label_map.get(d, d) for d in noise_dists], rotation=45, ha="right", fontsize=8)
+    ax.tick_params(axis="y", labelsize=8)
+    ax.set_title("Asymptotic Variance Ratio: ICA / HOML\n(Green = ICA lower, Red = HOML lower)", fontsize=10)
+    ax.set_yscale("log")
+    ax.grid(True, alpha=0.3, axis="y")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "asymptotic_var_ratio.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Plot 13: Asymptotic Variances comparison (side by side)
+    _, ax = plt.subplots(figsize=(10, 6))
+    width = 0.35
+
+    ax.bar(x - width / 2, homl_avar, width, label="HOML", color="#1f77b4")
+    ax.bar(x + width / 2, ica_avar, width, label="ICA", color="#ff7f0e")
+
+    ax.set_xlabel("Noise Distribution", fontsize=9)
+    ax.set_ylabel("Asymptotic Variance", fontsize=9)
+    ax.set_xticks(x)
+    ax.set_xticklabels([label_map.get(d, d) for d in noise_dists], rotation=45, ha="right", fontsize=8)
+    ax.tick_params(axis="y", labelsize=8)
+    ax.legend(loc="upper right", fontsize=8)
+    ax.set_title("Asymptotic Variance: HOML vs ICA", fontsize=10)
+    ax.set_yscale("log")
+    ax.grid(True, alpha=0.3, axis="y")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "asymptotic_var_comparison.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Plot 14: Asymptotic Variance Ratio vs Kurtosis
+    _, ax = plt.subplots(figsize=(8, 6))
+
+    colors_scatter = ["#2ca02c" if r < 1 else "#d62728" for r in avar_ratio]
+    ax.scatter(kurtosis_values, avar_ratio, c=colors_scatter, s=80, alpha=0.8)
+    ax.axhline(y=1, color="black", linestyle="--", linewidth=1)
+
+    # Add distribution labels
+    for i, dist in enumerate(noise_dists):
+        if not np.isnan(avar_ratio[i]):
+            ax.annotate(
+                label_map.get(dist, dist)[:8],
+                (kurtosis_values[i], avar_ratio[i]),
+                fontsize=6,
+                ha="center",
+                va="bottom",
+                xytext=(0, 5),
+                textcoords="offset points",
+            )
+
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
+    ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / HOML)", fontsize=9)
+    ax.tick_params(axis="both", labelsize=8)
+    ax.set_title("Asymptotic Variance Ratio vs Kurtosis\n(Green = ICA lower, Red = HOML lower)", fontsize=10)
+    ax.set_yscale("log")
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "asymptotic_var_ratio_vs_kurtosis.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Plot 15: Asymptotic Variances vs Kurtosis (scatter)
+    _, ax = plt.subplots(figsize=(8, 6))
+
+    ax.scatter(kurtosis_values, homl_avar, c="#1f77b4", s=80, alpha=0.8, label="HOML", marker="o")
+    ax.scatter(kurtosis_values, ica_avar, c="#ff7f0e", s=80, alpha=0.8, label="ICA", marker="s")
+
+    # Add distribution labels
+    for i, dist in enumerate(noise_dists):
+        if not np.isnan(homl_avar[i]):
+            ax.annotate(
+                label_map.get(dist, dist)[:8],
+                (kurtosis_values[i], homl_avar[i]),
+                fontsize=6,
+                ha="center",
+                va="bottom",
+                xytext=(0, 5),
+                textcoords="offset points",
+            )
+
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
+    ax.set_ylabel("Asymptotic Variance", fontsize=9)
+    ax.tick_params(axis="both", labelsize=8)
+    ax.legend(loc="best", fontsize=8)
+    ax.set_title("Asymptotic Variance vs Excess Kurtosis", fontsize=10)
+    ax.set_yscale("log")
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "asymptotic_var_vs_kurtosis.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
     print(f"\nPlots saved to {output_dir}")
@@ -1433,9 +1744,9 @@ Examples:
             )
 
         # Print summary table (HOML and ICA only)
-        print("\n" + "=" * 90)
+        print("\n" + "=" * 180)
         print("SUMMARY: Noise Distribution Ablation Study (HOML and ICA)")
-        print("=" * 90)
+        print("=" * 180)
         print("\nExperiment settings:")
         print(f"  n_samples: {opts.n_samples}")
         print(f"  n_experiments: {opts.n_experiments}")
@@ -1447,22 +1758,37 @@ Examples:
             print(f"  treatment_effect: {opts.treatment_effect}")
         print(f"  covariate_pdf: {opts.covariate_pdf}")
 
-        print("\n" + "-" * 90)
+        print("\n" + "-" * 180)
         print(
-            f"{'Distribution':<20} {'Kurtosis':>10} {'ICA Var Coeff':>14} {'HOML RMSE':>12} {'ICA RMSE':>12} {'Winner':>10}"
+            f"{'Distribution':<16} {'Emp.Kurt':>10} {'HOML AVar':>10} {'ICA AVar':>10} {'Ratio':>8} "
+            f"{'HOML Bias':>10} {'HOML Std':>10} {'HOML RMSE':>10} "
+            f"{'ICA Bias':>10} {'ICA Std':>10} {'ICA RMSE':>10} {'Winner':>8}"
         )
-        print("-" * 90)
+        print("-" * 180)
 
         for dist, res in results.items():
-            kurtosis = res["eta_excess_kurtosis"]
-            ica_var_coeff = res.get("ica_var_coeff", np.nan)
+            emp_kurtosis = res.get("eta_empirical_excess_kurtosis", np.nan)
+            homl_avar = res.get("homl_asymptotic_var", np.nan)
+            ica_avar = res.get("ica_asymptotic_var", np.nan)
+            avar_ratio = ica_avar / homl_avar if homl_avar != 0 and not np.isnan(homl_avar) else np.nan
+            homl_bias = res["biases"][1] if len(res["biases"]) > 1 else np.nan
+            homl_std = res["sigmas"][1] if len(res["sigmas"]) > 1 else np.nan
             homl_rmse = res["rmse"][1] if len(res["rmse"]) > 1 else np.nan
+            ica_bias = res["biases"][4] if len(res["biases"]) > 4 else np.nan
+            ica_std = res["sigmas"][4] if len(res["sigmas"]) > 4 else np.nan
             ica_rmse = res["rmse"][4] if len(res["rmse"]) > 4 else np.nan
             winner = "ICA" if ica_rmse < homl_rmse else "HOML"
-            ica_var_str = f"{ica_var_coeff:.4f}" if not np.isnan(ica_var_coeff) else "N/A"
-            print(f"{dist:<20} {kurtosis:>10.4f} {ica_var_str:>14} {homl_rmse:>12.4f} {ica_rmse:>12.4f} {winner:>10}")
+            emp_kurt_str = f"{emp_kurtosis:.4f}" if not np.isnan(emp_kurtosis) else "N/A"
+            homl_avar_str = f"{homl_avar:.4f}" if not np.isnan(homl_avar) else "N/A"
+            ica_avar_str = f"{ica_avar:.4f}" if not np.isnan(ica_avar) else "N/A"
+            ratio_str = f"{avar_ratio:.4f}" if not np.isnan(avar_ratio) else "N/A"
+            print(
+                f"{dist:<16} {emp_kurt_str:>10} {homl_avar_str:>10} {ica_avar_str:>10} {ratio_str:>8} "
+                f"{homl_bias:>10.4f} {homl_std:>10.4f} {homl_rmse:>10.4f} "
+                f"{ica_bias:>10.4f} {ica_std:>10.4f} {ica_rmse:>10.4f} {winner:>8}"
+            )
 
-        print("=" * 90)
+        print("=" * 180)
 
     return 0
 
