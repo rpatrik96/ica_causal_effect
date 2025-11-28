@@ -1519,6 +1519,138 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     plt.savefig(os.path.join(output_dir, "rmse_vs_ica_var_coeff_by_treatment_effect.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
+    # Plot 5: Separate scatter plots for each treatment effect
+    n_tes = len(unique_tes)
+    n_cols = min(3, n_tes)
+    n_rows = (n_tes + n_cols - 1) // n_cols
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 4 * n_rows), squeeze=False)
+
+    for idx, te in enumerate(unique_tes):
+        row, col = idx // n_cols, idx % n_cols
+        ax = axes[row, col]
+
+        mask = [r["treatment_effect"] == te for r in results]
+        te_ica_var = [ica_var_coeffs[i] for i, m in enumerate(mask) if m]
+        te_homl_rmse = [homl_rmse[i] for i, m in enumerate(mask) if m]
+        te_ica_rmse = [ica_rmse[i] for i, m in enumerate(mask) if m]
+
+        ax.scatter(te_ica_var, te_homl_rmse, c="#1f77b4", alpha=0.7, s=40, marker="o", label="HOML")
+        ax.scatter(te_ica_var, te_ica_rmse, c="#ff7f0e", alpha=0.7, s=40, marker="s", label="ICA")
+
+        ax.set_xlabel(r"ICA Var Coeff", fontsize=9)
+        ax.set_ylabel("RMSE", fontsize=9)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.legend(loc="best", fontsize=7)
+        ax.set_title(rf"$\theta = {te}$", fontsize=10)
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(axis="both", labelsize=8)
+
+    # Hide empty subplots
+    for idx in range(n_tes, n_rows * n_cols):
+        row, col = idx // n_cols, idx % n_cols
+        axes[row, col].set_visible(False)
+
+    fig.suptitle("RMSE vs ICA Variance Coefficient by Treatment Effect", fontsize=12)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "rmse_vs_ica_var_coeff_separate_te.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Plot 6: Summary - Mean RMSE vs Treatment Effect
+    _, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    homl_mean_rmse_by_te = []
+    homl_std_rmse_by_te = []
+    ica_mean_rmse_by_te = []
+    ica_std_rmse_by_te = []
+    ica_win_fraction_by_te = []
+
+    for te in unique_tes:
+        mask = [r["treatment_effect"] == te for r in results]
+        te_homl_rmse = [homl_rmse[i] for i, m in enumerate(mask) if m]
+        te_ica_rmse = [ica_rmse[i] for i, m in enumerate(mask) if m]
+
+        homl_mean_rmse_by_te.append(np.mean(te_homl_rmse))
+        homl_std_rmse_by_te.append(np.std(te_homl_rmse))
+        ica_mean_rmse_by_te.append(np.nanmean(te_ica_rmse))
+        ica_std_rmse_by_te.append(np.nanstd(te_ica_rmse))
+
+        # Calculate fraction where ICA wins
+        n_ica_wins = sum(1 for h, i in zip(te_homl_rmse, te_ica_rmse) if not np.isnan(i) and i < h)
+        n_valid = sum(1 for i in te_ica_rmse if not np.isnan(i))
+        ica_win_fraction_by_te.append(n_ica_wins / n_valid if n_valid > 0 else 0)
+
+    # Left plot: Mean RMSE with error bars
+    ax = axes[0]
+    x = np.arange(len(unique_tes))
+    width = 0.35
+
+    ax.bar(
+        x - width / 2, homl_mean_rmse_by_te, width, yerr=homl_std_rmse_by_te, label="HOML", color="#1f77b4", capsize=3
+    )
+    ax.bar(x + width / 2, ica_mean_rmse_by_te, width, yerr=ica_std_rmse_by_te, label="ICA", color="#ff7f0e", capsize=3)
+
+    ax.set_xlabel(r"Treatment Effect $\theta$", fontsize=10)
+    ax.set_ylabel("Mean RMSE", fontsize=10)
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"{te}" for te in unique_tes])
+    ax.legend(loc="best")
+    ax.set_title("Mean RMSE by Treatment Effect", fontsize=11)
+    ax.grid(True, alpha=0.3, axis="y")
+    ax.set_yscale("log")
+
+    # Right plot: ICA win fraction
+    ax = axes[1]
+    colors_bar = ["#2ca02c" if f > 0.5 else "#d62728" for f in ica_win_fraction_by_te]
+    ax.bar(x, ica_win_fraction_by_te, color=colors_bar, alpha=0.8)
+    ax.axhline(y=0.5, color="black", linestyle="--", linewidth=1)
+
+    ax.set_xlabel(r"Treatment Effect $\theta$", fontsize=10)
+    ax.set_ylabel("Fraction ICA Wins", fontsize=10)
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"{te}" for te in unique_tes])
+    ax.set_ylim(0, 1)
+    ax.set_title("ICA Win Rate by Treatment Effect\n(Green > 50%, Red < 50%)", fontsize=11)
+    ax.grid(True, alpha=0.3, axis="y")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "treatment_effect_summary.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Plot 7: RMSE Difference by Treatment Effect (box plot style)
+    _, ax = plt.subplots(figsize=(10, 6))
+
+    rmse_diff_by_te = []
+    for te in unique_tes:
+        mask = [r["treatment_effect"] == te for r in results]
+        te_homl_rmse = [homl_rmse[i] for i, m in enumerate(mask) if m]
+        te_ica_rmse = [ica_rmse[i] for i, m in enumerate(mask) if m]
+        te_diff = [i - h for h, i in zip(te_homl_rmse, te_ica_rmse) if not np.isnan(i)]
+        rmse_diff_by_te.append(te_diff)
+
+    bp = ax.boxplot(rmse_diff_by_te, positions=range(len(unique_tes)), patch_artist=True)
+
+    # Color boxes based on median
+    for i, (box, median_line) in enumerate(zip(bp["boxes"], bp["medians"])):
+        median_val = median_line.get_ydata()[0]
+        color = "#2ca02c" if median_val < 0 else "#d62728"
+        box.set_facecolor(color)
+        box.set_alpha(0.6)
+
+    ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
+    ax.set_xlabel(r"Treatment Effect $\theta$", fontsize=10)
+    ax.set_ylabel("RMSE Difference (ICA - HOML)", fontsize=10)
+    ax.set_xticks(range(len(unique_tes)))
+    ax.set_xticklabels([f"{te}" for te in unique_tes])
+    ax.set_title(
+        "RMSE Difference Distribution by Treatment Effect\n(Green = ICA better, Red = HOML better)", fontsize=11
+    )
+    ax.grid(True, alpha=0.3, axis="y")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "rmse_diff_boxplot_by_te.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
     print(f"\nCoefficient ablation plots saved to {output_dir}")
 
 
