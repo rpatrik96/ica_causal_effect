@@ -1766,6 +1766,28 @@ Examples:
         )
         print("-" * 180)
 
+        # Also build markdown content for saving
+        md_lines = []
+        md_lines.append("# Noise Distribution Ablation Study Results\n")
+        md_lines.append("## Experiment Settings\n")
+        md_lines.append(f"- **n_samples**: {opts.n_samples}")
+        md_lines.append(f"- **n_experiments**: {opts.n_experiments}")
+        if opts.randomize_coeffs:
+            md_lines.append(f"- **randomize_coeffs**: True (n_random_configs={opts.n_random_configs})")
+            md_lines.append(f"- **treatment_effect_range**: {opts.treatment_effect_range}")
+            md_lines.append(f"- **coef_range**: {opts.coef_range}")
+        else:
+            md_lines.append(f"- **treatment_effect**: {opts.treatment_effect}")
+        md_lines.append(f"- **covariate_pdf**: {opts.covariate_pdf}")
+        md_lines.append("")
+        md_lines.append("## Results Summary\n")
+        md_lines.append(
+            "| Distribution | Emp. Kurt. | HOML AVar | ICA AVar | Ratio | HOML Bias | HOML Std | HOML RMSE | ICA Bias | ICA Std | ICA RMSE | Winner |"
+        )
+        md_lines.append(
+            "|:-------------|----------:|----------:|----------:|------:|----------:|---------:|----------:|---------:|--------:|---------:|:------:|"
+        )
+
         for dist, res in results.items():
             emp_kurtosis = res.get("eta_empirical_excess_kurtosis", np.nan)
             homl_avar = res.get("homl_asymptotic_var", np.nan)
@@ -1782,13 +1804,28 @@ Examples:
             homl_avar_str = f"{homl_avar:.4f}" if not np.isnan(homl_avar) else "N/A"
             ica_avar_str = f"{ica_avar:.4f}" if not np.isnan(ica_avar) else "N/A"
             ratio_str = f"{avar_ratio:.4f}" if not np.isnan(avar_ratio) else "N/A"
+
+            # Console output
             print(
                 f"{dist:<16} {emp_kurt_str:>10} {homl_avar_str:>10} {ica_avar_str:>10} {ratio_str:>8} "
                 f"{homl_bias:>10.4f} {homl_std:>10.4f} {homl_rmse:>10.4f} "
                 f"{ica_bias:>10.4f} {ica_std:>10.4f} {ica_rmse:>10.4f} {winner:>8}"
             )
 
+            # Markdown row
+            md_lines.append(
+                f"| {dist} | {emp_kurt_str} | {homl_avar_str} | {ica_avar_str} | {ratio_str} | "
+                f"{homl_bias:.4f} | {homl_std:.4f} | {homl_rmse:.4f} | "
+                f"{ica_bias:.4f} | {ica_std:.4f} | {ica_rmse:.4f} | **{winner}** |"
+            )
+
         print("=" * 180)
+
+        # Save markdown summary to file
+        md_file_path = os.path.join(opts.output_dir, "noise_ablation_summary.md")
+        with open(md_file_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(md_lines))
+        print(f"\nMarkdown summary saved to: {md_file_path}")
 
     return 0
 
