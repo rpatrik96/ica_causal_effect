@@ -147,8 +147,8 @@ def experiment_with_noise_dist(
 
 def run_noise_ablation_experiments(
     noise_distributions: list,
-    n_samples: int = 5000,
-    n_experiments: int = 20,
+    n_samples: int = 50000,
+    n_experiments: int = 10,
     support_size: int = 10,
     treatment_effect: float = 1.0,
     beta: float = 1.0,
@@ -852,7 +852,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
     plt.close()
 
     # Plot 7: Distribution properties table (simplified for HOML and ICA)
-    _, ax = plt.subplots(figsize=(16, 4))
+    _, ax = plt.subplots(figsize=(20, 4))
     ax.axis("off")
 
     table_data = []
@@ -862,7 +862,11 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
         "HOML AVar",
         "ICA AVar",
         "Ratio",
+        "HOML Bias",
+        "HOML Std",
         "HOML RMSE",
+        "ICA Bias",
+        "ICA Std",
         "ICA RMSE",
     ]
 
@@ -870,7 +874,11 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
         homl_avar_val = results[dist].get("homl_asymptotic_var", np.nan)
         ica_avar_val = results[dist].get("ica_asymptotic_var", np.nan)
         avar_ratio_val = ica_avar_val / homl_avar_val if homl_avar_val != 0 and not np.isnan(homl_avar_val) else np.nan
+        homl_bias = results[dist]["biases"][HOML_IDX] if HOML_IDX < len(results[dist]["biases"]) else np.nan
+        homl_std = results[dist]["sigmas"][HOML_IDX] if HOML_IDX < len(results[dist]["sigmas"]) else np.nan
         homl_rmse = results[dist]["rmse"][HOML_IDX] if HOML_IDX < len(results[dist]["rmse"]) else np.nan
+        ica_bias = results[dist]["biases"][ICA_IDX] if ICA_IDX < len(results[dist]["biases"]) else np.nan
+        ica_std = results[dist]["sigmas"][ICA_IDX] if ICA_IDX < len(results[dist]["sigmas"]) else np.nan
         ica_rmse = results[dist]["rmse"][ICA_IDX] if ICA_IDX < len(results[dist]["rmse"]) else np.nan
         empirical_kurt = results[dist].get("eta_empirical_excess_kurtosis", np.nan)
         row = [
@@ -879,14 +887,18 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
             f"{homl_avar_val:.3f}" if not np.isnan(homl_avar_val) else "N/A",
             f"{ica_avar_val:.3f}" if not np.isnan(ica_avar_val) else "N/A",
             f"{avar_ratio_val:.3f}" if not np.isnan(avar_ratio_val) else "N/A",
+            f"{homl_bias:.4f}" if not np.isnan(homl_bias) else "N/A",
+            f"{homl_std:.4f}" if not np.isnan(homl_std) else "N/A",
             f"{homl_rmse:.4f}" if not np.isnan(homl_rmse) else "N/A",
+            f"{ica_bias:.4f}" if not np.isnan(ica_bias) else "N/A",
+            f"{ica_std:.4f}" if not np.isnan(ica_std) else "N/A",
             f"{ica_rmse:.4f}" if not np.isnan(ica_rmse) else "N/A",
         ]
         table_data.append(row)
 
     table = ax.table(cellText=table_data, colLabels=headers, loc="center", cellLoc="center")
     table.auto_set_font_size(False)
-    table.set_fontsize(9)
+    table.set_fontsize(8)
     table.scale(1.2, 1.5)
 
     plt.tight_layout()
@@ -1732,9 +1744,9 @@ Examples:
             )
 
         # Print summary table (HOML and ICA only)
-        print("\n" + "=" * 130)
+        print("\n" + "=" * 180)
         print("SUMMARY: Noise Distribution Ablation Study (HOML and ICA)")
-        print("=" * 130)
+        print("=" * 180)
         print("\nExperiment settings:")
         print(f"  n_samples: {opts.n_samples}")
         print(f"  n_experiments: {opts.n_experiments}")
@@ -1746,18 +1758,24 @@ Examples:
             print(f"  treatment_effect: {opts.treatment_effect}")
         print(f"  covariate_pdf: {opts.covariate_pdf}")
 
-        print("\n" + "-" * 130)
+        print("\n" + "-" * 180)
         print(
-            f"{'Distribution':<20} {'Emp. Kurt.':>12} {'HOML AVar':>12} {'ICA AVar':>12} {'Ratio':>10} {'HOML RMSE':>12} {'ICA RMSE':>12} {'Winner':>10}"
+            f"{'Distribution':<16} {'Emp.Kurt':>10} {'HOML AVar':>10} {'ICA AVar':>10} {'Ratio':>8} "
+            f"{'HOML Bias':>10} {'HOML Std':>10} {'HOML RMSE':>10} "
+            f"{'ICA Bias':>10} {'ICA Std':>10} {'ICA RMSE':>10} {'Winner':>8}"
         )
-        print("-" * 130)
+        print("-" * 180)
 
         for dist, res in results.items():
             emp_kurtosis = res.get("eta_empirical_excess_kurtosis", np.nan)
             homl_avar = res.get("homl_asymptotic_var", np.nan)
             ica_avar = res.get("ica_asymptotic_var", np.nan)
             avar_ratio = ica_avar / homl_avar if homl_avar != 0 and not np.isnan(homl_avar) else np.nan
+            homl_bias = res["biases"][1] if len(res["biases"]) > 1 else np.nan
+            homl_std = res["sigmas"][1] if len(res["sigmas"]) > 1 else np.nan
             homl_rmse = res["rmse"][1] if len(res["rmse"]) > 1 else np.nan
+            ica_bias = res["biases"][4] if len(res["biases"]) > 4 else np.nan
+            ica_std = res["sigmas"][4] if len(res["sigmas"]) > 4 else np.nan
             ica_rmse = res["rmse"][4] if len(res["rmse"]) > 4 else np.nan
             winner = "ICA" if ica_rmse < homl_rmse else "HOML"
             emp_kurt_str = f"{emp_kurtosis:.4f}" if not np.isnan(emp_kurtosis) else "N/A"
@@ -1765,10 +1783,12 @@ Examples:
             ica_avar_str = f"{ica_avar:.4f}" if not np.isnan(ica_avar) else "N/A"
             ratio_str = f"{avar_ratio:.4f}" if not np.isnan(avar_ratio) else "N/A"
             print(
-                f"{dist:<20} {emp_kurt_str:>12} {homl_avar_str:>12} {ica_avar_str:>12} {ratio_str:>10} {homl_rmse:>12.4f} {ica_rmse:>12.4f} {winner:>10}"
+                f"{dist:<16} {emp_kurt_str:>10} {homl_avar_str:>10} {ica_avar_str:>10} {ratio_str:>8} "
+                f"{homl_bias:>10.4f} {homl_std:>10.4f} {homl_rmse:>10.4f} "
+                f"{ica_bias:>10.4f} {ica_std:>10.4f} {ica_rmse:>10.4f} {winner:>8}"
             )
 
-        print("=" * 130)
+        print("=" * 180)
 
     return 0
 
