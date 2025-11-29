@@ -1142,6 +1142,107 @@ def main_loc_scale():
     )
 
 
+def save_comparison_summary_markdown(
+    parameter_name: str,
+    parameter_values: list,
+    series_data: dict,
+    runtime_data: dict,
+    output_path: str,
+    title: str,
+    n_samples: int,
+    n_seeds: int,
+):
+    """Save comparison results summary as a markdown file.
+
+    Args:
+        parameter_name: Name of the parameter being varied (e.g., "Sparsity", "Beta")
+        parameter_values: List of parameter values
+        series_data: Dict mapping method name to (means, stds) tuple
+        runtime_data: Dict mapping method name to (runtime_means, runtime_stds) tuple
+        output_path: Path to save the markdown file
+        title: Title for the summary
+        n_samples: Number of samples used
+        n_seeds: Number of seeds/experiments
+    """
+    md_lines = []
+    md_lines.append(f"# {title}\n")
+    md_lines.append("## Experiment Settings\n")
+    md_lines.append(f"- **n_samples**: {n_samples}")
+    md_lines.append(f"- **n_seeds**: {n_seeds}")
+    md_lines.append(f"- **Parameter varied**: {parameter_name}")
+    md_lines.append("")
+
+    # Get method names
+    methods = list(series_data.keys())
+
+    # Build results table
+    md_lines.append("## Results Summary\n")
+
+    # Header row
+    header = f"| {parameter_name} |"
+    separator = "|:------|"
+    for method in methods:
+        header += f" {method} MSE | {method} Std |"
+        separator += " ---:| ---:|"
+    if runtime_data:
+        for method in methods:
+            header += f" {method} Time (s) | {method} Time Std |"
+            separator += " ---:| ---:|"
+    header += " Winner |"
+    separator += ":------:|"
+
+    md_lines.append(header)
+    md_lines.append(separator)
+
+    # Data rows
+    for i, param_val in enumerate(parameter_values):
+        row = f"| {param_val} |"
+        mse_vals = {}
+        for method in methods:
+            means, stds = series_data[method]
+            mse_val = means[i] if i < len(means) else np.nan
+            std_val = stds[i] if i < len(stds) else np.nan
+            mse_vals[method] = mse_val
+            row += f" {mse_val:.4f} | {std_val:.4f} |" if not np.isnan(mse_val) else " N/A | N/A |"
+
+        if runtime_data:
+            for method in methods:
+                if method in runtime_data:
+                    rt_means, rt_stds = runtime_data[method]
+                    rt_val = rt_means[i] if i < len(rt_means) else np.nan
+                    rt_std = rt_stds[i] if i < len(rt_stds) else np.nan
+                    row += f" {rt_val:.4f} | {rt_std:.4f} |" if not np.isnan(rt_val) else " N/A | N/A |"
+                else:
+                    row += " N/A | N/A |"
+
+        # Determine winner
+        valid_mse = {m: v for m, v in mse_vals.items() if not np.isnan(v)}
+        if valid_mse:
+            winner = min(valid_mse, key=valid_mse.get)
+            row += f" **{winner}** |"
+        else:
+            row += " N/A |"
+
+        md_lines.append(row)
+
+    # Add runtime summary if available
+    if runtime_data:
+        md_lines.append("")
+        md_lines.append("## Runtime Summary\n")
+        for method in methods:
+            if method in runtime_data:
+                rt_means, _ = runtime_data[method]
+                valid_runtimes = [r for r in rt_means if not np.isnan(r)]
+                if valid_runtimes:
+                    avg_runtime = np.mean(valid_runtimes)
+                    md_lines.append(f"- **{method}**: Average runtime = {avg_runtime:.4f}s")
+
+    # Write to file
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(md_lines))
+    print(f"Markdown summary saved to: {output_path}")
+
+
 def main_sparsity_comparison():
     """Run sparsity ablation experiment comparing ICA and DirectLiNGAM."""
     from experiment_runner import ExperimentRunner
@@ -1272,6 +1373,18 @@ def main_sparsity_comparison():
             use_log_scale=True,
         )
 
+    # Save markdown summary
+    save_comparison_summary_markdown(
+        parameter_name="Sparsity",
+        parameter_values=sparsities,
+        series_data=series_data,
+        runtime_data=runtime_data,
+        output_path=f"figures/ica/ica_vs_directlingam_sparsity_n{n_samples}_summary.md",
+        title="ICA vs DirectLiNGAM: Sparsity Comparison",
+        n_samples=n_samples,
+        n_seeds=n_seeds,
+    )
+
 
 def main_gennorm_comparison():
     """Run generalized normal distribution ablation comparing ICA and DirectLiNGAM."""
@@ -1396,6 +1509,18 @@ def main_gennorm_comparison():
             use_log_scale=True,
         )
 
+    # Save markdown summary
+    save_comparison_summary_markdown(
+        parameter_name="Beta",
+        parameter_values=beta_values,
+        series_data=series_data,
+        runtime_data=runtime_data,
+        output_path=f"figures/ica/ica_vs_directlingam_gennorm_n{n_samples}_summary.md",
+        title="ICA vs DirectLiNGAM: Generalized Normal Distribution Comparison",
+        n_samples=n_samples,
+        n_seeds=n_seeds,
+    )
+
 
 def main_sample_size_comparison():
     """Run sample size ablation experiment comparing ICA and DirectLiNGAM."""
@@ -1516,6 +1641,18 @@ def main_sample_size_comparison():
             filename="ica_vs_directlingam_sample_size_runtime.svg",
             use_log_scale=True,
         )
+
+    # Save markdown summary
+    save_comparison_summary_markdown(
+        parameter_name="Sample Size",
+        parameter_values=sample_sizes,
+        series_data=series_data,
+        runtime_data=runtime_data,
+        output_path="figures/ica/ica_vs_directlingam_sample_size_summary.md",
+        title="ICA vs DirectLiNGAM: Sample Size Comparison",
+        n_samples="varied",
+        n_seeds=n_seeds,
+    )
 
 
 def main_n_covariates_comparison():
@@ -1638,6 +1775,18 @@ def main_n_covariates_comparison():
             use_log_scale=True,
         )
 
+    # Save markdown summary
+    save_comparison_summary_markdown(
+        parameter_name="n_covariates",
+        parameter_values=n_covariates_values,
+        series_data=series_data,
+        runtime_data=runtime_data,
+        output_path=f"figures/ica/ica_vs_directlingam_n_covariates_n{n_samples}_summary.md",
+        title="ICA vs DirectLiNGAM: Covariate Dimension Comparison",
+        n_samples=n_samples,
+        n_seeds=n_seeds,
+    )
+
 
 def main_n_treatments_comparison():
     """Run number of treatments ablation experiment comparing ICA and DirectLiNGAM."""
@@ -1758,6 +1907,18 @@ def main_n_treatments_comparison():
             filename=f"ica_vs_directlingam_n_treatments_runtime_n{n_samples}.svg",
             use_log_scale=True,
         )
+
+    # Save markdown summary
+    save_comparison_summary_markdown(
+        parameter_name="n_treatments",
+        parameter_values=n_treatments_values,
+        series_data=series_data,
+        runtime_data=runtime_data,
+        output_path=f"figures/ica/ica_vs_directlingam_n_treatments_n{n_samples}_summary.md",
+        title="ICA vs DirectLiNGAM: Number of Treatments Comparison",
+        n_samples=n_samples,
+        n_seeds=n_seeds,
+    )
 
 
 def save_figure(filename):
