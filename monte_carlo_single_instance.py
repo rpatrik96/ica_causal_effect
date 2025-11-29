@@ -189,7 +189,13 @@ def run_experiments_for_configuration(
             ica_asymptotic_var_num,
             ica_var_coeff,
         ) = var_calculator.calc_ica_asymptotic_var(
-            treatment_coef, outcome_coef, treatment_effect, discounts_or_params, mean_discount, probs, eta_cubed_variance
+            treatment_coef,
+            outcome_coef,
+            treatment_effect,
+            discounts_or_params,
+            mean_discount,
+            probs,
+            eta_cubed_variance,
         )
     else:
         # Use distribution-based calculation for continuous distributions
@@ -393,6 +399,22 @@ def main(args):
         help="Distribution for treatment noise eta: discrete, laplace, uniform, rademacher, gennorm_heavy, gennorm_light",
         default="discrete",
     )
+    parser.add_argument(
+        "--treatment_coef_range",
+        dest="treatment_coef_range",
+        type=float,
+        nargs=2,
+        help="(min, max) range for random treatment coefficients",
+        default=[-5.0, 5.0],
+    )
+    parser.add_argument(
+        "--outcome_coef_range",
+        dest="outcome_coef_range",
+        type=float,
+        nargs=2,
+        help="(min, max) range for random outcome coefficients",
+        default=[-5.0, 5.0],
+    )
 
     opts = parser.parse_args(args)
 
@@ -412,6 +434,8 @@ def main(args):
         matched_coefficients=opts.matched_coefficients,
         scalar_coeffs=opts.scalar_coeffs,
         eta_noise_dist=opts.eta_noise_dist,
+        treatment_coef_range=tuple(opts.treatment_coef_range),
+        outcome_coef_range=tuple(opts.outcome_coef_range),
     )
 
     # Set random seed
@@ -445,8 +469,12 @@ def main(args):
         if config.scalar_coeffs:
             treatment_coef_array = outcome_coef_array = None
         else:
-            treatment_coef_array = np.random.uniform(-5, 5, size=cov_dim_max)
-            outcome_coef_array = np.random.uniform(-5, 5, size=cov_dim_max)
+            treatment_coef_array = np.random.uniform(
+                config.treatment_coef_range[0], config.treatment_coef_range[1], size=cov_dim_max
+            )
+            outcome_coef_array = np.random.uniform(
+                config.outcome_coef_range[0], config.outcome_coef_range[1], size=cov_dim_max
+            )
             if config.matched_coefficients:
                 treatment_coef_array = -outcome_coef_array
 

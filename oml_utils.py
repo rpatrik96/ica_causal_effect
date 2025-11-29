@@ -33,6 +33,8 @@ class OMLExperimentConfig:
         eta_noise_dist: Distribution for treatment noise eta. Options:
             'discrete' (default), 'laplace' (heavy-tailed), 'uniform' (bounded),
             'rademacher' (bounded discrete), 'gennorm_heavy', 'gennorm_light'
+        treatment_coef_range: (min, max) range for random treatment coefficients
+        outcome_coef_range: (min, max) range for random outcome coefficients
     """
 
     n_samples: int = 500
@@ -49,6 +51,8 @@ class OMLExperimentConfig:
     matched_coefficients: bool = False
     scalar_coeffs: bool = True
     eta_noise_dist: str = "discrete"
+    treatment_coef_range: Tuple[float, float] = (-5.0, 5.0)
+    outcome_coef_range: Tuple[float, float] = (-5.0, 5.0)
 
 
 @dataclass
@@ -230,16 +234,18 @@ class OMLResultsContainer:
 
 
 def compute_distribution_moments(
-    distribution: str, params: np.ndarray = None, probs: np.ndarray = None, scale: float = 1.0
+    distribution: str, params: np.ndarray = None, probs: np.ndarray = None, scale: float = 1.0, beta: float = None
 ) -> Dict:
     """Compute analytical moments for different noise distributions.
 
     Args:
         distribution: Type of noise distribution (discrete, laplace, uniform, rademacher,
-                     gennorm_heavy, gennorm_light)
-        params: Distribution parameters (discounts for discrete, or [loc, scale] etc.)
+                     gennorm_heavy, gennorm_light, gennorm)
+        params: Distribution parameters (discounts for discrete, or [beta, loc, scale] for gennorm)
         probs: Probabilities for discrete distributions
         scale: Scale parameter (used for standardization)
+        beta: Shape parameter for generalized normal distribution. If None and distribution
+              is 'gennorm', will be extracted from params[0].
 
     Returns:
         Dictionary with moments: second_moment, third_moment, fourth_moment,
@@ -287,11 +293,11 @@ def compute_distribution_moments(
 
     elif distribution == "gennorm_heavy":
         # Generalized normal with beta=1 (equivalent to Laplace)
-        beta = 1.0
+        gn_beta = 1.0
         # Raw moments of standard gennorm(beta): E[X^n] = Gamma((n+1)/beta) / Gamma(1/beta)
         # For centered (mean=0) symmetric distribution with unit variance
-        gn_var = gamma(3 / beta) / gamma(1 / beta)
-        gn_fourth = gamma(5 / beta) / gamma(1 / beta)
+        gn_var = gamma(3 / gn_beta) / gamma(1 / gn_beta)
+        gn_fourth = gamma(5 / gn_beta) / gamma(1 / gn_beta)
         # Scale to have variance = scale^2
         second_moment = scale**2
         third_moment = 0.0  # Symmetric
@@ -299,9 +305,26 @@ def compute_distribution_moments(
 
     elif distribution == "gennorm_light":
         # Generalized normal with beta=4 (lighter tails than Gaussian)
-        beta = 4.0
-        gn_var = gamma(3 / beta) / gamma(1 / beta)
-        gn_fourth = gamma(5 / beta) / gamma(1 / beta)
+        gn_beta = 4.0
+        gn_var = gamma(3 / gn_beta) / gamma(1 / gn_beta)
+        gn_fourth = gamma(5 / gn_beta) / gamma(1 / gn_beta)
+        # Scale to have variance = scale^2
+        second_moment = scale**2
+        third_moment = 0.0  # Symmetric
+        fourth_moment = (gn_fourth / gn_var**2) * scale**4
+
+    elif distribution == "gennorm":
+        # Generalized normal with arbitrary beta
+        # Extract beta from params[0] if not provided directly
+        if beta is not None:
+            gn_beta = beta
+        elif params is not None and len(params) >= 1:
+            gn_beta = params[0]
+        else:
+            raise ValueError("beta parameter required for gennorm distribution (via beta arg or params[0])")
+
+        gn_var = gamma(3 / gn_beta) / gamma(1 / gn_beta)
+        gn_fourth = gamma(5 / gn_beta) / gamma(1 / gn_beta)
         # Scale to have variance = scale^2
         second_moment = scale**2
         third_moment = 0.0  # Symmetric
@@ -331,7 +354,7 @@ class AsymptoticVarianceCalculator:
 
     @staticmethod
     def calc_homl_asymptotic_var_from_distribution(
-        distribution: str, params: np.ndarray = None, probs: np.ndarray = None, scale: float = 1.0
+        distribution: str, params: np.ndarray = None, probs: np.ndarray = None, scale: float = 1.0, beta: float = None
     ) -> Tuple[float, float, float, float, float, float, float]:
         """Calculate HOML asymptotic variance for any supported distribution.
 
@@ -340,13 +363,14 @@ class AsymptoticVarianceCalculator:
             params: Distribution parameters
             probs: Probabilities for discrete distributions
             scale: Scale parameter
+            beta: Shape parameter for generalized normal distribution
 
         Returns:
             Tuple of (eta_cubed_variance, eta_fourth_moment, eta_non_gauss_cond,
                      eta_second_moment, eta_third_moment, homl_asymptotic_var,
                      homl_asymptotic_var_num)
         """
-        moments = compute_distribution_moments(distribution, params, probs, scale)
+        moments = compute_distribution_moments(distribution, params, probs, scale, beta)
 
         eta_second_moment = moments["second_moment"]
         eta_third_moment = moments["third_moment"]
@@ -482,6 +506,7 @@ class AsymptoticVarianceCalculator:
         params: np.ndarray = None,
         probs: np.ndarray = None,
         scale: float = 1.0,
+        beta: float = None,
     ) -> Tuple[float, float, float, float, float, float]:
         """Calculate ICA asymptotic variance for any supported distribution.
 
@@ -493,12 +518,13 @@ class AsymptoticVarianceCalculator:
             params: Distribution parameters
             probs: Probabilities for discrete distributions
             scale: Scale parameter
+            beta: Shape parameter for generalized normal distribution
 
         Returns:
             Tuple of (eta_excess_kurtosis, eta_skewness_squared, ica_asymptotic_var,
                      ica_asymptotic_var_hyvarinen, ica_asymptotic_var_num, ica_var_coeff)
         """
-        moments = compute_distribution_moments(distribution, params, probs, scale)
+        moments = compute_distribution_moments(distribution, params, probs, scale, beta)
 
         eta_excess_kurtosis = moments["excess_kurtosis"]
         eta_skewness_squared = moments["skewness_squared"]
@@ -603,6 +629,11 @@ def setup_output_dir(config: OMLExperimentConfig) -> str:
     if config.scalar_coeffs:
         dir_parts.append("scalar_coeffs")
 
+    # Add eta noise distribution to output path if not default
+    eta_noise_dist = getattr(config, "eta_noise_dist", "discrete")
+    if eta_noise_dist != "discrete":
+        dir_parts.append(f"eta_{eta_noise_dist}")
+
     output_dir = os.path.join(*dir_parts)
     os.makedirs(output_dir, exist_ok=True)
     return output_dir
@@ -645,5 +676,10 @@ def setup_results_filename(config: OMLExperimentConfig) -> str:
 
     if config.matched_coefficients:
         filename_parts.append("matched_coefficients")
+
+    # Add eta noise distribution to filename if not default
+    eta_noise_dist = getattr(config, "eta_noise_dist", "discrete")
+    if eta_noise_dist != "discrete":
+        filename_parts.append(f"eta_{eta_noise_dist}")
 
     return "_".join(filename_parts) + ".npy"
