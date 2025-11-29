@@ -1736,28 +1736,28 @@ Examples:
     parser.add_argument(
         "--n_random_configs",
         type=int,
-        default=20,
+        default=10,
         help="Number of random coefficient configurations per distribution (when --randomize_coeffs)",
     )
     parser.add_argument(
         "--treatment_effect_range",
         nargs=2,
         type=float,
-        default=[0.01, 5.0],
+        default=[0.001, 5.0],
         help="Range for random treatment effect [min, max]",
     )
     parser.add_argument(
         "--treatment_coef_range",
         nargs=2,
         type=float,
-        default=[-1.5, 1.5],
+        default=[-10.0, 10.0],
         help="Range for random treatment coefficients [min, max]",
     )
     parser.add_argument(
         "--outcome_coef_range",
         nargs=2,
         type=float,
-        default=[-1.5, 1.5],
+        default=[-2.5, 2.5],
         help="Range for random outcome coefficients [min, max]",
     )
 
@@ -1931,7 +1931,8 @@ Examples:
         if opts.randomize_coeffs:
             md_lines.append(f"- **randomize_coeffs**: True (n_random_configs={opts.n_random_configs})")
             md_lines.append(f"- **treatment_effect_range**: {opts.treatment_effect_range}")
-            md_lines.append(f"- **coef_range**: {opts.coef_range}")
+            md_lines.append(f"- **outcome_coef_range**: {opts.outcome_coef_range}")
+            md_lines.append(f"- **treatment_coef_range**: {opts.treatment_coef_range}")
         else:
             md_lines.append(f"- **treatment_effect**: {opts.treatment_effect}")
         md_lines.append(f"- **covariate_pdf**: {opts.covariate_pdf}")
