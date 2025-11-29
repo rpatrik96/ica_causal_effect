@@ -160,7 +160,8 @@ def run_noise_ablation_experiments(
     randomize_coeffs: bool = False,
     n_random_configs: int = 10,
     treatment_effect_range: Tuple[float, float] = (0.1, 5.0),
-    coef_range: Tuple[float, float] = (-2.0, 2.0),
+    treatment_coef_range: Tuple[float, float] = (-2.0, 2.0),
+    outcome_coef_range: Tuple[float, float] = (-2.0, 2.0),
 ):
     """Run experiments across different noise distributions.
 
@@ -179,7 +180,8 @@ def run_noise_ablation_experiments(
         randomize_coeffs: If True, randomize coefficients for each experiment
         n_random_configs: Number of random configurations per distribution
         treatment_effect_range: Range for random treatment effect [min, max]
-        coef_range: Range for random treatment/outcome coefficients [min, max]
+        treatment_coef_range: Range for random treatment coefficients [min, max]
+        outcome_coef_range: Range for random outcome coefficients [min, max]
 
     Returns:
         Dictionary with results for each noise distribution.
@@ -224,8 +226,8 @@ def run_noise_ablation_experiments(
     if randomize_coeffs:
         random_configs = []
         for _ in range(n_random_configs):
-            tc_val = np.random.uniform(coef_range[0], coef_range[1])
-            oc_val = np.random.uniform(coef_range[0], coef_range[1])
+            tc_val = np.random.uniform(treatment_coef_range[0], treatment_coef_range[1])
+            oc_val = np.random.uniform(outcome_coef_range[0], outcome_coef_range[1])
             te_val = np.random.uniform(treatment_effect_range[0], treatment_effect_range[1])
             random_configs.append((tc_val, oc_val, te_val))
         print(f"Generated {n_random_configs} random coefficient configurations")
@@ -1186,7 +1188,8 @@ def plot_noise_ablation_coeff_scatter(
     results: dict,
     output_dir: str = "figures/noise_ablation",
     n_configs: int = 0,
-    coef_range: Tuple[float, float] = (-2.0, 2.0),
+    treatment_coef_range: Tuple[float, float] = (-2.0, 2.0),
+    outcome_coef_range: Tuple[float, float] = (-2.0, 2.0),
     treatment_effect_range: Tuple[float, float] = (0.1, 5.0),
 ):
     """Plot RMSE/bias differences vs coefficient values when using randomized coefficients.
@@ -1198,11 +1201,16 @@ def plot_noise_ablation_coeff_scatter(
         results: Dictionary with results for each noise distribution (must have config_results)
         output_dir: Directory to save figures
         n_configs: Number of random configs (for filename)
-        coef_range: Range for coefficients (for filename)
+        treatment_coef_range: Range for treatment coefficients (for filename)
+        outcome_coef_range: Range for outcome coefficients (for filename)
         treatment_effect_range: Range for treatment effect (for filename)
     """
     # Create filename suffix with config info
-    suffix = f"_n{n_configs}_coef{coef_range[0]:.1f}to{coef_range[1]:.1f}_te{treatment_effect_range[0]:.1f}to{treatment_effect_range[1]:.1f}"
+    suffix = (
+        f"_n{n_configs}_tc{treatment_coef_range[0]:.1f}to{treatment_coef_range[1]:.1f}"
+        f"_oc{outcome_coef_range[0]:.1f}to{outcome_coef_range[1]:.1f}"
+        f"_te{treatment_effect_range[0]:.1f}to{treatment_effect_range[1]:.1f}"
+    )
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -1739,11 +1747,18 @@ Examples:
         help="Range for random treatment effect [min, max]",
     )
     parser.add_argument(
-        "--coef_range",
+        "--treatment_coef_range",
         nargs=2,
         type=float,
         default=[-1.5, 1.5],
-        help="Range for random treatment/outcome coefficients [min, max]",
+        help="Range for random treatment coefficients [min, max]",
+    )
+    parser.add_argument(
+        "--outcome_coef_range",
+        nargs=2,
+        type=float,
+        default=[-1.5, 1.5],
+        help="Range for random outcome coefficients [min, max]",
     )
 
     # Coefficient ablation arguments
@@ -1832,11 +1847,12 @@ Examples:
 
         # Use different results file for randomized vs fixed coefficients
         if opts.randomize_coeffs:
-            coef_range = tuple(opts.coef_range)
+            tc_range = tuple(opts.treatment_coef_range)
+            oc_range = tuple(opts.outcome_coef_range)
             te_range = tuple(opts.treatment_effect_range)
             results_file = os.path.join(
                 opts.output_dir,
-                f"noise_ablation_results_n{opts.n_random_configs}_coef{coef_range[0]:.1f}to{coef_range[1]:.1f}_te{te_range[0]:.1f}to{te_range[1]:.1f}.npy",
+                f"noise_ablation_results_n{opts.n_random_configs}_tc{tc_range[0]:.1f}to{tc_range[1]:.1f}_oc{oc_range[0]:.1f}to{oc_range[1]:.1f}_te{te_range[0]:.1f}to{te_range[1]:.1f}.npy",
             )
         else:
             results_file = os.path.join(opts.output_dir, "noise_ablation_results.npy")
@@ -1860,7 +1876,8 @@ Examples:
                 randomize_coeffs=opts.randomize_coeffs,
                 n_random_configs=opts.n_random_configs,
                 treatment_effect_range=tuple(opts.treatment_effect_range),
-                coef_range=tuple(opts.coef_range),
+                treatment_coef_range=tuple(opts.treatment_coef_range),
+                outcome_coef_range=tuple(opts.outcome_coef_range),
             )
 
             os.makedirs(opts.output_dir, exist_ok=True)
@@ -1876,7 +1893,8 @@ Examples:
                 results,
                 opts.output_dir,
                 n_configs=opts.n_random_configs,
-                coef_range=coef_range,
+                treatment_coef_range=tc_range,
+                outcome_coef_range=oc_range,
                 treatment_effect_range=te_range,
             )
 
@@ -1890,7 +1908,8 @@ Examples:
         if opts.randomize_coeffs:
             print(f"  randomize_coeffs: True (n_random_configs={opts.n_random_configs})")
             print(f"  treatment_effect_range: {opts.treatment_effect_range}")
-            print(f"  coef_range: {opts.coef_range}")
+            print(f"  treatment_coef_range: {opts.treatment_coef_range}")
+            print(f"  outcome_coef_range: {opts.outcome_coef_range}")
         else:
             print(f"  treatment_effect: {opts.treatment_effect}")
         print(f"  covariate_pdf: {opts.covariate_pdf}")
