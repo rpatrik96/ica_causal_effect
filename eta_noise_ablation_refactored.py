@@ -330,6 +330,175 @@ def run_noise_ablation_experiments(
 
 
 # =============================================================================
+# Variance Ablation Experiments
+# =============================================================================
+
+
+def run_variance_ablation_experiments(
+    beta_values: List[float] = None,
+    variance_values: List[float] = None,
+    n_samples: int = 5000,
+    n_experiments: int = 20,
+    support_size: int = 10,
+    treatment_effect: float = 1.0,
+    covariate_beta: float = 1.0,
+    sigma_outcome: float = np.sqrt(3.0),
+    covariate_pdf: str = "gennorm",
+    check_convergence: bool = False,
+    verbose: bool = False,
+    seed: int = 12143,
+) -> dict:
+    """Run experiments varying gennorm beta and variance.
+
+    Creates a grid of experiments over beta (shape) and variance values for
+    the treatment noise distribution.
+
+    Args:
+        beta_values: List of gennorm beta values (shape parameter)
+        variance_values: List of variance values (scale^2)
+        n_samples: Number of samples per experiment
+        n_experiments: Number of Monte Carlo replications
+        support_size: Size of support for coefficients
+        treatment_effect: True treatment effect value
+        covariate_beta: Beta parameter for gennorm covariate distribution
+        sigma_outcome: Standard deviation of outcome noise
+        covariate_pdf: Distribution for covariates
+        check_convergence: Whether to check ICA convergence
+        verbose: Enable verbose output
+        seed: Random seed
+
+    Returns:
+        Dictionary with results organized by (beta, variance) pairs
+    """
+    # Default grids
+    if beta_values is None:
+        beta_values = [0.5, 1.0, 1.5, 2.5, 3.0, 4.0]
+    if variance_values is None:
+        variance_values = [0.25, 0.5, 1.0, 2.0, 4.0]
+
+    np.random.seed(seed)
+
+    # Setup samplers using shared utilities
+    x_sample = create_covariate_sampler(covariate_pdf, covariate_beta)
+    epsilon_sample = create_outcome_noise_sampler(sigma_outcome)
+
+    # Setup base coefficients
+    cov_dim_max = support_size
+    treatment_support = outcome_support = np.array(range(support_size))
+
+    # Fixed scalar coefficients
+    treatment_coef = np.zeros(support_size)
+    treatment_coef[0] = 1.0
+    outcome_coef = np.zeros(support_size)
+    outcome_coef[0] = 1.0
+
+    # Compute regularization parameter
+    lambda_reg = np.sqrt(np.log(cov_dim_max) / n_samples)
+
+    # Calculate ICA variance coefficient (fixed for this experiment)
+    ica_var_coeff = 1 + np.linalg.norm(outcome_coef + treatment_coef * treatment_effect) ** 2
+
+    all_results = {
+        "beta_values": np.array(beta_values),
+        "variance_values": np.array(variance_values),
+        "treatment_effect": treatment_effect,
+        "ica_var_coeff": ica_var_coeff,
+        "grid_results": {},
+    }
+
+    total_configs = len(beta_values) * len(variance_values)
+    config_idx = 0
+
+    for beta_val in beta_values:
+        for var_val in variance_values:
+            config_idx += 1
+            scale_val = np.sqrt(var_val)  # variance = scale^2
+
+            print(f"\n[{config_idx}/{total_configs}] beta={beta_val}, variance={var_val} (scale={scale_val:.4f})")
+
+            # Skip Gaussian (beta=2) as ICA doesn't work
+            if abs(beta_val - 2.0) < 0.01:
+                print("  Skipping beta=2.0 (Gaussian) - ICA not applicable")
+                all_results["grid_results"][(beta_val, var_val)] = None
+                continue
+
+            # Setup treatment noise with custom beta and scale
+            params_or_discounts, eta_sample, mean_discount, probs = setup_treatment_noise(
+                distribution="gennorm", gennorm_beta=beta_val, scale=scale_val
+            )
+
+            # Calculate moments using shared utility
+            moments = calculate_homl_moments("gennorm", params_or_discounts, mean_discount, probs)
+            eta_second_moment = moments["eta_second_moment"]
+            eta_third_moment = moments["eta_third_moment"]
+            eta_cubed_variance = moments["eta_cubed_variance"]
+            homl_asymptotic_var = moments["homl_asymptotic_var"]
+
+            # Calculate ICA moments
+            ica_moments = calculate_ica_moments(
+                "gennorm",
+                treatment_coef,
+                outcome_coef,
+                treatment_effect,
+                params_or_discounts,
+                mean_discount,
+                probs,
+                eta_cubed_variance,
+            )
+            eta_excess_kurtosis = ica_moments["eta_excess_kurtosis"]
+            ica_asymptotic_var = ica_moments["ica_asymptotic_var"]
+
+            # Run parallel experiments
+            results = run_parallel_experiments(
+                n_experiments=n_experiments,
+                x_sample=x_sample,
+                eta_sample=eta_sample,
+                epsilon_sample=epsilon_sample,
+                n_samples=n_samples,
+                cov_dim_max=cov_dim_max,
+                treatment_effect=treatment_effect,
+                treatment_support=treatment_support,
+                treatment_coef=treatment_coef,
+                outcome_support=outcome_support,
+                outcome_coef=outcome_coef,
+                eta_second_moment=eta_second_moment,
+                eta_third_moment=eta_third_moment,
+                lambda_reg=lambda_reg,
+                check_convergence=check_convergence,
+                verbose=verbose,
+            )
+
+            print(f"  Experiments kept: {len(results)} out of {n_experiments}")
+
+            if len(results) == 0:
+                print("  No experiments converged")
+                all_results["grid_results"][(beta_val, var_val)] = None
+                continue
+
+            # Extract and compute statistics
+            ortho_rec_tau = extract_treatment_estimates(results)
+            biases, sigmas, rmse = compute_estimation_statistics(ortho_rec_tau, treatment_effect)
+
+            # Store results
+            all_results["grid_results"][(beta_val, var_val)] = {
+                "biases": biases,
+                "sigmas": sigmas,
+                "rmse": rmse,
+                "n_experiments": len(results),
+                "eta_excess_kurtosis": eta_excess_kurtosis,
+                "homl_asymptotic_var": homl_asymptotic_var,
+                "ica_asymptotic_var": ica_asymptotic_var,
+            }
+
+            # Print summary
+            print(f"  HOML: bias={biases[HOML_IDX]:.4f}, std={sigmas[HOML_IDX]:.4f}, rmse={rmse[HOML_IDX]:.4f}")
+            if ICA_IDX < len(biases):
+                print(f"  ICA:  bias={biases[ICA_IDX]:.4f}, std={sigmas[ICA_IDX]:.4f}, rmse={rmse[ICA_IDX]:.4f}")
+
+    return all_results
+
+
+# =============================================================================
 # Coefficient Ablation Experiments
 # =============================================================================
 
@@ -1692,6 +1861,299 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     print(f"\nCoefficient ablation plots saved to {output_dir}")
 
 
+def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/variance_ablation"):
+    """Plot heatmaps for variance ablation study.
+
+    Creates heatmaps with beta (gennorm shape) on x-axis and variance on y-axis,
+    showing bias, std, and RMSE for both HOML and ICA methods, plus their differences.
+
+    Args:
+        results: Dictionary with variance ablation results
+        output_dir: Directory to save figures
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    _setup_plot()
+
+    beta_values = results["beta_values"]
+    variance_values = results["variance_values"]
+    grid_results = results["grid_results"]
+
+    n_betas = len(beta_values)
+    n_vars = len(variance_values)
+
+    # Initialize heatmap arrays
+    homl_bias_grid = np.full((n_vars, n_betas), np.nan)
+    homl_std_grid = np.full((n_vars, n_betas), np.nan)
+    homl_rmse_grid = np.full((n_vars, n_betas), np.nan)
+    ica_bias_grid = np.full((n_vars, n_betas), np.nan)
+    ica_std_grid = np.full((n_vars, n_betas), np.nan)
+    ica_rmse_grid = np.full((n_vars, n_betas), np.nan)
+
+    # Fill in the grids
+    for i, var_val in enumerate(variance_values):
+        for j, beta_val in enumerate(beta_values):
+            res = grid_results.get((beta_val, var_val))
+            if res is None:
+                continue
+
+            homl_bias_grid[i, j] = np.abs(res["biases"][HOML_IDX])
+            homl_std_grid[i, j] = res["sigmas"][HOML_IDX]
+            homl_rmse_grid[i, j] = res["rmse"][HOML_IDX]
+
+            if ICA_IDX < len(res["biases"]):
+                ica_bias_grid[i, j] = np.abs(res["biases"][ICA_IDX])
+                ica_std_grid[i, j] = res["sigmas"][ICA_IDX]
+                ica_rmse_grid[i, j] = res["rmse"][ICA_IDX]
+
+    # Compute difference grids
+    bias_diff_grid = ica_bias_grid - homl_bias_grid
+    std_diff_grid = ica_std_grid - homl_std_grid
+    rmse_diff_grid = ica_rmse_grid - homl_rmse_grid
+
+    def plot_single_heatmap(data, title, filename, cbar_label, diverging=False, log_scale=False):
+        """Plot a single heatmap."""
+        fig, ax = plt.subplots(figsize=(10, 7))
+
+        if diverging:
+            vmax = np.nanmax(np.abs(data))
+            vmin = -vmax
+            cmap = "RdYlGn_r"  # Red = ICA worse, Green = ICA better
+        else:
+            if log_scale:
+                # For log scale, use log10 of data for display
+                data_display = np.log10(data + 1e-10)
+                vmin, vmax = np.nanmin(data_display), np.nanmax(data_display)
+            else:
+                vmin, vmax = np.nanmin(data), np.nanmax(data)
+            cmap = "viridis"
+            data_display = data if not log_scale else data_display
+
+        im = ax.imshow(
+            data_display if log_scale else data,
+            aspect="auto",
+            origin="lower",
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+        )
+
+        # Set axis labels
+        ax.set_xticks(np.arange(n_betas))
+        ax.set_xticklabels([f"{b:.1f}" for b in beta_values], fontsize=9)
+        ax.set_yticks(np.arange(n_vars))
+        ax.set_yticklabels([f"{v:.2f}" for v in variance_values], fontsize=9)
+
+        ax.set_xlabel(r"$\beta$ (gennorm shape)", fontsize=10)
+        ax.set_ylabel(r"Variance $\sigma^2$", fontsize=10)
+        ax.set_title(title, fontsize=11)
+
+        # Add value annotations
+        for i in range(n_vars):
+            for j in range(n_betas):
+                val = data[i, j]
+                if not np.isnan(val):
+                    if diverging:
+                        color = "white" if abs(val) > vmax * 0.5 else "black"
+                    else:
+                        val_norm = (val - vmin) / (vmax - vmin + 1e-10) if not log_scale else 0.5
+                        color = "white" if val_norm > 0.5 or val_norm < 0.3 else "black"
+                    ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=color, fontsize=7)
+
+        # Add colorbar
+        cbar_label_final = cbar_label + (" (log10)" if log_scale else "")
+        cbar = fig.colorbar(im, ax=ax, label=cbar_label_final, location="right", shrink=0.8, pad=0.02)
+        cbar.ax.tick_params(labelsize=8)
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
+        plt.close()
+
+    # Plot individual method heatmaps
+    plot_single_heatmap(homl_bias_grid, r"HOML $|\mathrm{Bias}|$", "homl_bias_heatmap.svg", r"$|\mathrm{Bias}|$")
+    plot_single_heatmap(homl_std_grid, "HOML Standard Deviation", "homl_std_heatmap.svg", "Std")
+    plot_single_heatmap(homl_rmse_grid, "HOML RMSE", "homl_rmse_heatmap.svg", "RMSE")
+
+    plot_single_heatmap(ica_bias_grid, r"ICA $|\mathrm{Bias}|$", "ica_bias_heatmap.svg", r"$|\mathrm{Bias}|$")
+    plot_single_heatmap(ica_std_grid, "ICA Standard Deviation", "ica_std_heatmap.svg", "Std")
+    plot_single_heatmap(ica_rmse_grid, "ICA RMSE", "ica_rmse_heatmap.svg", "RMSE")
+
+    # Plot difference heatmaps (diverging colormap)
+    plot_single_heatmap(
+        bias_diff_grid,
+        r"$|\mathrm{Bias}|$ Difference (ICA - HOML)" + "\n(Red = HOML better, Green = ICA better)",
+        "bias_diff_heatmap.svg",
+        r"$|\mathrm{Bias}|$ Diff",
+        diverging=True,
+    )
+    plot_single_heatmap(
+        std_diff_grid,
+        "Std Difference (ICA - HOML)\n(Red = HOML better, Green = ICA better)",
+        "std_diff_heatmap.svg",
+        "Std Diff",
+        diverging=True,
+    )
+    plot_single_heatmap(
+        rmse_diff_grid,
+        "RMSE Difference (ICA - HOML)\n(Red = HOML better, Green = ICA better)",
+        "rmse_diff_heatmap.svg",
+        "RMSE Diff",
+        diverging=True,
+    )
+
+    # Create combined 2x3 figure for main metrics
+    fig, axes = plt.subplots(2, 3, figsize=(16, 10))
+
+    metrics = [
+        (homl_bias_grid, r"HOML $|\mathrm{Bias}|$"),
+        (homl_std_grid, "HOML Std"),
+        (homl_rmse_grid, "HOML RMSE"),
+        (ica_bias_grid, r"ICA $|\mathrm{Bias}|$"),
+        (ica_std_grid, "ICA Std"),
+        (ica_rmse_grid, "ICA RMSE"),
+    ]
+
+    for ax, (data, title) in zip(axes.flat, metrics):
+        vmin, vmax = np.nanmin(data), np.nanmax(data)
+        im = ax.imshow(data, aspect="auto", origin="lower", cmap="viridis", vmin=vmin, vmax=vmax)
+        ax.set_xticks(np.arange(n_betas))
+        ax.set_xticklabels([f"{b:.1f}" for b in beta_values], fontsize=8)
+        ax.set_yticks(np.arange(n_vars))
+        ax.set_yticklabels([f"{v:.2f}" for v in variance_values], fontsize=8)
+        ax.set_xlabel(r"$\beta$", fontsize=9)
+        ax.set_ylabel(r"Var", fontsize=9)
+        ax.set_title(title, fontsize=10)
+        fig.colorbar(im, ax=ax, shrink=0.8, pad=0.02)
+
+    fig.suptitle(r"Estimation Metrics vs $\beta$ and Variance", fontsize=12)
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.savefig(os.path.join(output_dir, "combined_metrics_heatmap.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    # Create combined 1x3 figure for differences
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+
+    diff_metrics = [
+        (bias_diff_grid, r"$|\mathrm{Bias}|$ Diff"),
+        (std_diff_grid, "Std Diff"),
+        (rmse_diff_grid, "RMSE Diff"),
+    ]
+
+    for ax, (data, title) in zip(axes, diff_metrics):
+        vmax = np.nanmax(np.abs(data))
+        vmin = -vmax
+        im = ax.imshow(data, aspect="auto", origin="lower", cmap="RdYlGn_r", vmin=vmin, vmax=vmax)
+        ax.set_xticks(np.arange(n_betas))
+        ax.set_xticklabels([f"{b:.1f}" for b in beta_values], fontsize=8)
+        ax.set_yticks(np.arange(n_vars))
+        ax.set_yticklabels([f"{v:.2f}" for v in variance_values], fontsize=8)
+        ax.set_xlabel(r"$\beta$", fontsize=9)
+        ax.set_ylabel(r"Var", fontsize=9)
+        ax.set_title(title, fontsize=10)
+        fig.colorbar(im, ax=ax, shrink=0.8, pad=0.02)
+
+    fig.suptitle("ICA - HOML Differences (Red = HOML better, Green = ICA better)", fontsize=12)
+    plt.tight_layout(rect=[0, 0, 1, 0.92])
+    plt.savefig(os.path.join(output_dir, "combined_diff_heatmap.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    print(f"\nVariance ablation heatmaps saved to {output_dir}")
+
+
+def print_variance_ablation_summary(results: dict, opts) -> None:
+    """Print summary table for variance ablation study.
+
+    Args:
+        results: Dictionary with variance ablation results
+        opts: Parsed command-line options
+    """
+    print("\n" + "=" * 140)
+    print("SUMMARY: Variance Ablation Study")
+    print("=" * 140)
+    print("\nExperiment settings:")
+    print(f"  n_samples: {opts.n_samples}")
+    print(f"  n_experiments: {opts.n_experiments}")
+    print(f"  treatment_effect: {opts.treatment_effect}")
+    print(f"  beta_values: {list(results['beta_values'])}")
+    print(f"  variance_values: {list(results['variance_values'])}")
+
+    print("\n" + "-" * 140)
+    print(
+        f"{'Beta':>6} {'Var':>8} {'Kurt':>10} "
+        f"{'HOML Bias':>10} {'HOML Std':>10} {'HOML RMSE':>10} "
+        f"{'ICA Bias':>10} {'ICA Std':>10} {'ICA RMSE':>10} {'Winner':>8}"
+    )
+    print("-" * 140)
+
+    for beta_val in results["beta_values"]:
+        for var_val in results["variance_values"]:
+            res = results["grid_results"].get((beta_val, var_val))
+            if res is None:
+                print(f"{beta_val:>6.1f} {var_val:>8.2f} {'N/A':>10} " + "N/A" * 7)
+                continue
+
+            homl_bias = res["biases"][HOML_IDX]
+            homl_std = res["sigmas"][HOML_IDX]
+            homl_rmse = res["rmse"][HOML_IDX]
+            ica_bias = res["biases"][ICA_IDX] if ICA_IDX < len(res["biases"]) else np.nan
+            ica_std = res["sigmas"][ICA_IDX] if ICA_IDX < len(res["sigmas"]) else np.nan
+            ica_rmse = res["rmse"][ICA_IDX] if ICA_IDX < len(res["rmse"]) else np.nan
+            kurtosis = res.get("eta_excess_kurtosis", np.nan)
+            winner = "ICA" if ica_rmse < homl_rmse else "HOML"
+
+            print(
+                f"{beta_val:>6.1f} {var_val:>8.2f} {kurtosis:>10.4f} "
+                f"{homl_bias:>10.4f} {homl_std:>10.4f} {homl_rmse:>10.4f} "
+                f"{ica_bias:>10.4f} {ica_std:>10.4f} {ica_rmse:>10.4f} {winner:>8}"
+            )
+
+    print("=" * 140)
+
+    # Save markdown summary
+    md_lines = []
+    md_lines.append("# Variance Ablation Study Results\n")
+    md_lines.append("## Experiment Settings\n")
+    md_lines.append(f"- **n_samples**: {opts.n_samples}")
+    md_lines.append(f"- **n_experiments**: {opts.n_experiments}")
+    md_lines.append(f"- **treatment_effect**: {opts.treatment_effect}")
+    md_lines.append(f"- **beta_values**: {list(results['beta_values'])}")
+    md_lines.append(f"- **variance_values**: {list(results['variance_values'])}")
+    md_lines.append("")
+    md_lines.append("## Results Summary\n")
+    md_lines.append(
+        "| Beta | Variance | Kurtosis | HOML Bias | HOML Std | HOML RMSE | ICA Bias | ICA Std | ICA RMSE | Winner |"
+    )
+    md_lines.append(
+        "|-----:|---------:|---------:|----------:|---------:|----------:|---------:|--------:|---------:|:------:|"
+    )
+
+    for beta_val in results["beta_values"]:
+        for var_val in results["variance_values"]:
+            res = results["grid_results"].get((beta_val, var_val))
+            if res is None:
+                md_lines.append(f"| {beta_val:.1f} | {var_val:.2f} | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |")
+                continue
+
+            homl_bias = res["biases"][HOML_IDX]
+            homl_std = res["sigmas"][HOML_IDX]
+            homl_rmse = res["rmse"][HOML_IDX]
+            ica_bias = res["biases"][ICA_IDX] if ICA_IDX < len(res["biases"]) else np.nan
+            ica_std = res["sigmas"][ICA_IDX] if ICA_IDX < len(res["sigmas"]) else np.nan
+            ica_rmse = res["rmse"][ICA_IDX] if ICA_IDX < len(res["rmse"]) else np.nan
+            kurtosis = res.get("eta_excess_kurtosis", np.nan)
+            winner = "ICA" if ica_rmse < homl_rmse else "HOML"
+
+            md_lines.append(
+                f"| {beta_val:.1f} | {var_val:.2f} | {kurtosis:.4f} | "
+                f"{homl_bias:.4f} | {homl_std:.4f} | {homl_rmse:.4f} | "
+                f"{ica_bias:.4f} | {ica_std:.4f} | {ica_rmse:.4f} | **{winner}** |"
+            )
+
+    md_file_path = os.path.join(opts.output_dir, "variance_ablation_summary.md")
+    with open(md_file_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(md_lines))
+    print(f"\nMarkdown summary saved to: {md_file_path}")
+
+
 # =============================================================================
 # Summary Printing Functions
 # =============================================================================
@@ -1847,12 +2309,18 @@ Examples:
 
   # Run coefficient ablation
   python eta_noise_ablation_refactored.py --coefficient_ablation
+
+  # Run variance ablation (beta vs variance heatmaps)
+  python eta_noise_ablation_refactored.py --variance_ablation
+
+  # Run variance ablation with custom grid
+  python eta_noise_ablation_refactored.py --variance_ablation --variance_beta_values 0.5 1.0 1.5 2.5 3.0 --variance_values 0.5 1.0 2.0 4.0
         """,
     )
 
     # Common arguments
     parser.add_argument("--n_samples", type=int, default=5000, help="Number of samples per experiment")
-    parser.add_argument("--n_experiments", type=int, default=20, help="Number of Monte Carlo replications")
+    parser.add_argument("--n_experiments", type=int, default=22, help="Number of Monte Carlo replications")
     parser.add_argument("--support_size", type=int, default=10, help="Support size for coefficients")
     parser.add_argument("--beta", type=float, default=1.0, help="Beta parameter for gennorm covariates")
     parser.add_argument("--sigma_outcome", type=float, default=np.sqrt(3.0), help="Outcome noise std")
@@ -1872,14 +2340,14 @@ Examples:
     )
     parser.add_argument("--gennorm_betas", nargs="+", type=float, default=None, help="Gennorm beta values to add")
     parser.add_argument("--randomize_coeffs", action="store_true", help="Randomize coefficients")
-    parser.add_argument("--n_random_configs", type=int, default=33, help="Number of random configs")
+    parser.add_argument("--n_random_configs", type=int, default=11, help="Number of random configs")
     parser.add_argument(
-        "--treatment_effect_range", nargs=2, type=float, default=[0.001, 5.0], help="Treatment effect range"
+        "--treatment_effect_range", nargs=2, type=float, default=[0.001, 0.2], help="Treatment effect range"
     )
     parser.add_argument(
         "--treatment_coef_range", nargs=2, type=float, default=[-10.0, 10.0], help="Treatment coef range"
     )
-    parser.add_argument("--outcome_coef_range", nargs=2, type=float, default=[-2.5, 2.5], help="Outcome coef range")
+    parser.add_argument("--outcome_coef_range", nargs=2, type=float, default=[-0.5, 0.5], help="Outcome coef range")
 
     # Coefficient ablation arguments
     parser.add_argument("--coefficient_ablation", action="store_true", help="Run coefficient ablation")
@@ -1887,11 +2355,61 @@ Examples:
         "--noise_distribution", type=str, default="discrete", help="Noise distribution for coef ablation"
     )
 
+    # Variance ablation arguments
+    parser.add_argument("--variance_ablation", action="store_true", help="Run variance ablation")
+    parser.add_argument(
+        "--variance_beta_values",
+        nargs="+",
+        type=float,
+        default=[0.5, 1.0, 1.5, 2.5, 3.0, 4.0],
+        help="Gennorm beta values for variance ablation",
+    )
+    parser.add_argument(
+        "--variance_values",
+        nargs="+",
+        type=float,
+        default=[0.25, 0.5, 1.0, 2.0, 4.0],
+        help="Variance values (scale^2) for variance ablation",
+    )
+
     if args is None:
         args = sys.argv[1:]
     opts = parser.parse_args(args)
 
-    if opts.coefficient_ablation:
+    if opts.variance_ablation:
+        # Run variance ablation
+        var_output_dir = os.path.join(opts.output_dir, "variance_ablation")
+        results_file = os.path.join(var_output_dir, "variance_ablation_results.npy")
+
+        if os.path.exists(results_file):
+            print(f"Loading existing results from {results_file}")
+            var_results = np.load(results_file, allow_pickle=True).item()
+        else:
+            var_results = run_variance_ablation_experiments(
+                beta_values=opts.variance_beta_values,
+                variance_values=opts.variance_values,
+                n_samples=opts.n_samples,
+                n_experiments=opts.n_experiments,
+                support_size=opts.support_size,
+                treatment_effect=opts.treatment_effect,
+                covariate_beta=opts.beta,
+                sigma_outcome=opts.sigma_outcome,
+                covariate_pdf=opts.covariate_pdf,
+                check_convergence=opts.check_convergence,
+                verbose=opts.verbose,
+                seed=opts.seed,
+            )
+
+            os.makedirs(var_output_dir, exist_ok=True)
+            np.save(results_file, var_results)
+            print(f"Results saved to {results_file}")
+
+        plot_variance_ablation_heatmaps(var_results, var_output_dir)
+
+        # Print summary
+        print_variance_ablation_summary(var_results, opts)
+
+    elif opts.coefficient_ablation:
         # Run coefficient ablation
         coef_output_dir = os.path.join(opts.output_dir, "coefficient_ablation")
         results_file = os.path.join(coef_output_dir, "coefficient_ablation_results.npy")
