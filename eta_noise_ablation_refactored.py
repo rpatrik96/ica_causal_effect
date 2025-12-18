@@ -34,6 +34,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.stats import kurtosis as scipy_kurtosis
 from tueplots import bundles
 
@@ -55,7 +56,7 @@ from ablation_utils import (
     run_parallel_experiments,
 )
 from oml_runner import setup_treatment_noise
-from plot_utils import plot_typography
+from plot_utils import add_legend_outside, plot_typography
 
 # =============================================================================
 # Distribution Parsing
@@ -663,7 +664,7 @@ def run_coefficient_ablation_experiments(
 def _setup_plot():
     """Initialize matplotlib settings for publication-quality plots."""
     plt.rcParams.update(bundles.icml2022(usetex=True))
-    plot_typography()
+    plot_typography(preset="publication")
 
 
 def _get_comparison_color(diff: float, ica_better: bool = True) -> str:
@@ -721,12 +722,11 @@ def plot_metric_comparison_bars(
             values.append(val)
         ax.bar(x + i * width, values, width, label=method_name, color=color)
 
-    ax.set_xlabel("Noise Distribution", fontsize=9)
-    ax.set_ylabel(ylabel, fontsize=9)
+    ax.set_xlabel("Noise Distribution")
+    ax.set_ylabel(ylabel)
     ax.set_xticks(x + width / 2)
-    ax.set_xticklabels([get_distribution_label(d) for d in noise_dists], rotation=45, ha="right", fontsize=8)
-    ax.tick_params(axis="y", labelsize=8)
-    ax.legend(loc="upper right", fontsize=8)
+    ax.set_xticklabels([get_distribution_label(d) for d in noise_dists], rotation=45, ha="right")
+    add_legend_outside(ax)
     ax.set_yscale("log")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
@@ -771,12 +771,11 @@ def plot_metric_difference_bars(
     _, ax = plt.subplots(figsize=(10, 6))
     ax.bar(x, diffs, width=0.6, color=colors)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel("Noise Distribution", fontsize=9)
-    ax.set_ylabel(ylabel, fontsize=9)
+    ax.set_xlabel("Noise Distribution")
+    ax.set_ylabel(ylabel)
     ax.set_xticks(x)
-    ax.set_xticklabels([get_distribution_label(d) for d in noise_dists], rotation=45, ha="right", fontsize=8)
-    ax.tick_params(axis="y", labelsize=8)
-    ax.set_title(title, fontsize=10)
+    ax.set_xticklabels([get_distribution_label(d) for d in noise_dists], rotation=45, ha="right")
+    ax.set_title(title)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
     plt.close()
@@ -836,18 +835,16 @@ def plot_metric_vs_kurtosis(
         ax.annotate(
             get_distribution_label(dist)[:8],
             (kurtosis_values[i], homl_values[i]),
-            fontsize=6,
             ha="center",
             va="bottom",
             xytext=(0, 5),
             textcoords="offset points",
         )
 
-    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
-    ax.set_ylabel(ylabel, fontsize=9)
-    ax.tick_params(axis="both", labelsize=8)
-    ax.legend(loc="best", fontsize=8)
-    ax.set_title(title, fontsize=10)
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$")
+    ax.set_ylabel(ylabel)
+    add_legend_outside(ax)
+    ax.set_title(title)
     ax.grid(True, alpha=0.3)
     ax.set_yscale("log")
     plt.tight_layout()
@@ -902,17 +899,15 @@ def plot_diff_vs_kurtosis(
         ax.annotate(
             get_distribution_label(dist)[:8],
             (kurtosis_values[i], diffs[i]),
-            fontsize=6,
             ha="center",
             va="bottom",
             xytext=(0, 5),
             textcoords="offset points",
         )
 
-    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
-    ax.set_ylabel(ylabel, fontsize=9)
-    ax.tick_params(axis="both", labelsize=8)
-    ax.set_title(title, fontsize=10)
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
@@ -954,12 +949,11 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
     colors_ratio = [ICA_BETTER_COLOR if r < 1 else HOML_BETTER_COLOR for r in avar_ratio]
     ax.bar(x, avar_ratio, width=0.6, color=colors_ratio)
     ax.axhline(y=1, color="black", linestyle="--", linewidth=1, label="Equal variance")
-    ax.set_xlabel("Noise Distribution", fontsize=9)
-    ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / HOML)", fontsize=9)
+    ax.set_xlabel("Noise Distribution")
+    ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / HOML)")
     ax.set_xticks(x)
-    ax.set_xticklabels([get_distribution_label(d) for d in noise_dists], rotation=45, ha="right", fontsize=8)
-    ax.tick_params(axis="y", labelsize=8)
-    ax.set_title("Asymptotic Variance Ratio: ICA / HOML\n(Green = ICA lower, Red = HOML lower)", fontsize=10)
+    ax.set_xticklabels([get_distribution_label(d) for d in noise_dists], rotation=45, ha="right")
+    ax.set_title("Asymptotic Variance Ratio: ICA / HOML\n(Green = ICA lower, Red = HOML lower)")
     ax.set_yscale("log")
     ax.grid(True, alpha=0.3, axis="y")
     plt.tight_layout()
@@ -971,13 +965,12 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
     width = 0.35
     ax.bar(x - width / 2, homl_avar, width, label="HOML", color=HOML_COLOR)
     ax.bar(x + width / 2, ica_avar, width, label="ICA", color=ICA_COLOR)
-    ax.set_xlabel("Noise Distribution", fontsize=9)
-    ax.set_ylabel("Asymptotic Variance", fontsize=9)
+    ax.set_xlabel("Noise Distribution")
+    ax.set_ylabel("Asymptotic Variance")
     ax.set_xticks(x)
-    ax.set_xticklabels([get_distribution_label(d) for d in noise_dists], rotation=45, ha="right", fontsize=8)
-    ax.tick_params(axis="y", labelsize=8)
-    ax.legend(loc="upper right", fontsize=8)
-    ax.set_title("Asymptotic Variance: HOML vs ICA", fontsize=10)
+    ax.set_xticklabels([get_distribution_label(d) for d in noise_dists], rotation=45, ha="right")
+    add_legend_outside(ax)
+    ax.set_title("Asymptotic Variance: HOML vs ICA")
     ax.set_yscale("log")
     ax.grid(True, alpha=0.3, axis="y")
     plt.tight_layout()
@@ -994,16 +987,14 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
             ax.annotate(
                 get_distribution_label(dist)[:8],
                 (kurtosis_values[i], avar_ratio[i]),
-                fontsize=6,
                 ha="center",
                 va="bottom",
                 xytext=(0, 5),
                 textcoords="offset points",
             )
-    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
-    ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / HOML)", fontsize=9)
-    ax.tick_params(axis="both", labelsize=8)
-    ax.set_title("Asymptotic Variance Ratio vs Kurtosis\n(Green = ICA lower, Red = HOML lower)", fontsize=10)
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$")
+    ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / HOML)")
+    ax.set_title("Asymptotic Variance Ratio vs Kurtosis\n(Green = ICA lower, Red = HOML lower)")
     ax.set_yscale("log")
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -1019,17 +1010,15 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
             ax.annotate(
                 get_distribution_label(dist)[:8],
                 (kurtosis_values[i], homl_avar[i]),
-                fontsize=6,
                 ha="center",
                 va="bottom",
                 xytext=(0, 5),
                 textcoords="offset points",
             )
-    ax.set_xlabel(r"Excess Kurtosis $\kappa$", fontsize=9)
-    ax.set_ylabel("Asymptotic Variance", fontsize=9)
-    ax.tick_params(axis="both", labelsize=8)
-    ax.legend(loc="best", fontsize=8)
-    ax.set_title("Asymptotic Variance vs Excess Kurtosis", fontsize=10)
+    ax.set_xlabel(r"Excess Kurtosis $\kappa$")
+    ax.set_ylabel("Asymptotic Variance")
+    add_legend_outside(ax)
+    ax.set_title("Asymptotic Variance vs Excess Kurtosis")
     ax.set_yscale("log")
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -1277,11 +1266,9 @@ def plot_distribution_diff_heatmap(results: dict, output_dir: str = "figures/noi
 
     # Set ticks and labels
     ax.set_xticks(np.arange(len(labels)))
-    ax.set_xticklabels(
-        [f"{lbl}\n(κ={k:.2f})" for lbl, k in zip(labels, kurtosis_vals)], fontsize=9, rotation=45, ha="right"
-    )
+    ax.set_xticklabels([f"{lbl}\n(κ={k:.2f})" for lbl, k in zip(labels, kurtosis_vals)], rotation=45, ha="right")
     ax.set_yticks(np.arange(len(metrics)))
-    ax.set_yticklabels(metrics, fontsize=10)
+    ax.set_yticklabels(metrics)
 
     # Add value annotations
     for i in range(len(metrics)):
@@ -1289,14 +1276,15 @@ def plot_distribution_diff_heatmap(results: dict, output_dir: str = "figures/noi
             val = heatmap_data[i, j]
             if not np.isnan(val):
                 color = "white" if abs(val) > vmax * 0.5 else "black"
-                ax.text(j, i, f"{val:.4f}", ha="center", va="center", color=color, fontsize=8)
+                ax.text(j, i, f"{val:.4f}", ha="center", va="center", color=color)
 
-    ax.set_title("ICA - HOML Differences by Distribution\n(Red = HOML better, Green = ICA better)", fontsize=11)
-    ax.set_xlabel("Distribution (sorted by kurtosis)", fontsize=10)
+    ax.set_title("ICA - HOML Differences by Distribution\n(Red = HOML better, Green = ICA better)")
+    ax.set_xlabel("Distribution (sorted by kurtosis)")
 
-    # Add colorbar on the right side
-    cbar = fig.colorbar(im, ax=ax, label="Difference (ICA - HOML)", location="right", shrink=0.8, pad=0.02)
-    cbar.ax.tick_params(labelsize=8)
+    # Add colorbar next to the plot
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.15)
+    fig.colorbar(im, cax=cax, label="Difference (ICA - HOML)")
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "distribution_diff_heatmap.svg"), dpi=300, bbox_inches="tight")
@@ -1414,12 +1402,11 @@ def plot_noise_ablation_coeff_scatter(
         ax.scatter(x_vals, y_vals, c=[dist_colors[dist]], alpha=0.6, s=40, label=dist[:12])
 
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"ICA Var Coeff: $1 + \|b + a\theta\|_2^2$", fontsize=9)
-    ax.set_ylabel("RMSE Diff (ICA - HOML)", fontsize=9)
+    ax.set_xlabel(r"ICA Var Coeff: $1 + \|b + a\theta\|_2^2$")
+    ax.set_ylabel("RMSE Diff (ICA - HOML)")
     ax.set_xscale("log")
-    ax.tick_params(axis="both", labelsize=8)
-    ax.legend(fontsize=7, loc="best", ncol=2)
-    ax.set_title("RMSE Diff vs ICA Var Coeff (by distribution)", fontsize=10)
+    add_legend_outside(ax, loc="right", ncol=2)
+    ax.set_title("RMSE Diff vs ICA Var Coeff (by distribution)")
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_rmse_vs_ica_var{suffix}.svg"), dpi=300, bbox_inches="tight")
@@ -1432,39 +1419,37 @@ def plot_noise_ablation_coeff_scatter(
     ax = axes[0, 0]
     ax.scatter(treatment_effects, rmse_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Treatment Effect $\theta$", fontsize=9)
-    ax.set_ylabel("RMSE Diff", fontsize=9)
-    ax.set_title(r"RMSE Diff vs $\theta$", fontsize=10)
+    ax.set_xlabel(r"Treatment Effect $\theta$")
+    ax.set_ylabel("RMSE Diff")
+    ax.set_title(r"RMSE Diff vs $\theta$")
     ax.grid(True, alpha=0.3)
 
     ax = axes[0, 1]
     ax.scatter(treatment_coefs, rmse_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Treatment Coef $a$", fontsize=9)
-    ax.set_ylabel("RMSE Diff", fontsize=9)
-    ax.set_title(r"RMSE Diff vs $a$", fontsize=10)
+    ax.set_xlabel(r"Treatment Coef $a$")
+    ax.set_ylabel("RMSE Diff")
+    ax.set_title(r"RMSE Diff vs $a$")
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 0]
     ax.scatter(outcome_coefs, rmse_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Outcome Coef $b$", fontsize=9)
-    ax.set_ylabel("RMSE Diff", fontsize=9)
-    ax.set_title(r"RMSE Diff vs $b$", fontsize=10)
+    ax.set_xlabel(r"Outcome Coef $b$")
+    ax.set_ylabel("RMSE Diff")
+    ax.set_title(r"RMSE Diff vs $b$")
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 1]
     ax.scatter(ica_var_coeffs, rmse_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"ICA Var Coeff", fontsize=9)
-    ax.set_ylabel("RMSE Diff", fontsize=9)
+    ax.set_xlabel(r"ICA Var Coeff")
+    ax.set_ylabel("RMSE Diff")
     ax.set_xscale("log")
-    ax.set_title(r"RMSE Diff vs ICA Var Coeff", fontsize=10)
+    ax.set_title(r"RMSE Diff vs ICA Var Coeff")
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle(
-        "RMSE Difference (ICA - HOML) vs Coefficient Values\n(Green = ICA better, Red = HOML better)", fontsize=11
-    )
+    fig.suptitle("RMSE Difference (ICA - HOML) vs Coefficient Values\n(Green = ICA better, Red = HOML better)")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_rmse_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -1541,39 +1526,37 @@ def plot_noise_ablation_std_scatter(
     ax = axes[0, 0]
     ax.scatter(treatment_effects, std_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Treatment Effect $\theta$", fontsize=9)
-    ax.set_ylabel("Std Diff", fontsize=9)
-    ax.set_title(r"Std Diff vs $\theta$", fontsize=10)
+    ax.set_xlabel(r"Treatment Effect $\theta$")
+    ax.set_ylabel("Std Diff")
+    ax.set_title(r"Std Diff vs $\theta$")
     ax.grid(True, alpha=0.3)
 
     ax = axes[0, 1]
     ax.scatter(treatment_coefs, std_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Treatment Coef $a$", fontsize=9)
-    ax.set_ylabel("Std Diff", fontsize=9)
-    ax.set_title(r"Std Diff vs $a$", fontsize=10)
+    ax.set_xlabel(r"Treatment Coef $a$")
+    ax.set_ylabel("Std Diff")
+    ax.set_title(r"Std Diff vs $a$")
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 0]
     ax.scatter(outcome_coefs, std_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Outcome Coef $b$", fontsize=9)
-    ax.set_ylabel("Std Diff", fontsize=9)
-    ax.set_title(r"Std Diff vs $b$", fontsize=10)
+    ax.set_xlabel(r"Outcome Coef $b$")
+    ax.set_ylabel("Std Diff")
+    ax.set_title(r"Std Diff vs $b$")
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 1]
     ax.scatter(ica_var_coeffs, std_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"ICA Var Coeff", fontsize=9)
-    ax.set_ylabel("Std Diff", fontsize=9)
+    ax.set_xlabel(r"ICA Var Coeff")
+    ax.set_ylabel("Std Diff")
     ax.set_xscale("log")
-    ax.set_title(r"Std Diff vs ICA Var Coeff", fontsize=10)
+    ax.set_title(r"Std Diff vs ICA Var Coeff")
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle(
-        "Std Difference (ICA - HOML) vs Coefficient Values\n(Green = ICA better, Red = HOML better)", fontsize=11
-    )
+    fig.suptitle("Std Difference (ICA - HOML) vs Coefficient Values\n(Green = ICA better, Red = HOML better)")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_std_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -1709,19 +1692,20 @@ def plot_diff_heatmaps(
         # Set x-axis ticks to distribution labels with kurtosis
         ax.set_xticks(np.arange(n_dists))
         x_labels = [f"{dist_data[d]['label']}\n(κ={dist_data[d]['kurtosis']:.2f})" for d in sorted_dists]
-        ax.set_xticklabels(x_labels, fontsize=8, rotation=45, ha="right")
+        ax.set_xticklabels(x_labels, rotation=45, ha="right")
 
         # Set y-axis ticks to outcome coefficient bin centers
         ax.set_yticks(np.arange(n_outcome_bins))
-        ax.set_yticklabels([f"{oc:.2f}" for oc in outcome_centers], fontsize=8)
+        ax.set_yticklabels([f"{oc:.2f}" for oc in outcome_centers])
 
-        ax.set_xlabel("Distribution (sorted by kurtosis)", fontsize=10)
-        ax.set_ylabel(r"Outcome Coefficient $b$", fontsize=10)
-        ax.set_title(title, fontsize=11)
+        ax.set_xlabel("Distribution (sorted by kurtosis)")
+        ax.set_ylabel(r"Outcome Coefficient $b$")
+        ax.set_title(title)
 
-        # Add colorbar on the right side
-        cbar = fig.colorbar(im, ax=ax, label=cbar_label, location="right", shrink=0.8, pad=0.02)
-        cbar.ax.tick_params(labelsize=8)
+        # Add colorbar next to the plot
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.15)
+        fig.colorbar(im, cax=cax, label=cbar_label)
 
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
@@ -1775,20 +1759,19 @@ def plot_diff_heatmaps(
 
         ax.set_xticks(np.arange(n_dists))
         x_labels = [f"{dist_data[d]['label']}\n(κ={dist_data[d]['kurtosis']:.1f})" for d in sorted_dists]
-        ax.set_xticklabels(x_labels, fontsize=7, rotation=45, ha="right")
+        ax.set_xticklabels(x_labels, rotation=45, ha="right")
         ax.set_yticks(np.arange(0, n_outcome_bins, 2))
-        ax.set_yticklabels([f"{outcome_centers[i]:.2f}" for i in range(0, n_outcome_bins, 2)], fontsize=7)
-        ax.set_xlabel("Distribution", fontsize=9)
-        ax.set_ylabel(r"Outcome Coef $b$", fontsize=9)
-        ax.set_title(title, fontsize=10)
+        ax.set_yticklabels([f"{outcome_centers[i]:.2f}" for i in range(0, n_outcome_bins, 2)])
+        ax.set_xlabel("Distribution")
+        ax.set_ylabel(r"Outcome Coef $b$")
+        ax.set_title(title)
 
-        # Add colorbar on the right side of each subplot
-        cbar = fig.colorbar(im, ax=ax, location="right", shrink=0.8, pad=0.02)
-        cbar.ax.tick_params(labelsize=7)
+        # Add colorbar next to each subplot
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)
+        fig.colorbar(im, cax=cax)
 
-    fig.suptitle(
-        "ICA - HOML Differences vs Distribution and Outcome Coef\n(Red = HOML better, Green = ICA better)", fontsize=11
-    )
+    fig.suptitle("ICA - HOML Differences vs Distribution and Outcome Coef\n(Red = HOML better, Green = ICA better)")
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.savefig(os.path.join(output_dir, f"heatmap_combined{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -1821,7 +1804,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     ax.set_ylabel("RMSE")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.legend(loc="best")
+    add_legend_outside(ax)
     ax.set_title("RMSE vs ICA Variance Coefficient")
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -1836,7 +1819,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     ax.set_ylabel(r"$|\mathrm{Bias}|$")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.legend(loc="best")
+    add_legend_outside(ax)
     ax.set_title("Absolute Bias vs ICA Variance Coefficient")
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -1939,13 +1922,13 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
 
         # Set axis labels
         ax.set_xticks(np.arange(n_betas))
-        ax.set_xticklabels([f"{b:.1f}" for b in beta_values], fontsize=9)
+        ax.set_xticklabels([f"{b:.1f}" for b in beta_values])
         ax.set_yticks(np.arange(n_vars))
-        ax.set_yticklabels([f"{v:.2f}" for v in variance_values], fontsize=9)
+        ax.set_yticklabels([f"{v:.2f}" for v in variance_values])
 
-        ax.set_xlabel(r"$\beta$ (gennorm shape)", fontsize=10)
-        ax.set_ylabel(r"Variance $\sigma^2$", fontsize=10)
-        ax.set_title(title, fontsize=11)
+        ax.set_xlabel(r"$\beta$ (gennorm shape)")
+        ax.set_ylabel(r"Variance $\sigma^2$")
+        ax.set_title(title)
 
         # Add value annotations
         for i in range(n_vars):
@@ -1957,12 +1940,13 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
                     else:
                         val_norm = (val - vmin) / (vmax - vmin + 1e-10) if not log_scale else 0.5
                         color = "white" if val_norm > 0.5 or val_norm < 0.3 else "black"
-                    ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=color, fontsize=7)
+                    ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=color)
 
-        # Add colorbar
+        # Add colorbar next to the plot
         cbar_label_final = cbar_label + (" (log10)" if log_scale else "")
-        cbar = fig.colorbar(im, ax=ax, label=cbar_label_final, location="right", shrink=0.8, pad=0.02)
-        cbar.ax.tick_params(labelsize=8)
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.15)
+        fig.colorbar(im, cax=cax, label=cbar_label_final)
 
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
@@ -2016,15 +2000,17 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
         vmin, vmax = np.nanmin(data), np.nanmax(data)
         im = ax.imshow(data, aspect="auto", origin="lower", cmap="viridis", vmin=vmin, vmax=vmax)
         ax.set_xticks(np.arange(n_betas))
-        ax.set_xticklabels([f"{b:.1f}" for b in beta_values], fontsize=8)
+        ax.set_xticklabels([f"{b:.1f}" for b in beta_values])
         ax.set_yticks(np.arange(n_vars))
-        ax.set_yticklabels([f"{v:.2f}" for v in variance_values], fontsize=8)
-        ax.set_xlabel(r"$\beta$", fontsize=9)
-        ax.set_ylabel(r"Var", fontsize=9)
-        ax.set_title(title, fontsize=10)
-        fig.colorbar(im, ax=ax, shrink=0.8, pad=0.02)
+        ax.set_yticklabels([f"{v:.2f}" for v in variance_values])
+        ax.set_xlabel(r"$\beta$")
+        ax.set_ylabel(r"Var")
+        ax.set_title(title)
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)
+        fig.colorbar(im, cax=cax)
 
-    fig.suptitle(r"Estimation Metrics vs $\beta$ and Variance", fontsize=12)
+    fig.suptitle(r"Estimation Metrics vs $\beta$ and Variance")
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.savefig(os.path.join(output_dir, "combined_metrics_heatmap.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -2043,15 +2029,17 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
         vmin = -vmax
         im = ax.imshow(data, aspect="auto", origin="lower", cmap="RdYlGn_r", vmin=vmin, vmax=vmax)
         ax.set_xticks(np.arange(n_betas))
-        ax.set_xticklabels([f"{b:.1f}" for b in beta_values], fontsize=8)
+        ax.set_xticklabels([f"{b:.1f}" for b in beta_values])
         ax.set_yticks(np.arange(n_vars))
-        ax.set_yticklabels([f"{v:.2f}" for v in variance_values], fontsize=8)
-        ax.set_xlabel(r"$\beta$", fontsize=9)
-        ax.set_ylabel(r"Var", fontsize=9)
-        ax.set_title(title, fontsize=10)
-        fig.colorbar(im, ax=ax, shrink=0.8, pad=0.02)
+        ax.set_yticklabels([f"{v:.2f}" for v in variance_values])
+        ax.set_xlabel(r"$\beta$")
+        ax.set_ylabel(r"Var")
+        ax.set_title(title)
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)
+        fig.colorbar(im, cax=cax)
 
-    fig.suptitle("ICA - HOML Differences (Red = HOML better, Green = ICA better)", fontsize=12)
+    fig.suptitle("ICA - HOML Differences (Red = HOML better, Green = ICA better)")
     plt.tight_layout(rect=[0, 0, 1, 0.92])
     plt.savefig(os.path.join(output_dir, "combined_diff_heatmap.svg"), dpi=300, bbox_inches="tight")
     plt.close()

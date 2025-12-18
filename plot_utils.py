@@ -5,17 +5,24 @@ import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib import rc
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-def plot_typography(usetex: bool = False, small: int = 28, medium: int = 34, big: int = 40):
+def plot_typography(usetex: bool = False, small: int = 28, medium: int = 34, big: int = 40, preset: str = None):
     """
     Initializes font settings and visualization backend (LaTeX or standard matplotlib).
-    :param usetex: flag to indicate the usage of LaTeX (needs LaTeX indstalled)
-    :param small: small font size in pt (for legends and axes' ticks)
-    :param medium: medium font size in pt (for axes' labels)
-    :param big: big font size in pt (for titles)
-    :return:
+
+    Args:
+        usetex: flag to indicate the usage of LaTeX (needs LaTeX installed)
+        small: small font size in pt (for legends and axes' ticks)
+        medium: medium font size in pt (for axes' labels)
+        big: big font size in pt (for titles)
+        preset: If "publication", uses smaller fonts suitable for multi-panel figures:
+                small=9, medium=10, big=11. Overrides small/medium/big if set.
     """
+    # Apply preset if specified
+    if preset == "publication":
+        small, medium, big = 9, 10, 11
 
     # font family
     rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
@@ -34,6 +41,30 @@ def plot_typography(usetex: bool = False, small: int = 28, medium: int = 34, big
     rc("ytick", labelsize=small)  # fontsize of the tick labels
     rc("legend", fontsize=small)  # legend fontsize
     rc("figure", titlesize=big)  # fontsize of the figure title
+
+
+def add_legend_outside(ax, loc="right", **kwargs):
+    """
+    Add legend outside the plot area to avoid occlusion.
+
+    Args:
+        ax: Matplotlib axes object
+        loc: Position for legend - "right" (default), "top", or "bottom"
+        **kwargs: Additional arguments passed to ax.legend()
+
+    Returns:
+        The axes object for chaining
+    """
+    if loc == "right":
+        ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), **kwargs)
+    elif loc == "top":
+        ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=99, **kwargs)
+    elif loc == "bottom":
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=99, **kwargs)
+    else:
+        # Fallback to standard legend if unknown loc
+        ax.legend(loc=loc, **kwargs)
+    return ax
 
 
 def plot_estimates(
@@ -792,8 +823,8 @@ def plot_asymptotic_var_comparison(
                     bias_difference_matrix[i, j] = homl_bias_matrix[i, j] - ica_bias_matrix[i, j]
 
         # Plot heatmap for ICA biases
-        plt.figure(figsize=(10, 8))
-        plt.imshow(
+        fig, ax = plt.subplots(figsize=(10, 8))
+        im = ax.imshow(
             ica_bias_matrix,
             aspect="auto",
             cmap="viridis",
@@ -805,15 +836,18 @@ def plot_asymptotic_var_comparison(
                 treatment_coef_unique.max(),
             ],
         )
-        plt.colorbar(label="ICA Error")
-        plt.xlabel("Outcome Coefficient")
-        plt.ylabel("Treatment Coefficient")
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.15)
+        fig.colorbar(im, cax=cax, label="ICA Error")
+        ax.set_xlabel("Outcome Coefficient")
+        ax.set_ylabel("Treatment Coefficient")
+        plt.tight_layout()
         plt.savefig(os.path.join(experiment_dir, "heatmap_ica_biases.svg"), dpi=300, bbox_inches="tight")
         plt.close()
 
         # Plot heatmap for HOML biases
-        plt.figure(figsize=(10, 8))
-        plt.imshow(
+        fig, ax = plt.subplots(figsize=(10, 8))
+        im = ax.imshow(
             homl_bias_matrix,
             aspect="auto",
             cmap="viridis",
@@ -825,16 +859,19 @@ def plot_asymptotic_var_comparison(
                 treatment_coef_unique.max(),
             ],
         )
-        plt.colorbar(label="HOML Bias")
-        plt.xlabel("Outcome Coefficient")
-        plt.ylabel("Treatment Coefficient")
-        plt.title("Heatmap of HOML Biases")
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.15)
+        fig.colorbar(im, cax=cax, label="HOML Bias")
+        ax.set_xlabel("Outcome Coefficient")
+        ax.set_ylabel("Treatment Coefficient")
+        ax.set_title("Heatmap of HOML Biases")
+        plt.tight_layout()
         plt.savefig(os.path.join(experiment_dir, "heatmap_homl_biases.svg"), dpi=300, bbox_inches="tight")
         plt.close()
 
         # Plot heatmap for the difference in biases (HOML - ICA)
-        plt.figure(figsize=(10, 8))
-        plt.imshow(
+        fig, ax = plt.subplots(figsize=(10, 8))
+        im = ax.imshow(
             bias_difference_matrix,
             aspect="auto",
             cmap="coolwarm",
@@ -846,9 +883,12 @@ def plot_asymptotic_var_comparison(
                 treatment_coef_unique.max(),
             ],
         )
-        plt.colorbar(label="Error Difference (HOML - ICA)")
-        plt.xlabel("Outcome Coefficient")
-        plt.ylabel("Treatment Coefficient")
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.15)
+        fig.colorbar(im, cax=cax, label="Error Difference (HOML - ICA)")
+        ax.set_xlabel("Outcome Coefficient")
+        ax.set_ylabel("Treatment Coefficient")
+        plt.tight_layout()
         plt.savefig(os.path.join(experiment_dir, "heatmap_bias_differences.svg"), dpi=300, bbox_inches="tight")
         plt.close()
 
@@ -876,8 +916,8 @@ def plot_asymptotic_var_comparison(
                         discrete_bias_difference_matrix[i, j] = 0
 
         # Plot discrete heatmap for the difference in biases
-        plt.figure(figsize=(10, 8))
-        plt.imshow(
+        fig, ax = plt.subplots(figsize=(10, 8))
+        im = ax.imshow(
             discrete_bias_difference_matrix,
             aspect="auto",
             cmap="bwr",
@@ -889,9 +929,12 @@ def plot_asymptotic_var_comparison(
                 treatment_coef_unique.max(),
             ],
         )
-        plt.colorbar(ticks=[-1, 0, 1], label="Error Difference (HOML - ICA)")
-        plt.xlabel("Outcome Coefficient")
-        plt.ylabel("Treatment Coefficient")
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.15)
+        fig.colorbar(im, cax=cax, ticks=[-1, 0, 1], label="Error Difference (HOML - ICA)")
+        ax.set_xlabel("Outcome Coefficient")
+        ax.set_ylabel("Treatment Coefficient")
+        plt.tight_layout()
         plt.savefig(os.path.join(experiment_dir, "discrete_heatmap_bias_differences.svg"), dpi=300, bbox_inches="tight")
         plt.close()
 
