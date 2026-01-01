@@ -13,7 +13,7 @@ import numpy as np
 import seaborn as sns
 from tueplots import bundles
 
-from plot_utils import plot_typography
+from plot_utils import add_legend_outside, plot_typography
 
 
 def setup_experiment_environment():
@@ -22,7 +22,7 @@ def setup_experiment_environment():
     This function consolidates the repeated setup code from all main_* functions.
     """
     plt.rcParams.update(bundles.icml2022(usetex=True))
-    plot_typography()
+    plot_typography(preset="publication")
 
 
 def save_figure(filename: str, output_dir: str = "figures/ica"):
@@ -101,9 +101,9 @@ def plot_error_bars(
     plt.errorbar(bar_positions, means, yerr=std_devs, fmt="o", capsize=5)
 
     if x_ticks is not None:
-        plt.xticks(bar_positions, x_ticks, fontsize=18)
+        plt.xticks(bar_positions, x_ticks)
     else:
-        plt.xticks(bar_positions, [f"{x:.2f}" for x in x_values], fontsize=18)
+        plt.xticks(bar_positions, [f"{x:.2f}" for x in x_values])
 
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -112,7 +112,7 @@ def plot_error_bars(
         plt.yscale("log")
 
     if labels:
-        plt.legend(labels)
+        add_legend_outside(plt.gca())
 
     save_figure(filename, output_dir)
 
@@ -152,7 +152,7 @@ def plot_multiple_error_bars(
     if use_log_scale:
         plt.yscale("log")
 
-    plt.legend()
+    add_legend_outside(plt.gca())
     save_figure(filename, output_dir)
 
 
@@ -208,6 +208,6 @@ def plot_runtime_comparison(
     if use_log_scale:
         plt.yscale("log")
 
-    plt.legend()
+    add_legend_outside(plt.gca())
     plt.grid(axis="y", linestyle="--", alpha=0.7)
     save_figure(filename, output_dir)

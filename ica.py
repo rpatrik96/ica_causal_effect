@@ -1964,13 +1964,13 @@ if __name__ == "__main__":
 
     # ===== Comparison experiments (ICA vs DirectLiNGAM) =====
     # print("\nRunning sparsity comparison (ICA vs DirectLiNGAM)...")
-    # main_sparsity_comparison()
+    main_sparsity_comparison()
 
     # print("\nRunning gennorm comparison (ICA vs DirectLiNGAM)...")
-    # main_gennorm_comparison()
+    main_gennorm_comparison()
 
     print("\nRunning sample size comparison (ICA vs DirectLiNGAM)...")
-    # main_sample_size_comparison()
+    main_sample_size_comparison()
 
     main_n_treatments_comparison()
     main_n_covariates_comparison()
