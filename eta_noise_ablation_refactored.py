@@ -2308,7 +2308,7 @@ Examples:
 
     # Common arguments
     parser.add_argument("--n_samples", type=int, default=5000, help="Number of samples per experiment")
-    parser.add_argument("--n_experiments", type=int, default=22, help="Number of Monte Carlo replications")
+    parser.add_argument("--n_experiments", type=int, default=20, help="Number of Monte Carlo replications")
     parser.add_argument("--support_size", type=int, default=10, help="Support size for coefficients")
     parser.add_argument("--beta", type=float, default=1.0, help="Beta parameter for gennorm covariates")
     parser.add_argument("--sigma_outcome", type=float, default=np.sqrt(3.0), help="Outcome noise std")
@@ -2328,7 +2328,7 @@ Examples:
     )
     parser.add_argument("--gennorm_betas", nargs="+", type=float, default=None, help="Gennorm beta values to add")
     parser.add_argument("--randomize_coeffs", action="store_true", help="Randomize coefficients")
-    parser.add_argument("--n_random_configs", type=int, default=11, help="Number of random configs")
+    parser.add_argument("--n_random_configs", type=int, default=20, help="Number of random configs")
     parser.add_argument(
         "--treatment_effect_range", nargs=2, type=float, default=[0.001, 0.2], help="Treatment effect range"
     )
