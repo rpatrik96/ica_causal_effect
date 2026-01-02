@@ -61,7 +61,16 @@ def plot_heatmap(
         output_dir: Directory to save the figure in
     """
     plt.figure(figsize=(10, 8))
-    sns.heatmap(data, xticklabels=x_labels, yticklabels=y_labels, cmap="coolwarm", annot=True, fmt=".2f", center=center)
+    sns.heatmap(
+        data,
+        xticklabels=x_labels,
+        yticklabels=y_labels,
+        cmap="coolwarm",
+        annot=True,
+        fmt=".2f",
+        annot_kws={"size": 10},
+        center=center,
+    )
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     save_figure(filename, output_dir)

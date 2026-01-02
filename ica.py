@@ -303,7 +303,14 @@ def main_multi():
     def plot_heatmap(data, x_labels, y_labels, x_label, y_label, _title, filename, center=0):
         plt.figure(figsize=(10, 8))
         sns.heatmap(
-            data, xticklabels=x_labels, yticklabels=y_labels, cmap="coolwarm", annot=True, fmt=".2f", center=center
+            data,
+            xticklabels=x_labels,
+            yticklabels=y_labels,
+            cmap="coolwarm",
+            annot=True,
+            fmt=".2f",
+            annot_kws={"size": 10},
+            center=center,
         )
         plt.xlabel(x_label)
         plt.ylabel(y_label)
@@ -594,7 +601,15 @@ def main_nonlinear():
 
     # Plot heatmap
     plt.figure(figsize=(10, 8))
-    sns.heatmap(heatmap_data, xticklabels=nonlinearities, yticklabels=dimensions, cmap="coolwarm", annot=True)
+    sns.heatmap(
+        heatmap_data,
+        xticklabels=nonlinearities,
+        yticklabels=dimensions,
+        cmap="coolwarm",
+        annot=True,
+        fmt=".2f",
+        annot_kws={"size": 10},
+    )
     plt.xlabel("Nonlinearity")
     plt.ylabel(r"Covariate dimension $d$")
     # plt.title('Heatmap of MSEs: Dimension vs Nonlinearity')
@@ -602,7 +617,15 @@ def main_nonlinear():
     plt.close()
 
     plt.figure(figsize=(10, 8))
-    sns.heatmap(heatmap_data_std, xticklabels=nonlinearities, yticklabels=dimensions, cmap="coolwarm", annot=True)
+    sns.heatmap(
+        heatmap_data_std,
+        xticklabels=nonlinearities,
+        yticklabels=dimensions,
+        cmap="coolwarm",
+        annot=True,
+        fmt=".2f",
+        annot_kws={"size": 10},
+    )
     plt.xlabel("Nonlinearity")
     plt.ylabel(r"Covariate dimension $d$")
     # plt.title('Heatmap of MSEs: Dimension vs Nonlinearity')
@@ -644,7 +667,15 @@ def main_nonlinear():
 
     # Plot heatmap
     plt.figure(figsize=(10, 8))
-    sns.heatmap(heatmap_data, xticklabels=slopes, yticklabels=dimensions, cmap="coolwarm", annot=True)
+    sns.heatmap(
+        heatmap_data,
+        xticklabels=slopes,
+        yticklabels=dimensions,
+        cmap="coolwarm",
+        annot=True,
+        fmt=".2f",
+        annot_kws={"size": 10},
+    )
     plt.xlabel("Slope")
     plt.ylabel(r"Covariate dimension $d$")
     # plt.title('Heatmap of MCCs: Dimension vs Slope for Leaky ReLU')
@@ -771,7 +802,13 @@ def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, _x_tick
 def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename):
     plt.figure(figsize=(12, 9))
     sns.heatmap(
-        data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap="coolwarm", annot=True, annot_kws={"size": 18}
+        data_matrix,
+        xticklabels=x_labels,
+        yticklabels=y_labels,
+        cmap="coolwarm",
+        annot=True,
+        fmt=".2f",
+        annot_kws={"size": 10},
     )
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)

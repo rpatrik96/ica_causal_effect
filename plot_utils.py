@@ -836,6 +836,18 @@ def plot_asymptotic_var_comparison(
                 treatment_coef_unique.max(),
             ],
         )
+        # Add value annotations
+        for i, _ in enumerate(treatment_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+            for j, _ in enumerate(outcome_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+                ax.text(
+                    outcome_coef_unique[j],
+                    treatment_coef_unique[i],
+                    f"{ica_bias_matrix[i, j]:.2f}",
+                    ha="center",
+                    va="center",
+                    color="white" if ica_bias_matrix[i, j] > ica_bias_matrix.max() / 2 else "black",
+                    fontsize=10,
+                )
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
         fig.colorbar(im, cax=cax, label="ICA Error")
@@ -859,6 +871,18 @@ def plot_asymptotic_var_comparison(
                 treatment_coef_unique.max(),
             ],
         )
+        # Add value annotations
+        for i, _ in enumerate(treatment_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+            for j, _ in enumerate(outcome_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+                ax.text(
+                    outcome_coef_unique[j],
+                    treatment_coef_unique[i],
+                    f"{homl_bias_matrix[i, j]:.2f}",
+                    ha="center",
+                    va="center",
+                    color="white" if homl_bias_matrix[i, j] > homl_bias_matrix.max() / 2 else "black",
+                    fontsize=10,
+                )
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
         fig.colorbar(im, cax=cax, label="HOML Bias")
@@ -883,6 +907,19 @@ def plot_asymptotic_var_comparison(
                 treatment_coef_unique.max(),
             ],
         )
+        # Add value annotations
+        vmax = max(abs(bias_difference_matrix.min()), abs(bias_difference_matrix.max()))
+        for i, _ in enumerate(treatment_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+            for j, _ in enumerate(outcome_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+                ax.text(
+                    outcome_coef_unique[j],
+                    treatment_coef_unique[i],
+                    f"{bias_difference_matrix[i, j]:.2f}",
+                    ha="center",
+                    va="center",
+                    color="white" if abs(bias_difference_matrix[i, j]) > vmax / 2 else "black",
+                    fontsize=10,
+                )
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
         fig.colorbar(im, cax=cax, label="Error Difference (HOML - ICA)")
@@ -929,6 +966,20 @@ def plot_asymptotic_var_comparison(
                 treatment_coef_unique.max(),
             ],
         )
+        # Add value annotations
+        for i, _ in enumerate(treatment_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+            for j, _ in enumerate(outcome_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+                val = discrete_bias_difference_matrix[i, j]
+                label = "HOML" if val > 0 else "ICA" if val < 0 else "="
+                ax.text(
+                    outcome_coef_unique[j],
+                    treatment_coef_unique[i],
+                    label,
+                    ha="center",
+                    va="center",
+                    color="white" if abs(val) > 0.5 else "black",
+                    fontsize=10,
+                )
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
         fig.colorbar(im, cax=cax, ticks=[-1, 0, 1], label="Error Difference (HOML - ICA)")
@@ -944,7 +995,16 @@ def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename, outp
     # plot_typography(small=20, medium=24, big=30)
     plt.figure(figsize=(10, 8))
     # Set the midpoint of the color scale to the specified center if provided
-    sns.heatmap(data_matrix, xticklabels=x_labels, yticklabels=y_labels, cmap=cmap, annot=True, center=center)
+    sns.heatmap(
+        data_matrix,
+        xticklabels=x_labels,
+        yticklabels=y_labels,
+        cmap=cmap,
+        annot=True,
+        fmt=".2f",
+        annot_kws={"size": 10},
+        center=center,
+    )
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
