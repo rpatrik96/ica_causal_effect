@@ -161,6 +161,13 @@ def plot_diff_heatmap_fixed(
             vmax=vmax,
         )
 
+        # Add value annotations to each cell
+        for i in range(n_outcome_bins):
+            for j in range(n_dists):
+                if not np.isnan(data[i, j]):
+                    text_color = "white" if abs(data[i, j]) > vmax * 0.5 else "black"
+                    ax.text(j, i, f"{data[i, j]:.2f}", ha="center", va="center", color=text_color, fontsize=8)
+
         # Set x-axis ticks to distribution labels with kurtosis
         ax.set_xticks(np.arange(n_dists))
         x_labels = [f"{dist_data[d]['label']}\n(κ={dist_data[d]['kurtosis']:.2f})" for d in sorted_dists]
@@ -231,6 +238,13 @@ def plot_diff_heatmap_fixed(
             vmin=vmin,
             vmax=vmax,
         )
+
+        # Add value annotations to each cell
+        for i in range(n_outcome_bins):
+            for j in range(n_dists):
+                if not np.isnan(data[i, j]):
+                    text_color = "white" if abs(data[i, j]) > vmax * 0.5 else "black"
+                    ax.text(j, i, f"{data[i, j]:.2f}", ha="center", va="center", color=text_color, fontsize=7)
 
         ax.set_xticks(np.arange(n_dists))
         x_labels = [f"{dist_data[d]['label']}\n(κ={dist_data[d]['kurtosis']:.2f})" for d in sorted_dists]
