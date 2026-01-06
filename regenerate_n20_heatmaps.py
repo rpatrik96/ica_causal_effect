@@ -146,7 +146,7 @@ def plot_diff_heatmap_fixed(
 
     def plot_single_heatmap(data, title, filename, cbar_label):
         """Plot a single heatmap."""
-        fig, ax = plt.subplots(figsize=(14, 8))
+        fig, ax = plt.subplots(figsize=(14, 10))
 
         # Use diverging colormap centered at 0
         vmax = np.nanmax(np.abs(data))
@@ -166,7 +166,7 @@ def plot_diff_heatmap_fixed(
             for j in range(n_dists):
                 if not np.isnan(data[i, j]):
                     text_color = "white" if abs(data[i, j]) > vmax * 0.5 else "black"
-                    ax.text(j, i, f"{data[i, j]:.2f}", ha="center", va="center", color=text_color, fontsize=8)
+                    ax.text(j, i, f"{data[i, j]:.2f}", ha="center", va="center", color=text_color, fontsize=11)
 
         # Set x-axis ticks to distribution labels with kurtosis
         ax.set_xticks(np.arange(n_dists))
@@ -218,7 +218,7 @@ def plot_diff_heatmap_fixed(
     )
 
     # Create combined heatmap
-    fig, axes = plt.subplots(1, 3, figsize=(20, 7))
+    fig, axes = plt.subplots(1, 3, figsize=(20, 10))
 
     metrics_data = [
         (rmse_diff_heatmap, "RMSE Diff", "RMSE Diff"),
@@ -244,7 +244,7 @@ def plot_diff_heatmap_fixed(
             for j in range(n_dists):
                 if not np.isnan(data[i, j]):
                     text_color = "white" if abs(data[i, j]) > vmax * 0.5 else "black"
-                    ax.text(j, i, f"{data[i, j]:.2f}", ha="center", va="center", color=text_color, fontsize=7)
+                    ax.text(j, i, f"{data[i, j]:.2f}", ha="center", va="center", color=text_color, fontsize=10)
 
         ax.set_xticks(np.arange(n_dists))
         x_labels = [f"{dist_data[d]['label']}\n(κ={dist_data[d]['kurtosis']:.2f})" for d in sorted_dists]
