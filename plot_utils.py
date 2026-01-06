@@ -17,12 +17,12 @@ def plot_typography(usetex: bool = False, small: int = 28, medium: int = 34, big
         small: small font size in pt (for legends and axes' ticks)
         medium: medium font size in pt (for axes' labels)
         big: big font size in pt (for titles)
-        preset: If "publication", uses smaller fonts suitable for multi-panel figures:
-                small=9, medium=10, big=11. Overrides small/medium/big if set.
+        preset: If "publication", uses moderate fonts suitable for multi-panel figures:
+                small=14, medium=16, big=18. Overrides small/medium/big if set.
     """
     # Apply preset if specified
     if preset == "publication":
-        small, medium, big = 9, 10, 11
+        small, medium, big = 14, 16, 18
 
     # font family
     rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
@@ -990,10 +990,21 @@ def plot_asymptotic_var_comparison(
         plt.close()
 
 
-def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename, output_dir, cmap="coolwarm", center=None):
+def plot_heatmap(
+    data_matrix,
+    x_labels,
+    y_labels,
+    xlabel,
+    ylabel,
+    filename,
+    output_dir,
+    cmap="coolwarm",
+    center=None,
+    annot_fontsize=12,
+    figsize=(10, 8),
+):
     plot_typography()
-    # plot_typography(small=20, medium=24, big=30)
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=figsize)
     # Set the midpoint of the color scale to the specified center if provided
     sns.heatmap(
         data_matrix,
@@ -1002,7 +1013,7 @@ def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename, outp
         cmap=cmap,
         annot=True,
         fmt=".2f",
-        annot_kws={"size": 10},
+        annot_kws={"size": annot_fontsize},
         center=center,
     )
     plt.xlabel(xlabel)

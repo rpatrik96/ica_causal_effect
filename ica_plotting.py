@@ -47,6 +47,8 @@ def plot_heatmap(
     filename: str,
     center: float = 0,
     output_dir: str = "figures/ica",
+    annot_fontsize: int = 12,
+    figsize: tuple = (10, 8),
 ):
     """Create and save a heatmap plot.
 
@@ -59,8 +61,10 @@ def plot_heatmap(
         filename: Filename to save the plot
         center: Center value for color map
         output_dir: Directory to save the figure in
+        annot_fontsize: Font size for cell annotations
+        figsize: Figure size as (width, height) tuple
     """
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=figsize)
     sns.heatmap(
         data,
         xticklabels=x_labels,
@@ -68,7 +72,7 @@ def plot_heatmap(
         cmap="coolwarm",
         annot=True,
         fmt=".2f",
-        annot_kws={"size": 10},
+        annot_kws={"size": annot_fontsize},
         center=center,
     )
     plt.xlabel(x_label)
