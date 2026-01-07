@@ -17,12 +17,12 @@ def plot_typography(usetex: bool = False, small: int = 28, medium: int = 34, big
         small: small font size in pt (for legends and axes' ticks)
         medium: medium font size in pt (for axes' labels)
         big: big font size in pt (for titles)
-        preset: If "publication", uses moderate fonts suitable for multi-panel figures:
-                small=14, medium=16, big=18. Overrides small/medium/big if set.
+        preset: If "publication", uses moderate fonts suitable for figures:
+                small=18, medium=22, big=26. Overrides small/medium/big if set.
     """
     # Apply preset if specified
     if preset == "publication":
-        small, medium, big = 14, 16, 18
+        small, medium, big = 18, 22, 26
 
     # font family
     rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})

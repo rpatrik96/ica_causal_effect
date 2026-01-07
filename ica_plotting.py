@@ -114,16 +114,16 @@ def plot_error_bars(
     plt.errorbar(bar_positions, means, yerr=std_devs, fmt="o", capsize=5)
 
     if x_ticks is not None:
-        plt.xticks(bar_positions, x_ticks, fontsize=11)
+        plt.xticks(bar_positions, x_ticks)
     else:
         # Format x-ticks based on value type
         if all(isinstance(x, (int, float)) for x in x_values):
             if all(isinstance(x, int) or x == int(x) for x in x_values):
-                plt.xticks(bar_positions, [f"{int(x)}" for x in x_values], fontsize=11)
+                plt.xticks(bar_positions, [f"{int(x)}" for x in x_values])
             else:
-                plt.xticks(bar_positions, [f"{x:.1f}" for x in x_values], fontsize=11)
+                plt.xticks(bar_positions, [f"{x:.1f}" for x in x_values])
         else:
-            plt.xticks(bar_positions, x_values, fontsize=11)
+            plt.xticks(bar_positions, x_values)
 
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -168,11 +168,11 @@ def plot_multiple_error_bars(
     # Format x-ticks based on value type
     if all(isinstance(x, (int, float)) for x in parameter_values):
         if all(isinstance(x, int) or x == int(x) for x in parameter_values):
-            plt.xticks(bar_positions, [f"{int(x)}" for x in parameter_values], fontsize=11)
+            plt.xticks(bar_positions, [f"{int(x)}" for x in parameter_values])
         else:
-            plt.xticks(bar_positions, [f"{x:.1f}" for x in parameter_values], fontsize=11)
+            plt.xticks(bar_positions, [f"{x:.1f}" for x in parameter_values])
     else:
-        plt.xticks(bar_positions, parameter_values, fontsize=11)
+        plt.xticks(bar_positions, parameter_values)
 
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -224,11 +224,11 @@ def plot_runtime_comparison(
     # Format x-ticks based on value type
     if all(isinstance(x, (int, float)) for x in parameter_values):
         if all(isinstance(x, int) or x == int(x) for x in parameter_values):
-            plt.xticks(bar_positions, [f"{int(x)}" for x in parameter_values], fontsize=11)
+            plt.xticks(bar_positions, [f"{int(x)}" for x in parameter_values])
         else:
-            plt.xticks(bar_positions, [f"{x:.1f}" for x in parameter_values], fontsize=11)
+            plt.xticks(bar_positions, [f"{x:.1f}" for x in parameter_values])
     else:
-        plt.xticks(bar_positions, parameter_values, fontsize=11)
+        plt.xticks(bar_positions, parameter_values)
 
     plt.xlabel(xlabel)
     plt.ylabel("Runtime (seconds)")

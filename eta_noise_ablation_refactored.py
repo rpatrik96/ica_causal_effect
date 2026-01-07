@@ -2035,6 +2035,17 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
         ax.set_xlabel(r"$\beta$")
         ax.set_ylabel(r"Var")
         ax.set_title(title)
+
+        # Add value annotations to each cell
+        for i in range(data.shape[0]):
+            for j in range(data.shape[1]):
+                val = data[i, j]
+                if not np.isnan(val):
+                    # Use white text on dark backgrounds, black on light
+                    val_norm = abs(val) / (vmax + 1e-10)
+                    color = "white" if val_norm > 0.5 else "black"
+                    ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=color)
+
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.1)
         fig.colorbar(im, cax=cax)
