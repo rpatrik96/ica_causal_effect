@@ -106,7 +106,7 @@ def regenerate_main_nonlinear():
         cmap="coolwarm",
         annot=True,
         fmt=".2f",
-        annot_kws={"size": 10},
+        annot_kws={"size": 14},
     )
     plt.xlabel("Nonlinearity")
     plt.ylabel(r"Covariate dimension $d$")
@@ -120,7 +120,7 @@ def regenerate_main_nonlinear():
         cmap="coolwarm",
         annot=True,
         fmt=".2f",
-        annot_kws={"size": 10},
+        annot_kws={"size": 14},
     )
     plt.xlabel("Nonlinearity")
     plt.ylabel(r"Covariate dimension $d$")
@@ -167,7 +167,7 @@ def regenerate_main_nonlinear():
         cmap="coolwarm",
         annot=True,
         fmt=".2f",
-        annot_kws={"size": 10},
+        annot_kws={"size": 14},
     )
     plt.xlabel("Slope")
     plt.ylabel(r"Covariate dimension $d$")
@@ -238,7 +238,7 @@ def regenerate_main_multi():
         cmap="coolwarm",
         annot=True,
         fmt=".2f",
-        annot_kws={"size": 10},
+        annot_kws={"size": 14},
     )
     plt.xlabel(r"Number of treatments $m$")
     plt.ylabel(r"Sample size $n$")
@@ -257,7 +257,7 @@ def regenerate_main_multi():
         cmap="coolwarm",
         annot=True,
         fmt=".2f",
-        annot_kws={"size": 10},
+        annot_kws={"size": 14},
     )
     plt.xlabel(r"Number of treatments $m$")
     plt.ylabel(r"Sample size $n$")
