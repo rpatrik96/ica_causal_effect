@@ -131,7 +131,7 @@ def plot_method_comparison(
         array[:, 1].flatten(),
         treatment_effect,
         treatment_effect,
-        title="Higher-order OML",
+        title="OML",
         plot=plot,
         relative_error=relative_error,
     )
@@ -141,7 +141,7 @@ def plot_method_comparison(
         array[:, 2].flatten(),
         treatment_effect,
         treatment_effect,
-        title="Higher-order OML (Est.)",
+        title="OML (Est.)",
         plot=plot,
         relative_error=relative_error,
     )
@@ -151,7 +151,7 @@ def plot_method_comparison(
         array[:, 3].flatten(),
         treatment_effect,
         treatment_effect,
-        title="Higher-order OML (Split)",
+        title="OML (Split)",
         plot=plot,
         relative_error=relative_error,
     )
@@ -244,7 +244,7 @@ def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, bet
 
     # Create a high-quality error bar plot comparing errors across dimensions
     plt.figure(figsize=(10, 6))
-    methods = ["OML", "Higher-order OML", "Higher-order OML (Est.)", "Higher-order OML (Split)", "ICA"]
+    methods = ["OML", "OML", "OML (Est.)", "OML (Split)", "ICA"]
     method_biases = {method: [] for method in methods}
     method_sigmas = {method: [] for method in methods}
     dimensions = []
@@ -462,14 +462,14 @@ def plot_multi_treatment(all_results, opts, treatment_effects):
             y_values_homl_asymptotic_var,
             c="red",
             alpha=0.75,
-            label="Higher-order OML Asymptotic Variance",
+            label="OML Asymptotic Variance",
         )
         plt.scatter(
             x_values_true_theta,
             y_values_actual_variance_homl,
             c="orange",
             alpha=0.75,
-            label="Higher-order OML Actual Variance",
+            label="OML Actual Variance",
         )
         plt.xlabel("True Value of Theta")
         plt.ylabel("Variance")
@@ -500,7 +500,7 @@ def plot_multi_treatment(all_results, opts, treatment_effects):
             bar_width,
             color="red",
             alpha=0.75,
-            label="Higher-order OML MSE",
+            label="OML MSE",
             yerr=y_errors_homl,
             capsize=5,
         )
@@ -560,7 +560,7 @@ def plot_asymptotic_var_comparison(
             fmt="o",
             color="red",
             alpha=0.75,
-            label="Higher-order OML",
+            label="OML",
         )
         axs.set_xlabel(r"$1+\Vert b+a\theta\Vert_2^2$")
         axs.set_xscale("log")
@@ -583,24 +583,24 @@ def plot_asymptotic_var_comparison(
         plt.figure(figsize=(10, 8))
         scatter = plt.scatter(x_values_var_diff, y_values_bias_diff, c=colors, cmap="viridis", alpha=0.75)
         plt.colorbar(scatter, label="Beta")
-        plt.xlabel("Difference in Asymptotic Variance (ICA - HOML)")
-        plt.ylabel("Difference in Bias (ICA - HOML)")
+        plt.xlabel("Difference in Asymptotic Variance (ICA - OML)")
+        plt.ylabel("Difference in Bias (ICA - OML)")
         # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
         plt.savefig(os.path.join(experiment_dir, "scatter_plot_var_vs_bias_diff.svg"), dpi=300, bbox_inches="tight")
         plt.close()
         plt.figure(figsize=(10, 8))
         scatter = plt.scatter(x_values_var_diff, y_values_sigma_diff, c=colors, cmap="viridis", alpha=0.75)
         plt.colorbar(scatter, label="Beta")
-        plt.xlabel("Difference in Asymptotic Variance (ICA - HOML)")
-        plt.ylabel("Difference in Variance (ICA - HOML)")
+        plt.xlabel("Difference in Asymptotic Variance (ICA - OML)")
+        plt.ylabel("Difference in Variance (ICA - OML)")
         # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
         plt.savefig(os.path.join(experiment_dir, "scatter_plot_var_vs_asy_var_diff.svg"), dpi=300, bbox_inches="tight")
         plt.close()
         plt.figure(figsize=(10, 8))
         scatter = plt.scatter(x_values_var__hyvarinen_diff, y_values_sigma_diff, c=colors, cmap="viridis", alpha=0.75)
         plt.colorbar(scatter, label="Beta")
-        plt.xlabel("Difference in Asymptotic Variance (ICA - HOML) Hyvarinen")
-        plt.ylabel("Difference in Variance (ICA - HOML)")
+        plt.xlabel("Difference in Asymptotic Variance (ICA - OML) Hyvarinen")
+        plt.ylabel("Difference in Variance (ICA - OML)")
         # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
         plt.savefig(
             os.path.join(experiment_dir, "scatter_plot_var_vs_asy_var_diff_hyvarinen.svg"), dpi=300, bbox_inches="tight"
@@ -653,10 +653,10 @@ def plot_asymptotic_var_comparison(
         # Scatter plot for HOML asymptotic and actual variance
         plt.figure(figsize=(10, 8))
         plt.scatter(
-            x_values_sample_size, y_values_homl_asymptotic_var, c="blue", alpha=0.75, label="HOML Asymptotic Variance"
+            x_values_sample_size, y_values_homl_asymptotic_var, c="blue", alpha=0.75, label="OML Asymptotic Variance"
         )
         plt.scatter(
-            x_values_sample_size, y_values_actual_variance_homl, c="red", alpha=0.75, label="HOML Actual Variance"
+            x_values_sample_size, y_values_actual_variance_homl, c="red", alpha=0.75, label="OML Actual Variance"
         )
         plt.xlabel("Sample Size")
         plt.ylabel("Variance")
@@ -694,7 +694,7 @@ def plot_asymptotic_var_comparison(
             fmt="o",
             color="red",
             alpha=0.75,
-            label="HOML",
+            label="OML",
         )
         plt.xlabel(r"$1+(b+a\theta)^2$")
         plt.xscale("log")
@@ -740,11 +740,10 @@ def plot_asymptotic_var_comparison(
 
             plt.yscale("log")
             plt.ylabel(r"Mean squared $|\theta-\hat{\theta}|$")
-            plt.title("Violin plot of ICA vs HOML biases grouped by ICA Var Coeff")
             plt.legend(
                 handles=[
                     plt.Line2D([0], [0], color="blue", lw=4, label="ICA"),
-                    plt.Line2D([0], [0], color="red", lw=4, label="HOML"),
+                    plt.Line2D([0], [0], color="red", lw=4, label="OML"),
                 ],
                 title="Method",
             )
@@ -769,7 +768,7 @@ def plot_asymptotic_var_comparison(
                 fmt="o",
                 color="red",
                 alpha=0.75,
-                label="Higher-order OML",
+                label="OML",
             )
             axs[0].set_xlabel("Treatment Coefficient")
             axs[0].set_ylabel(r"$|\theta-\hat{\theta}|$")
@@ -786,7 +785,7 @@ def plot_asymptotic_var_comparison(
                 fmt="o",
                 color="red",
                 alpha=0.75,
-                label="Higher-order OML",
+                label="OML",
             )
             axs[1].set_xlabel("Outcome Coefficient")
             axs[1].set_ylabel(r"$|\theta-\hat{\theta}|$")
@@ -827,7 +826,7 @@ def plot_asymptotic_var_comparison(
         im = ax.imshow(
             ica_bias_matrix,
             aspect="auto",
-            cmap="viridis",
+            cmap="coolwarm",
             origin="lower",
             extent=[
                 outcome_coef_unique.min(),
@@ -862,7 +861,7 @@ def plot_asymptotic_var_comparison(
         im = ax.imshow(
             homl_bias_matrix,
             aspect="auto",
-            cmap="viridis",
+            cmap="coolwarm",
             origin="lower",
             extent=[
                 outcome_coef_unique.min(),
@@ -885,10 +884,9 @@ def plot_asymptotic_var_comparison(
                 )
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
-        fig.colorbar(im, cax=cax, label="HOML Bias")
+        fig.colorbar(im, cax=cax, label="OML Bias")
         ax.set_xlabel("Outcome Coefficient")
         ax.set_ylabel("Treatment Coefficient")
-        ax.set_title("Heatmap of HOML Biases")
         plt.tight_layout()
         plt.savefig(os.path.join(experiment_dir, "heatmap_homl_biases.svg"), dpi=300, bbox_inches="tight")
         plt.close()
@@ -922,7 +920,7 @@ def plot_asymptotic_var_comparison(
                 )
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
-        fig.colorbar(im, cax=cax, label="Error Difference (HOML - ICA)")
+        fig.colorbar(im, cax=cax, label="Error Difference (OML - ICA)")
         ax.set_xlabel("Outcome Coefficient")
         ax.set_ylabel("Treatment Coefficient")
         plt.tight_layout()
@@ -957,7 +955,7 @@ def plot_asymptotic_var_comparison(
         im = ax.imshow(
             discrete_bias_difference_matrix,
             aspect="auto",
-            cmap="bwr",
+            cmap="coolwarm",
             origin="lower",
             extent=[
                 outcome_coef_unique.min(),
@@ -970,7 +968,7 @@ def plot_asymptotic_var_comparison(
         for i, _ in enumerate(treatment_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
             for j, _ in enumerate(outcome_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
                 val = discrete_bias_difference_matrix[i, j]
-                label = "HOML" if val > 0 else "ICA" if val < 0 else "="
+                label = "OML" if val > 0 else "ICA" if val < 0 else "="
                 ax.text(
                     outcome_coef_unique[j],
                     treatment_coef_unique[i],
@@ -982,7 +980,7 @@ def plot_asymptotic_var_comparison(
                 )
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
-        fig.colorbar(im, cax=cax, ticks=[-1, 0, 1], label="Error Difference (HOML - ICA)")
+        fig.colorbar(im, cax=cax, ticks=[-1, 0, 1], label="Error Difference (OML - ICA)")
         ax.set_xlabel("Outcome Coefficient")
         ax.set_ylabel("Treatment Coefficient")
         plt.tight_layout()

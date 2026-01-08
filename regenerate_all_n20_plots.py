@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Import utilities
-from ablation_utils import HOML_BETTER_COLOR, HOML_IDX, ICA_BETTER_COLOR, ICA_IDX, get_distribution_label
+from ablation_utils import HOML_IDX, ICA_BETTER_COLOR, ICA_IDX, OML_BETTER_COLOR, get_distribution_label
 from plot_utils import plot_typography
 
 
@@ -32,8 +32,8 @@ def _setup_plot():
 
 
 def _get_comparison_color(diff_val):
-    """Get color based on comparison (green if ICA better, red if HOML better)."""
-    return ICA_BETTER_COLOR if diff_val < 0 else HOML_BETTER_COLOR
+    """Get color based on comparison (green if ICA better, red if OML better)."""
+    return ICA_BETTER_COLOR if diff_val < 0 else OML_BETTER_COLOR
 
 
 def filter_duplicate_distributions(results):
@@ -182,7 +182,7 @@ def plot_diff_heatmap_fixed(
             data,
             aspect="auto",
             origin="lower",
-            cmap="RdYlGn_r",  # Red = ICA worse, Green = ICA better
+            cmap="coolwarm",
             vmin=vmin,
             vmax=vmax,
         )
@@ -205,7 +205,6 @@ def plot_diff_heatmap_fixed(
 
         ax.set_xlabel("Distribution (sorted by kurtosis)")
         ax.set_ylabel(r"Outcome Coefficient $b$")
-        ax.set_title(title)
 
         # Add colorbar next to the plot
         divider = make_axes_locatable(ax)
@@ -224,21 +223,21 @@ def plot_diff_heatmap_fixed(
 
     plot_single_heatmap(
         rmse_diff_heatmap,
-        "RMSE Difference (ICA - HOML)\n(Red = HOML better, Green = ICA better)",
+        "RMSE Difference (ICA - OML)\n(Red = OML better, Green = ICA better)",
         f"heatmap_rmse_diff{suffix}.svg",
         "RMSE Diff",
     )
 
     plot_single_heatmap(
         bias_diff_heatmap,
-        r"$|\mathrm{Bias}|$ Difference (ICA - HOML)" + "\n(Red = HOML better, Green = ICA better)",
+        r"$|\mathrm{Bias}|$ Difference (ICA - OML)" + "\n(Red = OML better, Green = ICA better)",
         f"heatmap_bias_diff{suffix}.svg",
         r"$|\mathrm{Bias}|$ Diff",
     )
 
     plot_single_heatmap(
         std_diff_heatmap,
-        "Std Difference (ICA - HOML)\n(Red = HOML better, Green = ICA better)",
+        "Std Difference (ICA - OML)\n(Red = OML better, Green = ICA better)",
         f"heatmap_std_diff{suffix}.svg",
         "Std Diff",
     )
@@ -260,7 +259,7 @@ def plot_diff_heatmap_fixed(
             data,
             aspect="auto",
             origin="lower",
-            cmap="RdYlGn_r",
+            cmap="coolwarm",
             vmin=vmin,
             vmax=vmax,
         )
@@ -286,8 +285,6 @@ def plot_diff_heatmap_fixed(
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
         fig.colorbar(im, cax=cax, label=cbar_label)
-
-    fig.suptitle("ICA vs HOML Differences (Red = HOML better, Green = ICA better)", y=1.02)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"heatmap_combined{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -358,37 +355,35 @@ def plot_coeff_scatter(
     ax = axes[0, 0]
     ax.scatter(treatment_effects, rmse_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Treatment Effect $\theta$")
-    ax.set_ylabel("RMSE Diff")
-    ax.set_title(r"RMSE Diff vs $\theta$")
+    ax.set_xlabel(r"Treatment Effect $\theta$", fontsize=20)
+    ax.set_ylabel("RMSE Diff", fontsize=20)
+    ax.set_title(r"RMSE Diff vs $\theta$", fontsize=24)
     ax.grid(True, alpha=0.3)
 
     ax = axes[0, 1]
     ax.scatter(treatment_coefs, rmse_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Treatment Coef $a$")
-    ax.set_ylabel("RMSE Diff")
-    ax.set_title(r"RMSE Diff vs $a$")
+    ax.set_xlabel(r"Treatment Coef $a$", fontsize=20)
+    ax.set_ylabel("RMSE Diff", fontsize=20)
+    ax.set_title(r"RMSE Diff vs $a$", fontsize=24)
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 0]
     ax.scatter(outcome_coefs, rmse_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Outcome Coef $b$")
-    ax.set_ylabel("RMSE Diff")
-    ax.set_title(r"RMSE Diff vs $b$")
+    ax.set_xlabel(r"Outcome Coef $b$", fontsize=20)
+    ax.set_ylabel("RMSE Diff", fontsize=20)
+    ax.set_title(r"RMSE Diff vs $b$", fontsize=24)
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 1]
     ax.scatter(ica_var_coeffs, rmse_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"ICA Var Coeff")
-    ax.set_ylabel("RMSE Diff")
+    ax.set_xlabel(r"ICA Var Coeff", fontsize=20)
+    ax.set_ylabel("RMSE Diff", fontsize=20)
+    ax.set_title(r"RMSE Diff vs ICA Var Coeff", fontsize=24)
     ax.set_xscale("log")
-    ax.set_title(r"RMSE Diff vs ICA Var Coeff")
     ax.grid(True, alpha=0.3)
-
-    fig.suptitle("RMSE Difference (ICA - HOML) vs Coefficient Values\n(Green = ICA better, Red = HOML better)")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_rmse_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -401,39 +396,35 @@ def plot_coeff_scatter(
     ax = axes[0, 0]
     ax.scatter(treatment_effects, bias_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Treatment Effect $\theta$")
-    ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff")
-    ax.set_title(r"$|\mathrm{Bias}|$ Diff vs $\theta$")
+    ax.set_xlabel(r"Treatment Effect $\theta$", fontsize=20)
+    ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff", fontsize=20)
+    ax.set_title(r"$|\mathrm{Bias}|$ Diff vs $\theta$", fontsize=24)
     ax.grid(True, alpha=0.3)
 
     ax = axes[0, 1]
     ax.scatter(treatment_coefs, bias_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Treatment Coef $a$")
-    ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff")
-    ax.set_title(r"$|\mathrm{Bias}|$ Diff vs $a$")
+    ax.set_xlabel(r"Treatment Coef $a$", fontsize=20)
+    ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff", fontsize=20)
+    ax.set_title(r"$|\mathrm{Bias}|$ Diff vs $a$", fontsize=24)
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 0]
     ax.scatter(outcome_coefs, bias_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"Outcome Coef $b$")
-    ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff")
-    ax.set_title(r"$|\mathrm{Bias}|$ Diff vs $b$")
+    ax.set_xlabel(r"Outcome Coef $b$", fontsize=20)
+    ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff", fontsize=20)
+    ax.set_title(r"$|\mathrm{Bias}|$ Diff vs $b$", fontsize=24)
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 1]
     ax.scatter(ica_var_coeffs, bias_diffs, c=colors, alpha=0.6, s=30)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel(r"ICA Var Coeff")
-    ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff")
+    ax.set_xlabel(r"ICA Var Coeff", fontsize=20)
+    ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff", fontsize=20)
+    ax.set_title(r"$|\mathrm{Bias}|$ Diff vs ICA Var Coeff", fontsize=24)
     ax.set_xscale("log")
-    ax.set_title(r"$|\mathrm{Bias}|$ Diff vs ICA Var Coeff")
     ax.grid(True, alpha=0.3)
-
-    fig.suptitle(
-        r"$|\mathrm{Bias}|$ Difference (ICA - HOML) vs Coefficient Values" + "\n(Green = ICA better, Red = HOML better)"
-    )
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_bias_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()

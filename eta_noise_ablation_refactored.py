@@ -39,12 +39,12 @@ from scipy.stats import kurtosis as scipy_kurtosis
 from tueplots import bundles
 
 from ablation_utils import (
-    HOML_BETTER_COLOR,
-    HOML_COLOR,
     HOML_IDX,
     ICA_BETTER_COLOR,
     ICA_COLOR,
     ICA_IDX,
+    OML_BETTER_COLOR,
+    OML_COLOR,
     calculate_homl_moments,
     calculate_ica_moments,
     compute_estimation_statistics,
@@ -678,8 +678,8 @@ def _get_comparison_color(diff: float, ica_better: bool = True) -> str:
         Color string
     """
     if ica_better:
-        return ICA_BETTER_COLOR if diff < 0 else HOML_BETTER_COLOR
-    return HOML_BETTER_COLOR if diff < 0 else ICA_BETTER_COLOR
+        return ICA_BETTER_COLOR if diff < 0 else OML_BETTER_COLOR
+    return OML_BETTER_COLOR if diff < 0 else ICA_BETTER_COLOR
 
 
 # =============================================================================
@@ -713,7 +713,7 @@ def plot_metric_comparison_bars(
 
     _, ax = plt.subplots(figsize=(10, 6))
 
-    for i, (method_name, method_idx, color) in enumerate([("HOML", HOML_IDX, HOML_COLOR), ("ICA", ICA_IDX, ICA_COLOR)]):
+    for i, (method_name, method_idx, color) in enumerate([("HOML", HOML_IDX, OML_COLOR), ("ICA", ICA_IDX, ICA_COLOR)]):
         values = []
         for dist in noise_dists:
             val = results[dist][metric][method_idx] if method_idx < len(results[dist][metric]) else np.nan
@@ -827,7 +827,7 @@ def plot_metric_vs_kurtosis(
         ica_values.append(ica_val)
 
     _, ax = plt.subplots(figsize=(8, 6))
-    ax.scatter(kurtosis_values, homl_values, c=HOML_COLOR, s=80, alpha=0.8, label="HOML", marker="o")
+    ax.scatter(kurtosis_values, homl_values, c=OML_COLOR, s=80, alpha=0.8, label="HOML", marker="o")
     ax.scatter(kurtosis_values, ica_values, c=ICA_COLOR, s=80, alpha=0.8, label="ICA", marker="s")
 
     # Add labels
@@ -946,14 +946,14 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
 
     # Plot 1: Ratio bar chart
     _, ax = plt.subplots(figsize=(10, 6))
-    colors_ratio = [ICA_BETTER_COLOR if r < 1 else HOML_BETTER_COLOR for r in avar_ratio]
+    colors_ratio = [ICA_BETTER_COLOR if r < 1 else OML_BETTER_COLOR for r in avar_ratio]
     ax.bar(x, avar_ratio, width=0.6, color=colors_ratio)
     ax.axhline(y=1, color="black", linestyle="--", linewidth=1, label="Equal variance")
     ax.set_xlabel("Noise Distribution")
     ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / HOML)")
     ax.set_xticks(x)
     ax.set_xticklabels([get_distribution_label(d) for d in noise_dists], rotation=45, ha="right")
-    ax.set_title("Asymptotic Variance Ratio: ICA / HOML\n(Green = ICA lower, Red = HOML lower)")
+    ax.set_title("Asymptotic Variance Ratio: ICA / HOML\n(Blue = ICA lower, Red = HOML lower)")
     ax.set_yscale("log")
     ax.grid(True, alpha=0.3, axis="y")
     plt.tight_layout()
@@ -963,7 +963,7 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
     # Plot 2: Side by side comparison
     _, ax = plt.subplots(figsize=(10, 6))
     width = 0.35
-    ax.bar(x - width / 2, homl_avar, width, label="HOML", color=HOML_COLOR)
+    ax.bar(x - width / 2, homl_avar, width, label="HOML", color=OML_COLOR)
     ax.bar(x + width / 2, ica_avar, width, label="ICA", color=ICA_COLOR)
     ax.set_xlabel("Noise Distribution")
     ax.set_ylabel("Asymptotic Variance")
@@ -979,7 +979,7 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
 
     # Plot 3: Ratio vs kurtosis scatter
     _, ax = plt.subplots(figsize=(8, 6))
-    colors_scatter = [ICA_BETTER_COLOR if r < 1 else HOML_BETTER_COLOR for r in avar_ratio]
+    colors_scatter = [ICA_BETTER_COLOR if r < 1 else OML_BETTER_COLOR for r in avar_ratio]
     ax.scatter(kurtosis_values, avar_ratio, c=colors_scatter, s=80, alpha=0.8)
     ax.axhline(y=1, color="black", linestyle="--", linewidth=1)
     for i, dist in enumerate(noise_dists):
@@ -994,7 +994,7 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
             )
     ax.set_xlabel(r"Excess Kurtosis $\kappa$")
     ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / HOML)")
-    ax.set_title("Asymptotic Variance Ratio vs Kurtosis\n(Green = ICA lower, Red = HOML lower)")
+    ax.set_title("Asymptotic Variance Ratio vs Kurtosis\n(Blue = ICA lower, Red = HOML lower)")
     ax.set_yscale("log")
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -1003,7 +1003,7 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
 
     # Plot 4: Variances vs kurtosis scatter
     _, ax = plt.subplots(figsize=(8, 6))
-    ax.scatter(kurtosis_values, homl_avar, c=HOML_COLOR, s=80, alpha=0.8, label="HOML", marker="o")
+    ax.scatter(kurtosis_values, homl_avar, c=OML_COLOR, s=80, alpha=0.8, label="HOML", marker="o")
     ax.scatter(kurtosis_values, ica_avar, c=ICA_COLOR, s=80, alpha=0.8, label="ICA", marker="s")
     for i, dist in enumerate(noise_dists):
         if not np.isnan(homl_avar[i]):
@@ -1129,7 +1129,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
         output_dir,
         "rmse_diff_homl_ica.svg",
         "RMSE Difference (ICA - HOML)",
-        "RMSE Difference: ICA - HOML\n(Green = ICA better, Red = HOML better)",
+        "RMSE Difference: ICA - HOML\n(Blue = ICA better, Red = HOML better)",
     )
 
     # Bias difference bar
@@ -1139,7 +1139,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
         output_dir,
         "bias_diff_homl_ica.svg",
         r"$|\mathrm{Bias}|$ Difference (ICA - HOML)",
-        "Absolute Bias Difference: ICA - HOML\n(Green = ICA better, Red = HOML better)",
+        "Absolute Bias Difference: ICA - HOML\n(Blue = ICA better, Red = HOML better)",
         use_abs=True,
     )
 
@@ -1223,6 +1223,12 @@ def plot_distribution_diff_heatmap(results: dict, output_dir: str = "figures/noi
         if dist in ("gennorm:2", "gennorm:2.0"):
             continue
 
+        # Skip duplicate distributions
+        # - gennorm_heavy, gennorm:1, gennorm:1.0: Same as Laplace (beta=1)
+        # - gennorm_light: Same as gennorm:4.0 (beta=4)
+        if dist in ("gennorm_heavy", "gennorm:1", "gennorm:1.0", "gennorm_light"):
+            continue
+
         kurtosis = res.get("eta_empirical_excess_kurtosis", res.get("eta_excess_kurtosis", np.nan))
         homl_rmse = res["rmse"][HOML_IDX]
         ica_rmse = res["rmse"][ICA_IDX] if ICA_IDX < len(res["rmse"]) else np.nan
@@ -1262,7 +1268,7 @@ def plot_distribution_diff_heatmap(results: dict, output_dir: str = "figures/noi
     vmax = np.nanmax(np.abs(heatmap_data))
     vmin = -vmax
 
-    im = ax.imshow(heatmap_data, aspect="auto", cmap="RdYlGn_r", vmin=vmin, vmax=vmax)
+    im = ax.imshow(heatmap_data, aspect="auto", cmap="coolwarm", vmin=vmin, vmax=vmax)
 
     # Set ticks and labels
     ax.set_xticks(np.arange(len(labels)))
@@ -1278,13 +1284,12 @@ def plot_distribution_diff_heatmap(results: dict, output_dir: str = "figures/noi
                 color = "white" if abs(val) > vmax * 0.5 else "black"
                 ax.text(j, i, f"{val:.4f}", ha="center", va="center", color=color)
 
-    ax.set_title("ICA - HOML Differences by Distribution\n(Red = HOML better, Green = ICA better)")
     ax.set_xlabel("Distribution (sorted by kurtosis)")
 
     # Add colorbar next to the plot
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.15)
-    fig.colorbar(im, cax=cax, label="Difference (ICA - HOML)")
+    fig.colorbar(im, cax=cax, label="Difference (ICA - OML)")
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "distribution_diff_heatmap.svg"), dpi=300, bbox_inches="tight")
@@ -1449,7 +1454,7 @@ def plot_noise_ablation_coeff_scatter(
     ax.set_title(r"RMSE Diff vs ICA Var Coeff")
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle("RMSE Difference (ICA - HOML) vs Coefficient Values\n(Green = ICA better, Red = HOML better)")
+    fig.suptitle("RMSE Difference (ICA - HOML) vs Coefficient Values\n(Blue = ICA better, Red = HOML better)")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_rmse_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -1556,7 +1561,7 @@ def plot_noise_ablation_std_scatter(
     ax.set_title(r"Std Diff vs ICA Var Coeff")
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle("Std Difference (ICA - HOML) vs Coefficient Values\n(Green = ICA better, Red = HOML better)")
+    fig.suptitle("Std Difference (ICA - HOML) vs Coefficient Values\n(Blue = ICA better, Red = HOML better)")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_std_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -1684,7 +1689,7 @@ def plot_diff_heatmaps(
             data,
             aspect="auto",
             origin="lower",
-            cmap="RdYlGn_r",  # Red = ICA worse, Green = ICA better
+            cmap="coolwarm",  # Blue = ICA better (negative), Red = HOML better (positive)
             vmin=vmin,
             vmax=vmax,
         )
@@ -1718,21 +1723,21 @@ def plot_diff_heatmaps(
 
     plot_single_heatmap(
         rmse_heatmap,
-        "RMSE Difference (ICA - HOML)\n(Red = HOML better, Green = ICA better)",
+        "RMSE Difference (ICA - HOML)\n(Blue = ICA better, Red = HOML better)",
         f"heatmap_rmse_diff{suffix}.svg",
         "RMSE Diff",
     )
 
     plot_single_heatmap(
         bias_heatmap,
-        r"$|\mathrm{Bias}|$ Difference (ICA - HOML)" + "\n(Red = HOML better, Green = ICA better)",
+        r"$|\mathrm{Bias}|$ Difference (ICA - HOML)" + "\n(Blue = ICA better, Red = HOML better)",
         f"heatmap_bias_diff{suffix}.svg",
         r"$|\mathrm{Bias}|$ Diff",
     )
 
     plot_single_heatmap(
         std_heatmap,
-        "Std Difference (ICA - HOML)\n(Red = HOML better, Green = ICA better)",
+        "Std Difference (ICA - HOML)\n(Blue = ICA better, Red = HOML better)",
         f"heatmap_std_diff{suffix}.svg",
         "Std Diff",
     )
@@ -1771,7 +1776,7 @@ def plot_diff_heatmaps(
         cax = divider.append_axes("right", size="5%", pad=0.1)
         fig.colorbar(im, cax=cax)
 
-    fig.suptitle("ICA - HOML Differences vs Distribution and Outcome Coef\n(Red = HOML better, Green = ICA better)")
+    fig.suptitle("ICA - HOML Differences vs Distribution and Outcome Coef\n(Blue = ICA better, Red = HOML better)")
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.savefig(os.path.join(output_dir, f"heatmap_combined{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -1798,7 +1803,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
 
     # Plot 1: RMSE vs ICA variance coefficient
     _, ax = plt.subplots(figsize=(8, 6))
-    ax.scatter(ica_var_coeffs, homl_rmse, c=HOML_COLOR, alpha=0.7, label="HOML", s=60, marker="o")
+    ax.scatter(ica_var_coeffs, homl_rmse, c=OML_COLOR, alpha=0.7, label="HOML", s=60, marker="o")
     ax.scatter(ica_var_coeffs, ica_rmse, c=ICA_COLOR, alpha=0.7, label="ICA", s=60, marker="s")
     ax.set_xlabel(r"ICA Variance Coefficient: $1 + \|b + a\theta\|_2^2$")
     ax.set_ylabel("RMSE")
@@ -1813,7 +1818,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
 
     # Plot 2: Bias vs ICA variance coefficient
     _, ax = plt.subplots(figsize=(8, 6))
-    ax.scatter(ica_var_coeffs, homl_bias, c=HOML_COLOR, alpha=0.7, label="HOML", s=60, marker="o")
+    ax.scatter(ica_var_coeffs, homl_bias, c=OML_COLOR, alpha=0.7, label="HOML", s=60, marker="o")
     ax.scatter(ica_var_coeffs, ica_bias, c=ICA_COLOR, alpha=0.7, label="ICA", s=60, marker="s")
     ax.set_xlabel(r"ICA Variance Coefficient: $1 + \|b + a\theta\|_2^2$")
     ax.set_ylabel(r"$|\mathrm{Bias}|$")
@@ -1835,7 +1840,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     ax.set_xlabel(r"ICA Variance Coefficient: $1 + \|b + a\theta\|_2^2$")
     ax.set_ylabel("RMSE Difference (ICA - HOML)")
     ax.set_xscale("log")
-    ax.set_title("RMSE Difference: ICA vs HOML\n(Green = ICA better, Red = HOML better)")
+    ax.set_title("RMSE Difference: ICA vs HOML\n(Blue = ICA better, Red = HOML better)")
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "rmse_diff_vs_ica_var_coeff.svg"), dpi=300, bbox_inches="tight")
@@ -1900,7 +1905,7 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
         if diverging:
             vmax = np.nanmax(np.abs(data))
             vmin = -vmax
-            cmap = "RdYlGn_r"  # Red = ICA worse, Green = ICA better
+            cmap = "coolwarm"  # Blue = ICA better (negative), Red = HOML better (positive)
         else:
             if log_scale:
                 # For log scale, use log10 of data for display
@@ -1964,21 +1969,21 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
     # Plot difference heatmaps (diverging colormap)
     plot_single_heatmap(
         bias_diff_grid,
-        r"$|\mathrm{Bias}|$ Difference (ICA - HOML)" + "\n(Red = HOML better, Green = ICA better)",
+        r"$|\mathrm{Bias}|$ Difference (ICA - HOML)" + "\n(Blue = ICA better, Red = HOML better)",
         "bias_diff_heatmap.svg",
         r"$|\mathrm{Bias}|$ Diff",
         diverging=True,
     )
     plot_single_heatmap(
         std_diff_grid,
-        "Std Difference (ICA - HOML)\n(Red = HOML better, Green = ICA better)",
+        "Std Difference (ICA - HOML)\n(Blue = ICA better, Red = HOML better)",
         "std_diff_heatmap.svg",
         "Std Diff",
         diverging=True,
     )
     plot_single_heatmap(
         rmse_diff_grid,
-        "RMSE Difference (ICA - HOML)\n(Red = HOML better, Green = ICA better)",
+        "RMSE Difference (ICA - HOML)\n(Blue = ICA better, Red = HOML better)",
         "rmse_diff_heatmap.svg",
         "RMSE Diff",
         diverging=True,
@@ -2027,7 +2032,7 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
     for ax, (data, title) in zip(axes, diff_metrics):
         vmax = np.nanmax(np.abs(data))
         vmin = -vmax
-        im = ax.imshow(data, aspect="auto", origin="lower", cmap="RdYlGn_r", vmin=vmin, vmax=vmax)
+        im = ax.imshow(data, aspect="auto", origin="lower", cmap="coolwarm", vmin=vmin, vmax=vmax)
         ax.set_xticks(np.arange(n_betas))
         ax.set_xticklabels([f"{b:.1f}" for b in beta_values])
         ax.set_yticks(np.arange(n_vars))
@@ -2044,13 +2049,12 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
                     # Use white text on dark backgrounds, black on light
                     val_norm = abs(val) / (vmax + 1e-10)
                     color = "white" if val_norm > 0.5 else "black"
-                    ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=color)
+                    ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=color, fontsize=8)
 
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.1)
         fig.colorbar(im, cax=cax)
 
-    fig.suptitle("ICA - HOML Differences (Red = HOML better, Green = ICA better)")
     plt.tight_layout(rect=[0, 0, 1, 0.92])
     plt.savefig(os.path.join(output_dir, "combined_diff_heatmap.svg"), dpi=300, bbox_inches="tight")
     plt.close()

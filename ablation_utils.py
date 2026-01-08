@@ -29,16 +29,16 @@ ROBUST_ORTHO_SPLIT_IDX = 3
 ICA_IDX = 4
 
 # Method names for display
-METHOD_NAMES = ["Ortho ML", "HOML", "Robust Ortho Est", "Robust Ortho Split", "ICA"]
-METHOD_NAMES_SHORT = ["OML", "HOML", "ROE", "ROS", "ICA"]
+METHOD_NAMES = ["Ortho ML", "OML", "Robust Ortho Est", "Robust Ortho Split", "ICA"]
+METHOD_NAMES_SHORT = ["OML", "OML", "ROE", "ROS", "ICA"]
 
-# Colors for HOML and ICA (primary comparison methods)
-HOML_COLOR = "#1f77b4"  # Blue
+# Colors for OML and ICA (primary comparison methods)
+OML_COLOR = "#1f77b4"  # Blue
 ICA_COLOR = "#ff7f0e"  # Orange
 
 # Colors for comparison plots
 ICA_BETTER_COLOR = "#2ca02c"  # Green
-HOML_BETTER_COLOR = "#d62728"  # Red
+OML_BETTER_COLOR = "#d62728"  # Red
 
 # Distribution label mapping
 DISTRIBUTION_LABELS = {
