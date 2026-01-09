@@ -31,10 +31,10 @@ def _setup_plot():
 
 
 def _get_comparison_color(diff_val):
-    """Get color based on comparison (green if ICA better, red if HOML better)."""
-    from ablation_utils import HOML_BETTER_COLOR, ICA_BETTER_COLOR
+    """Get color based on comparison (blue if ICA better, red if OML better)."""
+    from ablation_utils import ICA_BETTER_COLOR, OML_BETTER_COLOR
 
-    return ICA_BETTER_COLOR if diff_val < 0 else HOML_BETTER_COLOR
+    return ICA_BETTER_COLOR if diff_val < 0 else OML_BETTER_COLOR
 
 
 def plot_diff_heatmap_fixed(
@@ -144,7 +144,7 @@ def plot_diff_heatmap_fixed(
 
         return heatmap
 
-    def plot_single_heatmap(data, title, filename, cbar_label):
+    def plot_single_heatmap(data, _title, filename, cbar_label):
         """Plot a single heatmap."""
         fig, ax = plt.subplots(figsize=(14, 10))
 
@@ -156,7 +156,7 @@ def plot_diff_heatmap_fixed(
             data,
             aspect="auto",
             origin="lower",
-            cmap="RdYlGn_r",  # Red = ICA worse, Green = ICA better
+            cmap="coolwarm",
             vmin=vmin,
             vmax=vmax,
         )
@@ -179,7 +179,6 @@ def plot_diff_heatmap_fixed(
 
         ax.set_xlabel("Distribution (sorted by kurtosis)")
         ax.set_ylabel(r"Outcome Coefficient $b$")
-        ax.set_title(title)
 
         # Add colorbar next to the plot
         divider = make_axes_locatable(ax)
@@ -198,21 +197,21 @@ def plot_diff_heatmap_fixed(
 
     plot_single_heatmap(
         rmse_diff_heatmap,
-        "RMSE Difference (ICA - HOML)\n(Red = HOML better, Green = ICA better)",
+        "RMSE Difference (ICA - OML)\n(Red = OML better, Green = ICA better)",
         f"heatmap_rmse_diff{suffix}.svg",
         "RMSE Diff",
     )
 
     plot_single_heatmap(
         bias_diff_heatmap,
-        r"$|\mathrm{Bias}|$ Difference (ICA - HOML)" + "\n(Red = HOML better, Green = ICA better)",
+        r"$|\mathrm{Bias}|$ Difference (ICA - OML)" + "\n(Red = OML better, Green = ICA better)",
         f"heatmap_bias_diff{suffix}.svg",
         r"$|\mathrm{Bias}|$ Diff",
     )
 
     plot_single_heatmap(
         std_diff_heatmap,
-        "Std Difference (ICA - HOML)\n(Red = HOML better, Green = ICA better)",
+        "Std Difference (ICA - OML)\n(Red = OML better, Green = ICA better)",
         f"heatmap_std_diff{suffix}.svg",
         "Std Diff",
     )
@@ -234,7 +233,7 @@ def plot_diff_heatmap_fixed(
             data,
             aspect="auto",
             origin="lower",
-            cmap="RdYlGn_r",
+            cmap="coolwarm",
             vmin=vmin,
             vmax=vmax,
         )
@@ -260,8 +259,6 @@ def plot_diff_heatmap_fixed(
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
         fig.colorbar(im, cax=cax, label=cbar_label)
-
-    fig.suptitle("ICA vs HOML Differences (Red = HOML better, Green = ICA better)", y=1.02)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"heatmap_combined{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
