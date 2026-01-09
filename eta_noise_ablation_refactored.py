@@ -1894,7 +1894,6 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     ax.set_xscale("log")
     ax.set_yscale("log")
     add_legend_outside(ax)
-    ax.set_title("RMSE vs ICA Variance Coefficient")
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "rmse_vs_ica_var_coeff.svg"), dpi=300, bbox_inches="tight")
@@ -1923,7 +1922,6 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     ax.set_xlabel(r"ICA Variance Coefficient: $1 + \|b + a\theta\|_2^2$")
     ax.set_ylabel("RMSE Difference (ICA - OML)")
     ax.set_xscale("log")
-    ax.set_title("RMSE Difference: ICA vs OML\n(Blue = ICA better, Red = OML better)")
     ax.grid(True, alpha=0.3)
 
     # Add legend
