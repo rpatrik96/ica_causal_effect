@@ -37,8 +37,8 @@ OML_COLOR = "#1f77b4"  # Blue
 ICA_COLOR = "#ff7f0e"  # Orange
 
 # Colors for comparison plots (colorblind-friendly)
-ICA_BETTER_COLOR = "#1f77b4"  # Blue
-OML_BETTER_COLOR = "#d62728"  # Red
+ICA_BETTER_COLOR = "blue"  # matplotlib default blue
+OML_BETTER_COLOR = "red"  # matplotlib default red
 
 # Markers for comparison plots (colorblind-friendly)
 ICA_BETTER_MARKER = "s"  # Square
