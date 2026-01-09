@@ -1328,8 +1328,8 @@ def plot_distribution_diff_heatmap(results: dict, output_dir: str = "figures/noi
         print("No data available for distribution diff heatmap")
         return
 
-    # Sort by kurtosis
-    dist_data.sort(key=lambda x: x["kurtosis"] if not np.isnan(x["kurtosis"]) else float("inf"))
+    # Sort by kurtosis (descending)
+    dist_data.sort(key=lambda x: x["kurtosis"] if not np.isnan(x["kurtosis"]) else float("-inf"), reverse=True)
 
     # Create heatmap data
     labels = [d["label"] for d in dist_data]
@@ -1360,12 +1360,12 @@ def plot_distribution_diff_heatmap(results: dict, output_dir: str = "figures/noi
                 color = "white" if abs(val) > vmax * 0.5 else "black"
                 ax.text(j, i, f"{val:.4f}", ha="center", va="center", color=color)
 
-    ax.set_xlabel("Distribution (sorted by kurtosis)")
+    ax.set_xlabel("Treatment noise distribution (sorted by kurtosis)")
 
     # Add colorbar next to the plot
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.15)
-    fig.colorbar(im, cax=cax, label="Difference (ICA - OML)")
+    fig.colorbar(im, cax=cax, label="ICA - OML")
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "distribution_diff_heatmap.svg"), dpi=300, bbox_inches="tight")
