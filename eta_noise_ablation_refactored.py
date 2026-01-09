@@ -41,9 +41,11 @@ from tueplots import bundles
 from ablation_utils import (
     HOML_IDX,
     ICA_BETTER_COLOR,
+    ICA_BETTER_MARKER,
     ICA_COLOR,
     ICA_IDX,
     OML_BETTER_COLOR,
+    OML_BETTER_MARKER,
     OML_COLOR,
     calculate_homl_moments,
     calculate_ica_moments,
@@ -682,6 +684,69 @@ def _get_comparison_color(diff: float, ica_better: bool = True) -> str:
     return OML_BETTER_COLOR if diff < 0 else ICA_BETTER_COLOR
 
 
+def _get_comparison_marker(diff: float, ica_better: bool = True) -> str:
+    """Get marker based on comparison result.
+
+    Args:
+        diff: Difference value (ICA - HOML)
+        ica_better: If True, negative diff means ICA is better
+
+    Returns:
+        Marker string
+    """
+    if ica_better:
+        return ICA_BETTER_MARKER if diff < 0 else OML_BETTER_MARKER
+    return OML_BETTER_MARKER if diff < 0 else ICA_BETTER_MARKER
+
+
+def _scatter_with_markers(ax, x_data, y_data, diff_data, alpha=0.6, s=30, ica_better=True):
+    """Plot scatter with different colors and markers for ICA vs OML better.
+
+    Args:
+        ax: Matplotlib axis
+        x_data: X coordinates
+        y_data: Y coordinates
+        diff_data: Difference values (negative = ICA better when ica_better=True)
+        alpha: Transparency
+        s: Marker size
+        ica_better: If True, negative diff means ICA is better
+    """
+    x_data = np.asarray(x_data)
+    y_data = np.asarray(y_data)
+    diff_data = np.asarray(diff_data)
+
+    # Split by which method is better
+    if ica_better:
+        ica_better_mask = diff_data < 0
+    else:
+        ica_better_mask = diff_data > 0
+    oml_better_mask = ~ica_better_mask
+
+    # Plot ICA better points (blue squares)
+    if np.any(ica_better_mask):
+        ax.scatter(
+            x_data[ica_better_mask],
+            y_data[ica_better_mask],
+            c=ICA_BETTER_COLOR,
+            marker=ICA_BETTER_MARKER,
+            alpha=alpha,
+            s=s,
+            label="ICA better",
+        )
+
+    # Plot OML better points (red circles)
+    if np.any(oml_better_mask):
+        ax.scatter(
+            x_data[oml_better_mask],
+            y_data[oml_better_mask],
+            c=OML_BETTER_COLOR,
+            marker=OML_BETTER_MARKER,
+            alpha=alpha,
+            s=s,
+            label="OML better",
+        )
+
+
 # =============================================================================
 # Bar Plot Functions
 # =============================================================================
@@ -889,10 +954,8 @@ def plot_diff_vs_kurtosis(
             homl_val, ica_val = np.abs(homl_val), np.abs(ica_val)
         diffs.append(ica_val - homl_val)
 
-    colors = [_get_comparison_color(d) for d in diffs]
-
     _, ax = plt.subplots(figsize=(8, 6))
-    ax.scatter(kurtosis_values, diffs, c=colors, s=80, alpha=0.8)
+    _scatter_with_markers(ax, kurtosis_values, diffs, diffs, alpha=0.8, s=80)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
 
     for i, dist in enumerate(noise_dists):
@@ -909,6 +972,12 @@ def plot_diff_vs_kurtosis(
     ax.set_ylabel(ylabel)
     ax.set_title(title)
     ax.grid(True, alpha=0.3)
+
+    # Add legend
+    handles, _ = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(loc="best")
+
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
     plt.close()
@@ -950,10 +1019,10 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
     ax.bar(x, avar_ratio, width=0.6, color=colors_ratio)
     ax.axhline(y=1, color="black", linestyle="--", linewidth=1, label="Equal variance")
     ax.set_xlabel("Noise Distribution")
-    ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / HOML)")
+    ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / OML)")
     ax.set_xticks(x)
     ax.set_xticklabels([get_distribution_label(d) for d in noise_dists], rotation=45, ha="right")
-    ax.set_title("Asymptotic Variance Ratio: ICA / HOML\n(Blue = ICA lower, Red = HOML lower)")
+    ax.set_title("Asymptotic Variance Ratio: ICA / OML\n(Blue = ICA lower, Red = OML lower)")
     ax.set_yscale("log")
     ax.grid(True, alpha=0.3, axis="y")
     plt.tight_layout()
@@ -978,9 +1047,10 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
     plt.close()
 
     # Plot 3: Ratio vs kurtosis scatter
+    # For ratio, ICA is better when ratio < 1 (use ratio - 1 as diff: negative = ICA better)
     _, ax = plt.subplots(figsize=(8, 6))
-    colors_scatter = [ICA_BETTER_COLOR if r < 1 else OML_BETTER_COLOR for r in avar_ratio]
-    ax.scatter(kurtosis_values, avar_ratio, c=colors_scatter, s=80, alpha=0.8)
+    ratio_diffs = np.array([r - 1 if not np.isnan(r) else np.nan for r in avar_ratio])
+    _scatter_with_markers(ax, kurtosis_values, avar_ratio, ratio_diffs, alpha=0.8, s=80)
     ax.axhline(y=1, color="black", linestyle="--", linewidth=1)
     for i, dist in enumerate(noise_dists):
         if not np.isnan(avar_ratio[i]):
@@ -993,10 +1063,16 @@ def plot_asymptotic_variance_comparison(results: dict, output_dir: str):
                 textcoords="offset points",
             )
     ax.set_xlabel(r"Excess Kurtosis $\kappa$")
-    ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / HOML)")
-    ax.set_title("Asymptotic Variance Ratio vs Kurtosis\n(Blue = ICA lower, Red = HOML lower)")
+    ax.set_ylabel(r"Asymptotic Variance Ratio (ICA / OML)")
+    ax.set_title("Asymptotic Variance Ratio vs Kurtosis\n(Blue = ICA lower, Red = OML lower)")
     ax.set_yscale("log")
     ax.grid(True, alpha=0.3)
+
+    # Add legend
+    handles, _ = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(loc="best")
+
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "asymptotic_var_ratio_vs_kurtosis.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -1419,10 +1495,9 @@ def plot_noise_ablation_coeff_scatter(
 
     # Plot 2: 2x2 grid showing RMSE diff vs each coefficient
     fig, axes = plt.subplots(2, 2, figsize=(10, 8))
-    colors = [_get_comparison_color(d) for d in rmse_diffs]
 
     ax = axes[0, 0]
-    ax.scatter(treatment_effects, rmse_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, treatment_effects, rmse_diffs, rmse_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Treatment Effect $\theta$")
     ax.set_ylabel("RMSE Diff")
@@ -1430,7 +1505,7 @@ def plot_noise_ablation_coeff_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[0, 1]
-    ax.scatter(treatment_coefs, rmse_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, treatment_coefs, rmse_diffs, rmse_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Treatment Coef $a$")
     ax.set_ylabel("RMSE Diff")
@@ -1438,7 +1513,7 @@ def plot_noise_ablation_coeff_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 0]
-    ax.scatter(outcome_coefs, rmse_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, outcome_coefs, rmse_diffs, rmse_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Outcome Coef $b$")
     ax.set_ylabel("RMSE Diff")
@@ -1446,7 +1521,7 @@ def plot_noise_ablation_coeff_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 1]
-    ax.scatter(ica_var_coeffs, rmse_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, ica_var_coeffs, rmse_diffs, rmse_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"ICA Var Coeff")
     ax.set_ylabel("RMSE Diff")
@@ -1454,7 +1529,12 @@ def plot_noise_ablation_coeff_scatter(
     ax.set_title(r"RMSE Diff vs ICA Var Coeff")
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle("RMSE Difference (ICA - HOML) vs Coefficient Values\n(Blue = ICA better, Red = HOML better)")
+    # Add legend to first subplot
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    if handles:
+        fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.98, 0.98))
+
+    fig.suptitle("RMSE Difference (ICA - OML) vs Coefficient Values\n(Blue = ICA better, Red = OML better)")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_rmse_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -1526,10 +1606,9 @@ def plot_noise_ablation_std_scatter(
 
     # 2x2 grid showing Std diff vs each coefficient
     fig, axes = plt.subplots(2, 2, figsize=(10, 8))
-    colors = [_get_comparison_color(d) for d in std_diffs]
 
     ax = axes[0, 0]
-    ax.scatter(treatment_effects, std_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, treatment_effects, std_diffs, std_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Treatment Effect $\theta$")
     ax.set_ylabel("Std Diff")
@@ -1537,7 +1616,7 @@ def plot_noise_ablation_std_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[0, 1]
-    ax.scatter(treatment_coefs, std_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, treatment_coefs, std_diffs, std_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Treatment Coef $a$")
     ax.set_ylabel("Std Diff")
@@ -1545,7 +1624,7 @@ def plot_noise_ablation_std_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 0]
-    ax.scatter(outcome_coefs, std_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, outcome_coefs, std_diffs, std_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Outcome Coef $b$")
     ax.set_ylabel("Std Diff")
@@ -1553,7 +1632,7 @@ def plot_noise_ablation_std_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 1]
-    ax.scatter(ica_var_coeffs, std_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, ica_var_coeffs, std_diffs, std_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"ICA Var Coeff")
     ax.set_ylabel("Std Diff")
@@ -1561,7 +1640,12 @@ def plot_noise_ablation_std_scatter(
     ax.set_title(r"Std Diff vs ICA Var Coeff")
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle("Std Difference (ICA - HOML) vs Coefficient Values\n(Blue = ICA better, Red = HOML better)")
+    # Add legend to first subplot
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    if handles:
+        fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.98, 0.98))
+
+    fig.suptitle("Std Difference (ICA - OML) vs Coefficient Values\n(Blue = ICA better, Red = OML better)")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_std_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -1834,14 +1918,19 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     # Plot 3: RMSE difference
     _, ax = plt.subplots(figsize=(8, 6))
     rmse_diff = np.array(ica_rmse) - np.array(homl_rmse)
-    colors = [_get_comparison_color(d) for d in rmse_diff]
-    ax.scatter(ica_var_coeffs, rmse_diff, c=colors, alpha=0.7, s=60)
+    _scatter_with_markers(ax, ica_var_coeffs, rmse_diff, rmse_diff, alpha=0.7, s=60)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"ICA Variance Coefficient: $1 + \|b + a\theta\|_2^2$")
-    ax.set_ylabel("RMSE Difference (ICA - HOML)")
+    ax.set_ylabel("RMSE Difference (ICA - OML)")
     ax.set_xscale("log")
-    ax.set_title("RMSE Difference: ICA vs HOML\n(Blue = ICA better, Red = HOML better)")
+    ax.set_title("RMSE Difference: ICA vs OML\n(Blue = ICA better, Red = OML better)")
     ax.grid(True, alpha=0.3)
+
+    # Add legend
+    handles, _ = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(loc="best")
+
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "rmse_diff_vs_ica_var_coeff.svg"), dpi=300, bbox_inches="tight")
     plt.close()

@@ -31,7 +31,7 @@ def _setup_plot():
 
 
 def _get_comparison_color(diff_val):
-    """Get color based on comparison (green if ICA better, red if OML better)."""
+    """Get color based on comparison (blue if ICA better, red if OML better)."""
     from ablation_utils import ICA_BETTER_COLOR, OML_BETTER_COLOR
 
     return ICA_BETTER_COLOR if diff_val < 0 else OML_BETTER_COLOR
@@ -144,7 +144,7 @@ def plot_diff_heatmap_fixed(
 
         return heatmap
 
-    def plot_single_heatmap(data, title, filename, cbar_label):
+    def plot_single_heatmap(data, _title, filename, cbar_label):
         """Plot a single heatmap."""
         fig, ax = plt.subplots(figsize=(14, 10))
 

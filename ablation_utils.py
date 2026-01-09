@@ -36,9 +36,13 @@ METHOD_NAMES_SHORT = ["OML", "OML", "ROE", "ROS", "ICA"]
 OML_COLOR = "#1f77b4"  # Blue
 ICA_COLOR = "#ff7f0e"  # Orange
 
-# Colors for comparison plots
-ICA_BETTER_COLOR = "#2ca02c"  # Green
+# Colors for comparison plots (colorblind-friendly)
+ICA_BETTER_COLOR = "#1f77b4"  # Blue
 OML_BETTER_COLOR = "#d62728"  # Red
+
+# Markers for comparison plots (colorblind-friendly)
+ICA_BETTER_MARKER = "s"  # Square
+OML_BETTER_MARKER = "o"  # Circle
 
 # Distribution label mapping
 DISTRIBUTION_LABELS = {

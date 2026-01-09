@@ -22,7 +22,15 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Import utilities
-from ablation_utils import HOML_IDX, ICA_BETTER_COLOR, ICA_IDX, OML_BETTER_COLOR, get_distribution_label
+from ablation_utils import (
+    HOML_IDX,
+    ICA_BETTER_COLOR,
+    ICA_BETTER_MARKER,
+    ICA_IDX,
+    OML_BETTER_COLOR,
+    OML_BETTER_MARKER,
+    get_distribution_label,
+)
 from plot_utils import plot_typography
 
 
@@ -32,8 +40,57 @@ def _setup_plot():
 
 
 def _get_comparison_color(diff_val):
-    """Get color based on comparison (green if ICA better, red if OML better)."""
+    """Get color based on comparison (blue if ICA better, red if OML better)."""
     return ICA_BETTER_COLOR if diff_val < 0 else OML_BETTER_COLOR
+
+
+def _get_comparison_marker(diff_val):
+    """Get marker based on comparison (square if ICA better, circle if OML better)."""
+    return ICA_BETTER_MARKER if diff_val < 0 else OML_BETTER_MARKER
+
+
+def _scatter_with_markers(ax, x_data, y_data, diff_data, alpha=0.6, s=30):
+    """Plot scatter with different colors and markers for ICA vs OML better.
+
+    Args:
+        ax: Matplotlib axis
+        x_data: X coordinates
+        y_data: Y coordinates
+        diff_data: Difference values (negative = ICA better, positive = OML better)
+        alpha: Transparency
+        s: Marker size
+    """
+    x_data = np.asarray(x_data)
+    y_data = np.asarray(y_data)
+    diff_data = np.asarray(diff_data)
+
+    # Split by which method is better
+    ica_better_mask = diff_data < 0
+    oml_better_mask = ~ica_better_mask
+
+    # Plot ICA better points (blue squares)
+    if np.any(ica_better_mask):
+        ax.scatter(
+            x_data[ica_better_mask],
+            y_data[ica_better_mask],
+            c=ICA_BETTER_COLOR,
+            marker=ICA_BETTER_MARKER,
+            alpha=alpha,
+            s=s,
+            label="ICA better",
+        )
+
+    # Plot OML better points (red circles)
+    if np.any(oml_better_mask):
+        ax.scatter(
+            x_data[oml_better_mask],
+            y_data[oml_better_mask],
+            c=OML_BETTER_COLOR,
+            marker=OML_BETTER_MARKER,
+            alpha=alpha,
+            s=s,
+            label="OML better",
+        )
 
 
 def filter_duplicate_distributions(results):
@@ -170,7 +227,7 @@ def plot_diff_heatmap_fixed(
 
         return heatmap
 
-    def plot_single_heatmap(data, title, filename, cbar_label):
+    def plot_single_heatmap(data, _title, filename, cbar_label):
         """Plot a single heatmap."""
         fig, ax = plt.subplots(figsize=(14, 10))
 
@@ -350,10 +407,9 @@ def plot_coeff_scatter(
 
     # Create scatter grid for RMSE
     fig, axes = plt.subplots(2, 2, figsize=(10, 8))
-    colors = [_get_comparison_color(d) for d in rmse_diffs]
 
     ax = axes[0, 0]
-    ax.scatter(treatment_effects, rmse_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, treatment_effects, rmse_diffs, rmse_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Treatment Effect $\theta$", fontsize=20)
     ax.set_ylabel("RMSE Diff", fontsize=20)
@@ -361,7 +417,7 @@ def plot_coeff_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[0, 1]
-    ax.scatter(treatment_coefs, rmse_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, treatment_coefs, rmse_diffs, rmse_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Treatment Coef $a$", fontsize=20)
     ax.set_ylabel("RMSE Diff", fontsize=20)
@@ -369,7 +425,7 @@ def plot_coeff_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 0]
-    ax.scatter(outcome_coefs, rmse_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, outcome_coefs, rmse_diffs, rmse_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Outcome Coef $b$", fontsize=20)
     ax.set_ylabel("RMSE Diff", fontsize=20)
@@ -377,13 +433,19 @@ def plot_coeff_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 1]
-    ax.scatter(ica_var_coeffs, rmse_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, ica_var_coeffs, rmse_diffs, rmse_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"ICA Var Coeff", fontsize=20)
     ax.set_ylabel("RMSE Diff", fontsize=20)
     ax.set_title(r"RMSE Diff vs ICA Var Coeff", fontsize=24)
     ax.set_xscale("log")
     ax.grid(True, alpha=0.3)
+
+    # Add legend to first subplot
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    if handles:
+        fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.98, 0.98))
+
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_rmse_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
@@ -391,10 +453,9 @@ def plot_coeff_scatter(
 
     # Create scatter grid for Bias
     fig, axes = plt.subplots(2, 2, figsize=(10, 8))
-    colors = [_get_comparison_color(d) for d in bias_diffs]
 
     ax = axes[0, 0]
-    ax.scatter(treatment_effects, bias_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, treatment_effects, bias_diffs, bias_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Treatment Effect $\theta$", fontsize=20)
     ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff", fontsize=20)
@@ -402,7 +463,7 @@ def plot_coeff_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[0, 1]
-    ax.scatter(treatment_coefs, bias_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, treatment_coefs, bias_diffs, bias_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Treatment Coef $a$", fontsize=20)
     ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff", fontsize=20)
@@ -410,7 +471,7 @@ def plot_coeff_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 0]
-    ax.scatter(outcome_coefs, bias_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, outcome_coefs, bias_diffs, bias_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"Outcome Coef $b$", fontsize=20)
     ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff", fontsize=20)
@@ -418,13 +479,19 @@ def plot_coeff_scatter(
     ax.grid(True, alpha=0.3)
 
     ax = axes[1, 1]
-    ax.scatter(ica_var_coeffs, bias_diffs, c=colors, alpha=0.6, s=30)
+    _scatter_with_markers(ax, ica_var_coeffs, bias_diffs, bias_diffs)
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"ICA Var Coeff", fontsize=20)
     ax.set_ylabel(r"$|\mathrm{Bias}|$ Diff", fontsize=20)
     ax.set_title(r"$|\mathrm{Bias}|$ Diff vs ICA Var Coeff", fontsize=24)
     ax.set_xscale("log")
     ax.grid(True, alpha=0.3)
+
+    # Add legend to first subplot
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    if handles:
+        fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.98, 0.98))
+
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_bias_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
