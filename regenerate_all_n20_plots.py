@@ -441,12 +441,12 @@ def plot_coeff_scatter(
     ax.set_xscale("log")
     ax.grid(True, alpha=0.3)
 
-    # Add legend to first subplot
+    # Add legend outside the subplots (bottom center)
     handles, labels = axes[0, 0].get_legend_handles_labels()
     if handles:
-        fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.98, 0.98))
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=2)
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0.05, 1, 1])  # Leave space at bottom for legend
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_rmse_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
     print(f"  Saved coeff_scatter_rmse_grid{suffix}.svg")
@@ -487,12 +487,12 @@ def plot_coeff_scatter(
     ax.set_xscale("log")
     ax.grid(True, alpha=0.3)
 
-    # Add legend to first subplot
+    # Add legend outside the subplots (bottom center)
     handles, labels = axes[0, 0].get_legend_handles_labels()
     if handles:
-        fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.98, 0.98))
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=2)
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0.05, 1, 1])  # Leave space at bottom for legend
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_bias_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
     print(f"  Saved coeff_scatter_bias_grid{suffix}.svg")

@@ -1529,13 +1529,13 @@ def plot_noise_ablation_coeff_scatter(
     ax.set_title(r"RMSE Diff vs ICA Var Coeff")
     ax.grid(True, alpha=0.3)
 
-    # Add legend to first subplot
-    handles, labels = axes[0, 0].get_legend_handles_labels()
+    # Add legend outside the subplots (bottom center)
+    handles, _ = axes[0, 0].get_legend_handles_labels()
     if handles:
-        fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.98, 0.98))
+        fig.legend(handles, ["ICA better", "OML better"], loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=2)
 
     fig.suptitle("RMSE Difference (ICA - OML) vs Coefficient Values\n(Blue = ICA better, Red = OML better)")
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Leave space for legend and suptitle
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_rmse_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
@@ -1640,13 +1640,13 @@ def plot_noise_ablation_std_scatter(
     ax.set_title(r"Std Diff vs ICA Var Coeff")
     ax.grid(True, alpha=0.3)
 
-    # Add legend to first subplot
-    handles, labels = axes[0, 0].get_legend_handles_labels()
+    # Add legend outside the subplots (bottom center)
+    handles, _ = axes[0, 0].get_legend_handles_labels()
     if handles:
-        fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.98, 0.98))
+        fig.legend(handles, ["ICA better", "OML better"], loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=2)
 
     fig.suptitle("Std Difference (ICA - OML) vs Coefficient Values\n(Blue = ICA better, Red = OML better)")
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Leave space for legend and suptitle
     plt.savefig(os.path.join(output_dir, f"coeff_scatter_std_grid{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
