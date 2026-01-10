@@ -77,6 +77,27 @@ python ica.py  # Runs main_sparsity() by default (see __main__ block)
 # - main_nonlinear_noise_split(): Noise distribution ablations
 ```
 
+**Eta noise ablation experiments (`eta_noise_ablation_refactored.py`):**
+```bash
+# Run filtered heatmap experiments (sample size vs dimension/beta)
+python eta_noise_ablation_refactored.py --filtered_heatmap
+
+# Constrain ICA variance coefficient to threshold (default 1.5)
+python eta_noise_ablation_refactored.py --filtered_heatmap --constrain_ica_var
+
+# Customize axis mode and parameters
+python eta_noise_ablation_refactored.py --filtered_heatmap \
+  --heatmap_axis_mode beta_vs_n \
+  --ica_var_threshold 2.0 \
+  --n_experiments 50
+
+# Run coefficient ablation (varying treatment/outcome coefficients)
+python eta_noise_ablation_refactored.py --coefficient_ablation
+
+# Run variance ablation (varying noise variance across beta values)
+python eta_noise_ablation_refactored.py --variance_ablation
+```
+
 **Common command-line flags:**
 - `--n_samples`: Sample size (default: 500)
 - `--n_experiments`: Number of Monte Carlo replications (default: 5)
@@ -85,6 +106,17 @@ python ica.py  # Runs main_sparsity() by default (see __main__ block)
 - `--asymptotic_var`: Enable asymptotic variance analysis (default: False)
 - `--check_convergence`: Verify ICA convergence (default: True)
 - `--scalar_coeffs`: Use scalar coefficients only (default: True)
+
+**Eta noise ablation flags (`eta_noise_ablation_refactored.py`):**
+- `--filtered_heatmap`: Run filtered RMSE heatmap experiments
+- `--constrain_ica_var`: Automatically compute treatment coefficient to achieve target ICA variance coefficient
+- `--ica_var_threshold`: Target ICA variance coefficient threshold (default: 1.5)
+- `--heatmap_axis_mode`: Axis mode - "d_vs_n" (dimension vs sample size) or "beta_vs_n" (beta vs sample size)
+- `--heatmap_sample_sizes`: Sample sizes for heatmap grid (default: [500, 1000, 2000, 5000, 10000])
+- `--heatmap_dimensions`: Covariate dimensions for d_vs_n mode (default: [5, 10, 20, 50])
+- `--heatmap_betas`: Beta values for beta_vs_n mode (default: [0.5, 1.0, 2.0, 3.0, 4.0])
+- `--coefficient_ablation`: Run coefficient ablation experiments
+- `--variance_ablation`: Run variance ablation experiments
 
 ### Shell Scripts for Large-Scale Experiments
 
@@ -152,6 +184,24 @@ ica_var_coeff = 1 + ||outcome_coef + treatment_coef * treatment_effect||²
 ica_asymptotic_var = ica_var_coeff * eta_cubed_variance / eta_excess_kurtosis ** 2
 ```
 
+### ICA Variance Coefficient Constraint
+
+The `--constrain_ica_var` flag in `eta_noise_ablation_refactored.py` automatically computes coefficients to achieve a target ICA variance coefficient:
+
+```python
+# eta_noise_ablation_refactored.py:compute_ica_var_coeff()
+ica_var_coeff = 1 + (outcome_coef_scalar + treatment_coef_scalar * treatment_effect)²
+
+# eta_noise_ablation_refactored.py:compute_constrained_treatment_coef()
+# Solves for treatment_coef_scalar given target ica_var_coeff:
+treatment_coef_scalar = (sqrt(target - 1) - outcome_coef_scalar) / treatment_effect
+```
+
+When `--constrain_ica_var` is enabled:
+1. If `outcome_coef_scalar` is zero, it's automatically set to 30% of the target coefficient sum
+2. `treatment_coef_scalar` is computed to achieve `ica_var_coeff = ica_var_threshold`
+3. Validation ensures both coefficients are non-zero
+
 ### Cross-Fitting Implementation
 
 `all_together_cross_fitting()` uses 2-fold cross-fitting with nested splits for moment estimation:
@@ -177,6 +227,20 @@ figures/
 ICA-specific plots are saved to:
 ```
 figures/ica/
+```
+
+Eta noise ablation outputs:
+```
+figures/
+  filtered_heatmap/
+    filtered_heatmap_results_{axis_mode}.npy           # Raw results
+    rmse_sample_size_vs_{dim|beta}_homl_filtered_*.svg # HOML RMSE heatmap
+    rmse_sample_size_vs_{dim|beta}_ica_filtered_*.svg  # ICA RMSE heatmap
+    rmse_sample_size_vs_{dim|beta}_diff_filtered_*.svg # Difference heatmap (ICA - HOML)
+  coefficient_ablation/
+    coefficient_ablation_results.npy
+  variance_ablation/
+    variance_ablation_results.npy
 ```
 
 ## Testing and Code Quality

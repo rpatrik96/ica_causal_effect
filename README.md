@@ -48,7 +48,11 @@ pre-commit install
 
 * `oml_runner.py`: Runner for orthogonal machine learning experiments.
 
-* `eta_noise_ablation_refactored.py`: Ablation studies for noise distributions and variance parameters.
+* `eta_noise_ablation_refactored.py`: Ablation studies for noise distributions, variance parameters, and coefficient configurations. Supports:
+  - **Filtered heatmap experiments**: Compare HOML vs ICA RMSE across sample sizes and dimensions/beta values
+  - **ICA variance coefficient constraint**: Automatically compute coefficients to achieve a target ICA variance coefficient
+  - **Coefficient ablation**: Vary treatment/outcome coefficients to study their effect on estimation error
+  - **Variance ablation**: Study how noise variance affects estimation across different distributions
 
 ### Utilities
 
@@ -140,6 +144,41 @@ The repository uses GitHub Actions for continuous integration:
 - **Quick Test Workflow**: Fast feedback on any branch
 
 See [CI_CD.md](CI_CD.md) for detailed CI/CD documentation.
+
+## Running Ablation Experiments
+
+### Eta Noise Ablation
+
+Run filtered heatmap experiments comparing HOML vs ICA across sample sizes and dimensions:
+
+```bash
+# Basic filtered heatmap (dimension vs sample size)
+python eta_noise_ablation_refactored.py --filtered_heatmap
+
+# With ICA variance coefficient constraint (automatically computes coefficients)
+python eta_noise_ablation_refactored.py --filtered_heatmap --constrain_ica_var
+
+# Beta vs sample size mode with custom parameters
+python eta_noise_ablation_refactored.py --filtered_heatmap \
+  --heatmap_axis_mode beta_vs_n \
+  --ica_var_threshold 2.0 \
+  --n_experiments 50
+```
+
+Run coefficient and variance ablation studies:
+
+```bash
+# Coefficient ablation (varying treatment/outcome coefficients)
+python eta_noise_ablation_refactored.py --coefficient_ablation
+
+# Variance ablation (noise variance across beta values)
+python eta_noise_ablation_refactored.py --variance_ablation
+```
+
+Key flags:
+- `--constrain_ica_var`: Automatically compute treatment coefficient to achieve `ica_var_coeff = ica_var_threshold`
+- `--ica_var_threshold`: Target ICA variance coefficient (default: 1.5)
+- `--heatmap_axis_mode`: Choose "d_vs_n" (dimension vs sample size) or "beta_vs_n" (beta vs sample size)
 
 ## Re-creating the Figures in the Paper
 
