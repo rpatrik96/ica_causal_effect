@@ -61,6 +61,72 @@ from oml_runner import setup_treatment_noise
 from plot_utils import add_legend_outside, plot_typography
 
 # =============================================================================
+# Coefficient Utilities
+# =============================================================================
+
+
+def compute_ica_var_coeff(
+    treatment_coef_scalar: float,
+    outcome_coef_scalar: float,
+    treatment_effect: float,
+) -> float:
+    """Compute the ICA variance coefficient.
+
+    The ICA variance coefficient is:
+      ica_var_coeff = 1 + ||outcome_coef + treatment_coef * treatment_effect||^2
+
+    For scalar coefficients (only first element non-zero):
+      ica_var_coeff = 1 + (outcome_coef_scalar + treatment_coef_scalar * treatment_effect)^2
+
+    Args:
+        treatment_coef_scalar: Scalar value for treatment coefficient
+        outcome_coef_scalar: Scalar value for outcome coefficient
+        treatment_effect: True treatment effect
+
+    Returns:
+        ICA variance coefficient
+    """
+    return 1 + (outcome_coef_scalar + treatment_coef_scalar * treatment_effect) ** 2
+
+
+def compute_constrained_treatment_coef(
+    target_ica_var_coeff: float,
+    treatment_effect: float = 1.0,
+    outcome_coef_scalar: float = 0.0,
+) -> float:
+    """Compute treatment coefficient scalar to achieve target ICA variance coefficient.
+
+    Solves for treatment_coef_scalar in:
+      target_ica_var_coeff = 1 + (outcome_coef_scalar + treatment_coef_scalar * treatment_effect)^2
+
+    Args:
+        target_ica_var_coeff: Target ICA variance coefficient (must be >= 1)
+        treatment_effect: True treatment effect (must be non-zero)
+        outcome_coef_scalar: Scalar value for outcome coefficient
+
+    Returns:
+        Treatment coefficient scalar that achieves the target ICA variance coefficient
+
+    Raises:
+        ValueError: If target_ica_var_coeff < 1 or treatment_effect == 0
+    """
+    if target_ica_var_coeff < 1:
+        raise ValueError(f"target_ica_var_coeff must be >= 1, got {target_ica_var_coeff}")
+    if treatment_effect == 0:
+        raise ValueError("treatment_effect must be non-zero")
+
+    # Solve: target = 1 + (outcome_coef_scalar + treatment_coef_scalar * treatment_effect)^2
+    # => (outcome_coef_scalar + treatment_coef_scalar * treatment_effect)^2 = target - 1
+    # => outcome_coef_scalar + treatment_coef_scalar * treatment_effect = +/- sqrt(target - 1)
+    # => treatment_coef_scalar = (sqrt(target - 1) - outcome_coef_scalar) / treatment_effect
+    # We choose the positive root for simplicity
+    coef_sum = np.sqrt(target_ica_var_coeff - 1)
+    treatment_coef_scalar = (coef_sum - outcome_coef_scalar) / treatment_effect
+
+    return treatment_coef_scalar
+
+
+# =============================================================================
 # Distribution Parsing
 # =============================================================================
 
@@ -651,6 +717,186 @@ def run_coefficient_ablation_experiments(
         all_results.append(result_dict)
 
         # Print summary for HOML and ICA only
+        print(f"  HOML: bias={biases[HOML_IDX]:.4f}, std={sigmas[HOML_IDX]:.4f}, rmse={rmse[HOML_IDX]:.4f}")
+        if ICA_IDX < len(biases):
+            print(f"  ICA:  bias={biases[ICA_IDX]:.4f}, std={sigmas[ICA_IDX]:.4f}, rmse={rmse[ICA_IDX]:.4f}")
+
+    return all_results
+
+
+def run_sample_dimension_grid_experiments(
+    sample_sizes: List[int] = None,
+    dimension_values: List[int] = None,
+    beta_values: List[float] = None,
+    axis_mode: str = "d_vs_n",
+    fixed_beta: float = 1.0,
+    fixed_dimension: int = 10,
+    noise_distribution: str = "discrete",
+    n_experiments: int = 20,
+    treatment_effect: float = 1.0,
+    treatment_coef_scalar: float = 1.0,
+    outcome_coef_scalar: float = 1.0,
+    sigma_outcome: float = np.sqrt(3.0),
+    covariate_pdf: str = "gennorm",
+    check_convergence: bool = False,
+    verbose: bool = False,
+    seed: int = 12143,
+) -> List[dict]:
+    """Run experiments over sample size and dimension/beta grid.
+
+    Args:
+        sample_sizes: List of sample sizes to test
+        dimension_values: List of covariate dimensions (for d_vs_n mode)
+        beta_values: List of gennorm beta values (for beta_vs_n mode)
+        axis_mode: "d_vs_n" (dimension vs sample size) or "beta_vs_n" (beta vs sample size)
+        fixed_beta: Fixed beta when axis_mode="d_vs_n"
+        fixed_dimension: Fixed dimension when axis_mode="beta_vs_n"
+        noise_distribution: Noise distribution for treatment
+        n_experiments: Number of Monte Carlo replications
+        treatment_effect: True treatment effect
+        treatment_coef_scalar: Scalar value for treatment coefficient
+        outcome_coef_scalar: Scalar value for outcome coefficient
+        sigma_outcome: Standard deviation of outcome noise
+        covariate_pdf: Distribution for covariates
+        check_convergence: Whether to check ICA convergence
+        verbose: Enable verbose output
+        seed: Random seed
+
+    Returns:
+        List of result dictionaries, one per (sample_size, dimension/beta) configuration
+    """
+    # Default grids
+    if sample_sizes is None:
+        sample_sizes = [500, 1000, 2000, 5000, 10000]
+
+    if axis_mode == "d_vs_n":
+        if dimension_values is None:
+            dimension_values = [5, 10, 20, 50]
+        grid_values = dimension_values
+        grid_key = "support_size"
+        fixed_value = fixed_beta
+        covariate_beta = fixed_beta
+    elif axis_mode == "beta_vs_n":
+        if beta_values is None:
+            beta_values = [0.5, 1.0, 2.0, 3.0, 4.0]
+        grid_values = beta_values
+        grid_key = "beta"
+        fixed_value = fixed_dimension
+    else:
+        raise ValueError(f"Invalid axis_mode: {axis_mode}. Use 'd_vs_n' or 'beta_vs_n'.")
+
+    np.random.seed(seed)
+
+    # Parse distribution
+    noise_dist, gennorm_beta = parse_distribution_spec(noise_distribution)
+
+    # Setup treatment noise
+    params_or_discounts, eta_sample, mean_discount, probs = setup_treatment_noise(
+        distribution=noise_dist, gennorm_beta=gennorm_beta
+    )
+
+    # Calculate base moments
+    moments = calculate_homl_moments(noise_dist, params_or_discounts, mean_discount, probs)
+    eta_second_moment = moments["eta_second_moment"]
+    eta_third_moment = moments["eta_third_moment"]
+    homl_asymptotic_var = moments["homl_asymptotic_var"]
+
+    all_results = []
+
+    # Create grid
+    grid = list(product(sample_sizes, grid_values))
+    total_configs = len(grid)
+
+    print(f"\nRunning sample-dimension grid experiments with {total_configs} configurations")
+    print(f"Axis mode: {axis_mode}")
+    print(f"Noise distribution: {noise_distribution}")
+    print(f"Covariate distribution: {covariate_pdf}")
+
+    for config_idx, (n_samples, grid_val) in enumerate(grid):
+        # Set dimension and beta based on axis mode
+        if axis_mode == "d_vs_n":
+            support_size = grid_val
+            covariate_beta = fixed_beta
+        else:  # beta_vs_n
+            support_size = fixed_dimension
+            covariate_beta = grid_val
+
+        # Create coefficient arrays
+        treatment_coef = np.zeros(support_size)
+        treatment_coef[0] = treatment_coef_scalar
+        outcome_coef = np.zeros(support_size)
+        outcome_coef[0] = outcome_coef_scalar
+
+        # Calculate ICA variance coefficient
+        ica_var_coeff = 1 + np.linalg.norm(outcome_coef + treatment_coef * treatment_effect) ** 2
+
+        # Setup samplers
+        x_sample = create_covariate_sampler(covariate_pdf, covariate_beta)
+        epsilon_sample = create_outcome_noise_sampler(sigma_outcome)
+
+        # Compute regularization parameter
+        lambda_reg = np.sqrt(np.log(support_size) / n_samples)
+
+        # Setup support indices
+        treatment_support = outcome_support = np.array(range(support_size))
+
+        print(
+            f"\n[{config_idx + 1}/{total_configs}] n={n_samples}, {grid_key}={grid_val}, "
+            f"ica_var_coeff={ica_var_coeff:.4f}"
+        )
+
+        # Run parallel experiments
+        results = run_parallel_experiments(
+            n_experiments=n_experiments,
+            x_sample=x_sample,
+            eta_sample=eta_sample,
+            epsilon_sample=epsilon_sample,
+            n_samples=n_samples,
+            cov_dim_max=support_size,
+            treatment_effect=treatment_effect,
+            treatment_support=treatment_support,
+            treatment_coef=treatment_coef,
+            outcome_support=outcome_support,
+            outcome_coef=outcome_coef,
+            eta_second_moment=eta_second_moment,
+            eta_third_moment=eta_third_moment,
+            lambda_reg=lambda_reg,
+            check_convergence=check_convergence,
+            verbose=verbose,
+        )
+
+        print(f"  Experiments kept: {len(results)} out of {n_experiments}")
+
+        if len(results) == 0:
+            print("  No experiments converged")
+            continue
+
+        # Extract and compute statistics
+        ortho_rec_tau = extract_treatment_estimates(results)
+        biases, sigmas, rmse = compute_estimation_statistics(ortho_rec_tau, treatment_effect)
+
+        # Store results
+        result_dict = {
+            "n_samples": n_samples,
+            "support_size": support_size,
+            "beta": covariate_beta,
+            "treatment_effect": treatment_effect,
+            "treatment_coef_scalar": treatment_coef_scalar,
+            "outcome_coef_scalar": outcome_coef_scalar,
+            "ica_var_coeff": ica_var_coeff,
+            "ortho_rec_tau": ortho_rec_tau,
+            "biases": biases,
+            "sigmas": sigmas,
+            "rmse": rmse,
+            "n_experiments_kept": len(results),
+            "noise_distribution": noise_distribution,
+            "eta_second_moment": eta_second_moment,
+            "eta_third_moment": eta_third_moment,
+            "homl_asymptotic_var": homl_asymptotic_var,
+        }
+        all_results.append(result_dict)
+
+        # Print summary
         print(f"  HOML: bias={biases[HOML_IDX]:.4f}, std={sigmas[HOML_IDX]:.4f}, rmse={rmse[HOML_IDX]:.4f}")
         if ICA_IDX < len(biases):
             print(f"  ICA:  bias={biases[ICA_IDX]:.4f}, std={sigmas[ICA_IDX]:.4f}, rmse={rmse[ICA_IDX]:.4f}")
@@ -2000,7 +2246,7 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
                 vmin, vmax = np.nanmin(data_display), np.nanmax(data_display)
             else:
                 vmin, vmax = np.nanmin(data), np.nanmax(data)
-            cmap = "viridis"
+            cmap = "coolwarm"
             data_display = data if not log_scale else data_display
 
         im = ax.imshow(
@@ -2090,7 +2336,7 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
 
     for ax, (data, title) in zip(axes.flat, metrics):
         vmin, vmax = np.nanmin(data), np.nanmax(data)
-        im = ax.imshow(data, aspect="auto", origin="lower", cmap="viridis", vmin=vmin, vmax=vmax)
+        im = ax.imshow(data, aspect="auto", origin="lower", cmap="coolwarm", vmin=vmin, vmax=vmax)
         ax.set_xticks(np.arange(n_betas))
         ax.set_xticklabels([f"{b:.1f}" for b in beta_values])
         ax.set_yticks(np.arange(n_vars))
@@ -2147,6 +2393,354 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
     plt.close()
 
     print(f"\nVariance ablation heatmaps saved to {output_dir}")
+
+
+def plot_ica_var_filtered_rmse_heatmap(
+    results: List[dict],
+    output_dir: str,
+    axis_mode: str = "d_vs_n",
+    ica_var_threshold: float = 1.5,
+    filter_below: bool = True,
+):
+    """Plot RMSE heatmaps filtered by ICA variance coefficient.
+
+    Creates three heatmaps:
+    1. HOML RMSE heatmap
+    2. ICA RMSE heatmap
+    3. RMSE difference heatmap (ICA - HOML)
+
+    Args:
+        results: List of result dictionaries from run_sample_dimension_grid_experiments
+        output_dir: Directory to save plots
+        axis_mode: "d_vs_n" (dimension vs sample size) or "beta_vs_n" (beta vs sample size)
+        ica_var_threshold: Threshold for ICA variance coefficient filtering
+        filter_below: If True, keep results where ica_var_coeff <= threshold
+    """
+    _setup_plot()
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Filter results by ica_var_coeff
+    if filter_below:
+        filtered_results = [r for r in results if r["ica_var_coeff"] <= ica_var_threshold]
+        filter_desc = f"below_{ica_var_threshold}"
+    else:
+        filtered_results = [r for r in results if r["ica_var_coeff"] > ica_var_threshold]
+        filter_desc = f"above_{ica_var_threshold}"
+
+    print(
+        f"\nFiltered {len(filtered_results)}/{len(results)} results with ica_var_coeff {'<=' if filter_below else '>'} {ica_var_threshold}"
+    )
+
+    if len(filtered_results) == 0:
+        print("No results after filtering. Cannot create heatmap.")
+        return
+
+    # Determine axes based on mode
+    if axis_mode == "d_vs_n":
+        x_key = "support_size"
+        x_label = r"Covariate dimension $d$"
+        filename_suffix = "dim"
+    else:  # beta_vs_n
+        x_key = "beta"
+        x_label = r"Gen. normal param. $\beta$"
+        filename_suffix = "beta"
+
+    # Get unique values for axes
+    x_values = sorted(set(r[x_key] for r in filtered_results))
+    y_values = sorted(set(r["n_samples"] for r in filtered_results), reverse=True)
+
+    # Create heatmap data matrices for HOML, ICA, and difference
+    homl_rmse_data = np.full((len(y_values), len(x_values)), np.nan)
+    ica_rmse_data = np.full((len(y_values), len(x_values)), np.nan)
+    rmse_diff_data = np.full((len(y_values), len(x_values)), np.nan)
+    count_matrix = np.zeros((len(y_values), len(x_values)), dtype=int)
+
+    for r in filtered_results:
+        x_idx = x_values.index(r[x_key])
+        y_idx = y_values.index(r["n_samples"])
+
+        # Get RMSE values
+        rmse_homl = r["rmse"][HOML_IDX]
+        rmse_ica = r["rmse"][ICA_IDX] if ICA_IDX < len(r["rmse"]) else np.nan
+
+        homl_rmse_data[y_idx, x_idx] = rmse_homl
+        ica_rmse_data[y_idx, x_idx] = rmse_ica
+        rmse_diff_data[y_idx, x_idx] = rmse_ica - rmse_homl
+        count_matrix[y_idx, x_idx] = r.get("n_experiments_kept", r.get("n_experiments", 1))
+
+    def create_rmse_heatmap(data, method_name, filename, is_difference=False):
+        """Create and save a single RMSE heatmap."""
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        # Always use diverging colormap centered at 0 (white)
+        # This ensures 0 is white, negative is blue, positive is red
+        vmax = np.nanmax(np.abs(data))
+        if np.isnan(vmax) or vmax == 0:
+            vmax = 1.0
+        im = ax.imshow(data, cmap="coolwarm", vmin=-vmax, vmax=vmax, aspect="auto")
+
+        if is_difference:
+            cbar_label = r"RMSE diff (ICA $-$ HOML)"
+        else:
+            cbar_label = r"RMSE"
+
+        # Set ticks and labels
+        ax.set_xticks(np.arange(len(x_values)))
+        ax.set_xticklabels([str(v) for v in x_values])
+        ax.set_yticks(np.arange(len(y_values)))
+        ax.set_yticklabels([str(v) for v in y_values])
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(r"Sample size $n$")
+
+        # Add cell annotations
+        for i in range(len(y_values)):
+            for j in range(len(x_values)):
+                val = data[i, j]
+                if not np.isnan(val):
+                    # Color text based on background brightness (use abs for symmetric colormap)
+                    text_color = "white" if abs(val) > vmax * 0.5 else "black"
+                    ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=text_color, fontsize=10)
+
+        # Add colorbar
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)
+        cbar = fig.colorbar(im, cax=cax)
+        cbar.set_label(cbar_label)
+
+        plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
+        plt.close()
+
+        print(f"Saved {method_name} RMSE heatmap to {os.path.join(output_dir, filename)}")
+
+    # Create HOML RMSE heatmap
+    create_rmse_heatmap(
+        homl_rmse_data,
+        "HOML",
+        f"rmse_sample_size_vs_{filename_suffix}_homl_filtered_{filter_desc}.svg",
+        is_difference=False,
+    )
+
+    # Create ICA RMSE heatmap
+    create_rmse_heatmap(
+        ica_rmse_data,
+        "ICA",
+        f"rmse_sample_size_vs_{filename_suffix}_ica_filtered_{filter_desc}.svg",
+        is_difference=False,
+    )
+
+    # Create RMSE difference heatmap
+    create_rmse_heatmap(
+        rmse_diff_data,
+        "difference",
+        f"rmse_diff_sample_size_vs_{filename_suffix}_filtered_{filter_desc}.svg",
+        is_difference=True,
+    )
+
+    # Also create a summary of the filtering
+    summary_file = os.path.join(output_dir, f"filtering_summary_{filter_desc}.txt")
+    with open(summary_file, "w") as f:
+        f.write(f"ICA Variance Coefficient Filtering Summary\n")
+        f.write(f"==========================================\n")
+        f.write(f"Threshold: {ica_var_threshold}\n")
+        f.write(f"Filter mode: {'<=' if filter_below else '>'} threshold\n")
+        f.write(f"Results kept: {len(filtered_results)} / {len(results)}\n\n")
+        f.write(f"ICA var coeff range in filtered data:\n")
+        if filtered_results:
+            ica_coeffs = [r["ica_var_coeff"] for r in filtered_results]
+            f.write(f"  Min: {min(ica_coeffs):.4f}\n")
+            f.write(f"  Max: {max(ica_coeffs):.4f}\n")
+            f.write(f"  Mean: {np.mean(ica_coeffs):.4f}\n")
+
+    print(f"Saved filtering summary to {summary_file}")
+
+
+def plot_ica_var_filtered_bias_heatmaps(
+    results: List[dict],
+    output_dir: str,
+    axis_mode: str = "d_vs_n",
+    ica_var_threshold: float = 1.5,
+    filter_below: bool = True,
+):
+    """Plot bias heatmaps filtered by ICA variance coefficient.
+
+    Creates heatmaps showing HOML and ICA bias separately (not differences),
+    matching the format of bias_sample_size_vs_dim_homl_mean.svg and
+    bias_sample_size_vs_beta_homl_mean.svg.
+
+    Args:
+        results: List of result dictionaries from run_sample_dimension_grid_experiments
+        output_dir: Directory to save plots
+        axis_mode: "d_vs_n" (dimension vs sample size) or "beta_vs_n" (beta vs sample size)
+        ica_var_threshold: Threshold for ICA variance coefficient filtering
+        filter_below: If True, keep results where ica_var_coeff <= threshold
+    """
+    _setup_plot()
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Filter results by ica_var_coeff
+    if filter_below:
+        filtered_results = [r for r in results if r["ica_var_coeff"] <= ica_var_threshold]
+        filter_desc = f"below_{ica_var_threshold}"
+    else:
+        filtered_results = [r for r in results if r["ica_var_coeff"] > ica_var_threshold]
+        filter_desc = f"above_{ica_var_threshold}"
+
+    print(
+        f"\nFiltered {len(filtered_results)}/{len(results)} results with "
+        f"ica_var_coeff {'<=' if filter_below else '>'} {ica_var_threshold}"
+    )
+
+    if len(filtered_results) == 0:
+        print("No results after filtering. Cannot create heatmap.")
+        return
+
+    # Determine axes based on mode
+    if axis_mode == "d_vs_n":
+        x_key = "support_size"
+        x_label = r"Covariate dimension $d$"
+        filename_suffix = "dim"
+    else:  # beta_vs_n
+        x_key = "beta"
+        x_label = r"Gen. normal param. $\beta$"
+        filename_suffix = "beta"
+
+    # Get unique values for axes
+    x_values = sorted(set(r[x_key] for r in filtered_results))
+    y_values = sorted(set(r["n_samples"] for r in filtered_results), reverse=True)
+
+    # Create heatmap data matrices for HOML and ICA
+    homl_bias_data = np.full((len(y_values), len(x_values)), np.nan)
+    ica_bias_data = np.full((len(y_values), len(x_values)), np.nan)
+    count_matrix = np.zeros((len(y_values), len(x_values)), dtype=int)
+
+    for r in filtered_results:
+        x_idx = x_values.index(r[x_key])
+        y_idx = y_values.index(r["n_samples"])
+
+        # Get absolute biases
+        homl_bias = np.abs(r["biases"][HOML_IDX])
+        ica_bias = np.abs(r["biases"][ICA_IDX]) if ICA_IDX < len(r["biases"]) else np.nan
+
+        homl_bias_data[y_idx, x_idx] = homl_bias
+        ica_bias_data[y_idx, x_idx] = ica_bias
+        count_matrix[y_idx, x_idx] = r.get("n_experiments_kept", r.get("n_experiments", 1))
+
+    def create_bias_heatmap(data, method_name, filename):
+        """Create and save a single bias heatmap."""
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        # Use diverging colormap centered at 0 (white)
+        # This ensures 0 is white, negative is blue, positive is red
+        vmax = np.nanmax(np.abs(data))
+        if np.isnan(vmax) or vmax == 0:
+            vmax = 1.0
+        im = ax.imshow(data, cmap="coolwarm", vmin=-vmax, vmax=vmax, aspect="auto")
+
+        # Set ticks and labels
+        ax.set_xticks(np.arange(len(x_values)))
+        ax.set_xticklabels([str(v) for v in x_values])
+        ax.set_yticks(np.arange(len(y_values)))
+        ax.set_yticklabels([str(v) for v in y_values])
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(r"Sample size $n$")
+
+        # Add cell annotations
+        for i in range(len(y_values)):
+            for j in range(len(x_values)):
+                val = data[i, j]
+                if not np.isnan(val):
+                    # Color text based on background brightness (use abs for symmetric colormap)
+                    text_color = "white" if abs(val) > vmax * 0.5 else "black"
+                    ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=text_color, fontsize=10)
+
+        # Add colorbar
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.1)
+        cbar = fig.colorbar(im, cax=cax)
+        cbar.set_label(r"$|\mathrm{Bias}|$")
+
+        plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
+        plt.close()
+
+        print(f"Saved {method_name} bias heatmap to {os.path.join(output_dir, filename)}")
+
+    # Create HOML bias heatmap
+    create_bias_heatmap(
+        homl_bias_data,
+        "HOML",
+        f"bias_sample_size_vs_{filename_suffix}_homl_mean_filtered_{filter_desc}.svg",
+    )
+
+    # Create ICA bias heatmap
+    create_bias_heatmap(
+        ica_bias_data,
+        "ICA",
+        f"bias_sample_size_vs_{filename_suffix}_ica_mean_filtered_{filter_desc}.svg",
+    )
+
+    # Create difference heatmap (ICA - HOML) for reference
+    bias_diff_data = ica_bias_data - homl_bias_data
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    # Use diverging colormap centered at 0
+    vmax = np.nanmax(np.abs(bias_diff_data))
+    if np.isnan(vmax) or vmax == 0:
+        vmax = 1.0
+    im = ax.imshow(bias_diff_data, cmap="coolwarm", vmin=-vmax, vmax=vmax, aspect="auto")
+
+    # Set ticks and labels
+    ax.set_xticks(np.arange(len(x_values)))
+    ax.set_xticklabels([str(v) for v in x_values])
+    ax.set_yticks(np.arange(len(y_values)))
+    ax.set_yticklabels([str(v) for v in y_values])
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(r"Sample size $n$")
+
+    # Add cell annotations
+    for i in range(len(y_values)):
+        for j in range(len(x_values)):
+            val = bias_diff_data[i, j]
+            if not np.isnan(val):
+                text_color = "white" if abs(val) > vmax * 0.5 else "black"
+                ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=text_color, fontsize=10)
+
+    # Add colorbar
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.1)
+    cbar = fig.colorbar(im, cax=cax)
+    cbar.set_label(r"$|\mathrm{Bias}|$ diff (ICA $-$ HOML)")
+
+    diff_filename = f"bias_diff_sample_size_vs_{filename_suffix}_filtered_{filter_desc}.svg"
+    plt.savefig(os.path.join(output_dir, diff_filename), dpi=300, bbox_inches="tight")
+    plt.close()
+
+    print(f"Saved bias difference heatmap to {os.path.join(output_dir, diff_filename)}")
+
+    # Save filtering summary
+    summary_file = os.path.join(output_dir, f"bias_filtering_summary_{filter_desc}.txt")
+    with open(summary_file, "w") as f:
+        f.write("ICA Variance Coefficient Filtering Summary (Bias Heatmaps)\n")
+        f.write("=========================================================\n")
+        f.write(f"Threshold: {ica_var_threshold}\n")
+        f.write(f"Filter mode: {'<=' if filter_below else '>'} threshold\n")
+        f.write(f"Results kept: {len(filtered_results)} / {len(results)}\n\n")
+        f.write("ICA var coeff range in filtered data:\n")
+        if filtered_results:
+            ica_coeffs = [r["ica_var_coeff"] for r in filtered_results]
+            f.write(f"  Min: {min(ica_coeffs):.4f}\n")
+            f.write(f"  Max: {max(ica_coeffs):.4f}\n")
+            f.write(f"  Mean: {np.mean(ica_coeffs):.4f}\n")
+        f.write("\nHOML bias statistics:\n")
+        f.write(f"  Min: {np.nanmin(homl_bias_data):.4f}\n")
+        f.write(f"  Max: {np.nanmax(homl_bias_data):.4f}\n")
+        f.write(f"  Mean: {np.nanmean(homl_bias_data):.4f}\n")
+        f.write("\nICA bias statistics:\n")
+        f.write(f"  Min: {np.nanmin(ica_bias_data):.4f}\n")
+        f.write(f"  Max: {np.nanmax(ica_bias_data):.4f}\n")
+        f.write(f"  Mean: {np.nanmean(ica_bias_data):.4f}\n")
+
+    print(f"Saved filtering summary to {summary_file}")
 
 
 def print_variance_ablation_summary(results: dict, opts) -> None:
@@ -2462,6 +3056,73 @@ Examples:
         help="Variance values (scale^2) for variance ablation",
     )
 
+    # Filtered heatmap arguments
+    parser.add_argument("--filtered_heatmap", action="store_true", help="Run filtered RMSE heatmap experiments")
+    parser.add_argument(
+        "--heatmap_axis_mode",
+        type=str,
+        default="d_vs_n",
+        choices=["d_vs_n", "beta_vs_n"],
+        help="Axis mode: 'd_vs_n' (dimension vs sample size) or 'beta_vs_n' (beta vs sample size)",
+    )
+    parser.add_argument(
+        "--heatmap_sample_sizes",
+        nargs="+",
+        type=int,
+        default=[500, 1000, 2000, 5000, 10000],
+        help="Sample sizes for heatmap",
+    )
+    parser.add_argument(
+        "--heatmap_dimensions",
+        nargs="+",
+        type=int,
+        default=[5, 10, 20, 50],
+        help="Covariate dimensions for d_vs_n mode",
+    )
+    parser.add_argument(
+        "--heatmap_betas",
+        nargs="+",
+        type=float,
+        default=[0.5, 1.0, 2.0, 3.0, 4.0],
+        help="Beta values for beta_vs_n mode",
+    )
+    parser.add_argument(
+        "--ica_var_threshold",
+        type=float,
+        default=1.5,
+        help="ICA variance coefficient threshold for filtering",
+    )
+    parser.add_argument(
+        "--fixed_beta",
+        type=float,
+        default=1.0,
+        help="Fixed beta for d_vs_n mode",
+    )
+    parser.add_argument(
+        "--fixed_dimension",
+        type=int,
+        default=10,
+        help="Fixed covariate dimension for beta_vs_n mode",
+    )
+    parser.add_argument(
+        "--heatmap_treatment_coef",
+        type=float,
+        default=0.5,
+        help="Treatment coefficient scalar for filtered heatmap experiments (default 0.5 gives ica_var_coeff=1.25)",
+    )
+    parser.add_argument(
+        "--heatmap_outcome_coef",
+        type=float,
+        default=0.0,
+        help="Outcome coefficient scalar for filtered heatmap experiments",
+    )
+    parser.add_argument(
+        "--constrain_ica_var",
+        action="store_true",
+        help="Automatically set treatment coefficient to achieve ica_var_coeff = ica_var_threshold. "
+        "When enabled, --heatmap_treatment_coef is ignored and computed from --ica_var_threshold.",
+    )
+
     if args is None:
         args = sys.argv[1:]
     opts = parser.parse_args(args)
@@ -2529,6 +3190,149 @@ Examples:
 
         # Print summary
         print_coefficient_ablation_summary(coef_results, opts)
+
+    elif opts.filtered_heatmap:
+        # Run filtered heatmap experiments
+        heatmap_output_dir = os.path.join(opts.output_dir, "filtered_heatmap")
+
+        # Compute treatment coefficient if constrain_ica_var is enabled
+        if opts.constrain_ica_var:
+            # Ensure outcome_coef is non-zero (default to 0.2 if zero)
+            outcome_coef_scalar = opts.heatmap_outcome_coef
+            if outcome_coef_scalar == 0.0:
+                # Set a default non-zero outcome coefficient
+                # Use 30% of the target coefficient sum to ensure treatment_coef is also non-zero
+                target_coef_sum = np.sqrt(opts.ica_var_threshold - 1)
+                outcome_coef_scalar = 0.3 * target_coef_sum
+                print(f"Setting outcome_coef_scalar to {outcome_coef_scalar:.6f} (30% of target sum)")
+
+            treatment_coef_scalar = compute_constrained_treatment_coef(
+                target_ica_var_coeff=opts.ica_var_threshold,
+                treatment_effect=opts.treatment_effect,
+                outcome_coef_scalar=outcome_coef_scalar,
+            )
+
+            # Validate both coefficients are non-zero
+            if treatment_coef_scalar == 0.0:
+                raise ValueError(
+                    f"Computed treatment_coef_scalar is zero. "
+                    f"Adjust outcome_coef_scalar ({outcome_coef_scalar}) or ica_var_threshold ({opts.ica_var_threshold})."
+                )
+            if outcome_coef_scalar == 0.0:
+                raise ValueError("outcome_coef_scalar must be non-zero when --constrain_ica_var is enabled.")
+
+            computed_ica_var = compute_ica_var_coeff(treatment_coef_scalar, outcome_coef_scalar, opts.treatment_effect)
+            print(f"Constraining ICA variance coefficient to {opts.ica_var_threshold}")
+            print(f"  Computed treatment_coef_scalar: {treatment_coef_scalar:.6f}")
+            print(f"  Outcome_coef_scalar: {outcome_coef_scalar:.6f}")
+            print(f"  Resulting ica_var_coeff: {computed_ica_var:.6f}")
+        else:
+            treatment_coef_scalar = opts.heatmap_treatment_coef
+            outcome_coef_scalar = opts.heatmap_outcome_coef
+
+        results_file = os.path.join(
+            heatmap_output_dir,
+            f"filtered_heatmap_results_{opts.heatmap_axis_mode}.npy",
+        )
+
+        if os.path.exists(results_file):
+            print(f"Loading existing results from {results_file}")
+            heatmap_results = np.load(results_file, allow_pickle=True).tolist()
+        else:
+            heatmap_results = run_sample_dimension_grid_experiments(
+                sample_sizes=opts.heatmap_sample_sizes,
+                dimension_values=opts.heatmap_dimensions if opts.heatmap_axis_mode == "d_vs_n" else None,
+                beta_values=opts.heatmap_betas if opts.heatmap_axis_mode == "beta_vs_n" else None,
+                axis_mode=opts.heatmap_axis_mode,
+                fixed_beta=opts.fixed_beta,
+                fixed_dimension=opts.fixed_dimension,
+                noise_distribution=opts.noise_distribution,
+                n_experiments=opts.n_experiments,
+                treatment_effect=opts.treatment_effect,
+                treatment_coef_scalar=treatment_coef_scalar,
+                outcome_coef_scalar=outcome_coef_scalar,
+                sigma_outcome=opts.sigma_outcome,
+                covariate_pdf=opts.covariate_pdf,
+                check_convergence=opts.check_convergence,
+                verbose=opts.verbose,
+                seed=opts.seed,
+            )
+
+            os.makedirs(heatmap_output_dir, exist_ok=True)
+            np.save(results_file, heatmap_results)
+            print(f"Results saved to {results_file}")
+
+        # Validate that all results are below the threshold when constrain_ica_var is enabled
+        if opts.constrain_ica_var:
+            ica_var_coeffs = [r["ica_var_coeff"] for r in heatmap_results]
+            max_ica_var = max(ica_var_coeffs)
+            min_ica_var = min(ica_var_coeffs)
+            results_above_threshold = [c for c in ica_var_coeffs if c > opts.ica_var_threshold]
+
+            if results_above_threshold:
+                print(
+                    f"\nWARNING: {len(results_above_threshold)}/{len(ica_var_coeffs)} results have "
+                    f"ica_var_coeff > {opts.ica_var_threshold}"
+                )
+                print(f"  Max ica_var_coeff: {max_ica_var:.6f}")
+                print(f"  Min ica_var_coeff: {min_ica_var:.6f}")
+                raise ValueError(
+                    f"ICA variance constraint violated: {len(results_above_threshold)} results "
+                    f"exceed threshold {opts.ica_var_threshold}. Max: {max_ica_var:.6f}"
+                )
+            else:
+                print(
+                    f"\nValidation passed: All {len(ica_var_coeffs)} results have "
+                    f"ica_var_coeff <= {opts.ica_var_threshold}"
+                )
+                print(f"  Range: [{min_ica_var:.6f}, {max_ica_var:.6f}]")
+
+        # Plot filtered RMSE heatmap
+        plot_ica_var_filtered_rmse_heatmap(
+            heatmap_results,
+            heatmap_output_dir,
+            axis_mode=opts.heatmap_axis_mode,
+            ica_var_threshold=opts.ica_var_threshold,
+            filter_below=True,
+        )
+
+        # Plot filtered bias heatmaps
+        plot_ica_var_filtered_bias_heatmaps(
+            heatmap_results,
+            heatmap_output_dir,
+            axis_mode=opts.heatmap_axis_mode,
+            ica_var_threshold=opts.ica_var_threshold,
+            filter_below=True,
+        )
+
+        # Print summary
+        print(f"\n{'=' * 80}")
+        print("SUMMARY: Filtered Heatmap Experiments")
+        print(f"{'=' * 80}")
+        print(f"Axis mode: {opts.heatmap_axis_mode}")
+        print(f"Sample sizes: {opts.heatmap_sample_sizes}")
+        if opts.heatmap_axis_mode == "d_vs_n":
+            print(f"Dimensions: {opts.heatmap_dimensions}")
+            print(f"Fixed beta: {opts.fixed_beta}")
+        else:
+            print(f"Beta values: {opts.heatmap_betas}")
+            print(f"Fixed dimension: {opts.fixed_dimension}")
+        print(f"Covariate distribution: {opts.covariate_pdf}")
+        print(f"Noise distribution: {opts.noise_distribution}")
+        print(f"ICA var threshold: {opts.ica_var_threshold}")
+        print(f"Constrain ICA var: {opts.constrain_ica_var}")
+        print(f"Treatment coef: {treatment_coef_scalar:.6f}" + (" (computed)" if opts.constrain_ica_var else ""))
+        outcome_coef_computed = opts.constrain_ica_var and opts.heatmap_outcome_coef == 0.0
+        print(f"Outcome coef: {outcome_coef_scalar:.6f}" + (" (computed)" if outcome_coef_computed else ""))
+        print(f"Treatment effect: {opts.treatment_effect}")
+        actual_ica_var = compute_ica_var_coeff(treatment_coef_scalar, outcome_coef_scalar, opts.treatment_effect)
+        print(f"Resulting ICA var coeff: {actual_ica_var:.6f}")
+        print(f"Total configurations: {len(heatmap_results)}")
+
+        # Count filtered results
+        filtered_count = sum(1 for r in heatmap_results if r["ica_var_coeff"] <= opts.ica_var_threshold)
+        print(f"Results with ica_var_coeff <= {opts.ica_var_threshold}: {filtered_count}/{len(heatmap_results)}")
+        print(f"Output directory: {heatmap_output_dir}")
 
     else:
         # Run noise distribution ablation
