@@ -1450,7 +1450,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
         "rmse",
         output_dir,
         "rmse_diff_homl_ica.svg",
-        "RMSE Difference (ICA - HOML)",
+        "RMSE Difference",
         "RMSE Difference: ICA - HOML\n(Blue = ICA better, Red = HOML better)",
     )
 
@@ -1460,7 +1460,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
         "biases",
         output_dir,
         "bias_diff_homl_ica.svg",
-        r"$|\mathrm{Bias}|$ Difference (ICA - HOML)",
+        r"$|\mathrm{Bias}|$ Difference",
         "Absolute Bias Difference: ICA - HOML\n(Blue = ICA better, Red = HOML better)",
         use_abs=True,
     )
@@ -1495,7 +1495,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
         "rmse",
         output_dir,
         "diff_vs_kurtosis_rmse.svg",
-        "RMSE Diff (ICA - HOML)",
+        "RMSE Diff",
         "RMSE Difference vs Kurtosis",
     )
 
@@ -1505,7 +1505,7 @@ def plot_noise_ablation_results(results: dict, output_dir: str = "figures/noise_
         "biases",
         output_dir,
         "diff_vs_kurtosis_bias.svg",
-        r"$|\mathrm{Bias}|$ Diff (ICA - HOML)",
+        r"$|\mathrm{Bias}|$ Diff",
         "Bias Difference vs Kurtosis",
         use_abs=True,
     )
@@ -1730,7 +1730,7 @@ def plot_noise_ablation_coeff_scatter(
 
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel(r"ICA Var Coeff: $1 + \|b + a\theta\|_2^2$")
-    ax.set_ylabel("RMSE Diff (ICA - HOML)")
+    ax.set_ylabel("RMSE Diff")
     ax.set_xscale("log")
     add_legend_outside(ax, loc="right", ncol=2)
     ax.set_title("RMSE Diff vs ICA Var Coeff (by distribution)")
@@ -2053,21 +2053,21 @@ def plot_diff_heatmaps(
 
     plot_single_heatmap(
         rmse_heatmap,
-        "RMSE Difference (ICA - HOML)\n(Blue = ICA better, Red = HOML better)",
+        "RMSE Difference\n(Blue = ICA better, Red = HOML better)",
         f"heatmap_rmse_diff{suffix}.svg",
         "RMSE Diff",
     )
 
     plot_single_heatmap(
         bias_heatmap,
-        r"$|\mathrm{Bias}|$ Difference (ICA - HOML)" + "\n(Blue = ICA better, Red = HOML better)",
+        r"$|\mathrm{Bias}|$ Difference" + "\n(Blue = ICA better, Red = HOML better)",
         f"heatmap_bias_diff{suffix}.svg",
         r"$|\mathrm{Bias}|$ Diff",
     )
 
     plot_single_heatmap(
         std_heatmap,
-        "Std Difference (ICA - HOML)\n(Blue = ICA better, Red = HOML better)",
+        "Std Difference\n(Blue = ICA better, Red = HOML better)",
         f"heatmap_std_diff{suffix}.svg",
         "Std Diff",
     )
@@ -2302,21 +2302,21 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
     # Plot difference heatmaps (diverging colormap)
     plot_single_heatmap(
         bias_diff_grid,
-        r"$|\mathrm{Bias}|$ Difference (ICA - HOML)" + "\n(Blue = ICA better, Red = HOML better)",
+        r"$|\mathrm{Bias}|$ Difference" + "\n(Blue = ICA better, Red = HOML better)",
         "bias_diff_heatmap.svg",
         r"$|\mathrm{Bias}|$ Diff",
         diverging=True,
     )
     plot_single_heatmap(
         std_diff_grid,
-        "Std Difference (ICA - HOML)\n(Blue = ICA better, Red = HOML better)",
+        "Std Difference\n(Blue = ICA better, Red = HOML better)",
         "std_diff_heatmap.svg",
         "Std Diff",
         diverging=True,
     )
     plot_single_heatmap(
         rmse_diff_grid,
-        "RMSE Difference (ICA - HOML)\n(Blue = ICA better, Red = HOML better)",
+        "RMSE Difference\n(Blue = ICA better, Red = HOML better)",
         "rmse_diff_heatmap.svg",
         "RMSE Diff",
         diverging=True,
