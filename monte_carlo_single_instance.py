@@ -236,15 +236,24 @@ def run_experiments_for_configuration(
         -config.sigma_outcome, config.sigma_outcome, size=x
     )
 
-    # True coefficients
-    true_coef_treatment = np.zeros(cov_dim_max)
-    true_coef_treatment[treatment_support] = treatment_coef
-    true_coef_outcome = np.zeros(cov_dim_max)
-    true_coef_outcome[outcome_support] = outcome_coef
-    true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
+    # True coefficients - shape depends on oracle_support flag
+    if config.oracle_support:
+        # When oracle_support=True, OML receives x[:, support] so coefficients have support_size shape
+        true_coef_treatment = treatment_coef
+        true_coef_outcome = outcome_coef + treatment_effect * treatment_coef
+    else:
+        # When oracle_support=False, OML receives full x so coefficients have cov_dim_max shape
+        true_coef_treatment = np.zeros(cov_dim_max)
+        true_coef_treatment[treatment_support] = treatment_coef
+        true_coef_outcome = np.zeros(cov_dim_max)
+        true_coef_outcome[outcome_support] = outcome_coef
+        true_coef_outcome[treatment_support] += treatment_effect * treatment_coef
 
     if config.verbose:
-        print(f"True outcome coefficients on support: {true_coef_outcome[outcome_support]}")
+        if config.oracle_support:
+            print(f"True outcome coefficients: {true_coef_outcome}")
+        else:
+            print(f"True outcome coefficients on support: {true_coef_outcome[outcome_support]}")
 
     # Setup covariate sampling
     x_sample = setup_covariate_pdf(config, beta)
