@@ -46,6 +46,7 @@ def experiment(
     lambda_reg,
     check_convergence=False,
     verbose=False,
+    oracle_support=True,
 ):
     """Run a single OML experiment.
 
@@ -63,6 +64,8 @@ def experiment(
         lambda_reg: Regularization parameter
         check_convergence: Whether to check ICA convergence
         verbose: Enable verbose output
+        oracle_support: If True, both OML and ICA receive x[:, support] (oracle knowledge).
+            If False, both methods receive full x matrix.
 
     Returns:
         Tuple of estimation results from all methods
@@ -78,10 +81,18 @@ def experiment(
 
     assert (treatment_support == outcome_support).all()
 
+    # Select covariates based on oracle_support flag
+    # When oracle_support=True, both OML and ICA receive x[:, support] (oracle knowledge)
+    # When oracle_support=False, both methods receive full x
+    if oracle_support:
+        covariates = x[:, treatment_support]
+    else:
+        covariates = x
+
     try:
         ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(
-            np.hstack((x[:, treatment_support], treatment.reshape(-1, 1), outcome.reshape(-1, 1))),
-            np.hstack((x[:, treatment_support], eta.reshape(-1, 1), epsilon.reshape(-1, 1))),
+            np.hstack((covariates, treatment.reshape(-1, 1), outcome.reshape(-1, 1))),
+            np.hstack((covariates, eta.reshape(-1, 1), epsilon.reshape(-1, 1))),
             check_convergence=check_convergence,
             verbose=verbose,
         )
@@ -95,7 +106,7 @@ def experiment(
 
     return (
         *all_together_cross_fitting(
-            x,
+            covariates,
             treatment,
             outcome,
             eta_second_moment,
@@ -259,6 +270,7 @@ def run_experiments_for_configuration(
                 lambda_reg,
                 config.check_convergence,
                 verbose=config.verbose,
+                oracle_support=config.oracle_support,
             )
             for _ in range(config.n_experiments)
         )
@@ -415,6 +427,19 @@ def main(args):
         help="(min, max) range for random outcome coefficients",
         default=[-5.0, 5.0],
     )
+    parser.add_argument(
+        "--oracle_support",
+        dest="oracle_support",
+        action="store_true",
+        default=True,
+        help="If True, both OML and ICA receive x[:, support] (oracle knowledge). Default: True.",
+    )
+    parser.add_argument(
+        "--no_oracle_support",
+        dest="oracle_support",
+        action="store_false",
+        help="Disable oracle support (both methods receive full x).",
+    )
 
     opts = parser.parse_args(args)
 
@@ -436,6 +461,7 @@ def main(args):
         eta_noise_dist=opts.eta_noise_dist,
         treatment_coef_range=tuple(opts.treatment_coef_range),
         outcome_coef_range=tuple(opts.outcome_coef_range),
+        oracle_support=opts.oracle_support,
     )
 
     # Set random seed
