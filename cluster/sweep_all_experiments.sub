@@ -7,6 +7,8 @@
 #   3. eta_noise_ablation --variance_ablation (oracle / no_oracle)
 #   4. eta_noise_ablation --coefficient_ablation (oracle / no_oracle)
 #   5. eta_noise_ablation (default mode) (oracle / no_oracle)
+#
+# Filtered heatmap params: outcome_coef=0.05, ica_var_threshold=1.25
 
 executable = run_experiment.sh
 
@@ -31,11 +33,16 @@ should_transfer_files = NO
 getenv = True
 
 # Arguments: experiment_type followed by experiment-specific args
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+# Note: filtered heatmap params are ignored by other experiment types
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode beta_vs_n $(oracle_arg)
 
 # Common parameters
 n_samples = 5000
 n_experiments = 20
+
+# Filtered heatmap specific parameters (ignored by other experiment types)
+outcome_coef = 0.05
+ica_var_threshold = 1.25
 
 # Queue all 10 configurations
 # With oracle support (default)
