@@ -1,0 +1,51 @@
+# HTCondor submit file for all experiment configurations
+# Covers all 10 combinations: 5 experiment types × 2 oracle modes
+#
+# Experiments:
+#   1. monte_carlo_single_instance.py (oracle / no_oracle)
+#   2. eta_noise_ablation --filtered_heatmap (oracle / no_oracle)
+#   3. eta_noise_ablation --variance_ablation (oracle / no_oracle)
+#   4. eta_noise_ablation --coefficient_ablation (oracle / no_oracle)
+#   5. eta_noise_ablation (default mode) (oracle / no_oracle)
+
+executable = run_experiment.sh
+
+# Resource requirements
+request_cpus = 4
+request_memory = 32GB
+request_disk = 20GB
+
+# Log files with experiment info
+log_root = /home/preizinger/jobs/doml_$(ClusterId)_$(exp_type)_oracle$(oracle_flag)
+error = $(log_root).err
+output = $(log_root).out
+log = $(log_root).log
+
+# Max runtime: 24 hours
+MaxTime = 86400
+periodic_remove = (JobStatus =?= 2) && ((CurrentTime - JobCurrentStartDate) >= $(MaxTime))
+
+# No file transfer - run from project directory on shared filesystem
+should_transfer_files = NO
+
+getenv = True
+
+# Arguments: experiment_type followed by experiment-specific args
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+
+# Common parameters
+n_samples = 5000
+n_experiments = 20
+
+# Queue all 10 configurations
+# With oracle support (default)
+oracle_flag = 1
+oracle_arg =
+
+queue exp_type in (single_instance, eta_filtered_heatmap, eta_variance_ablation, eta_coefficient_ablation, eta_default)
+
+# Without oracle support
+oracle_flag = 0
+oracle_arg = --no_oracle_support
+
+queue exp_type in (single_instance, eta_filtered_heatmap, eta_variance_ablation, eta_coefficient_ablation, eta_default)
