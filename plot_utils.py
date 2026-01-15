@@ -852,7 +852,6 @@ def plot_asymptotic_var_comparison(
         fig.colorbar(im, cax=cax, label="ICA Error")
         ax.set_xlabel("Outcome Coefficient")
         ax.set_ylabel("Treatment Coefficient")
-        plt.tight_layout()
         plt.savefig(os.path.join(experiment_dir, "heatmap_ica_biases.svg"), dpi=300, bbox_inches="tight")
         plt.close()
 
@@ -887,7 +886,6 @@ def plot_asymptotic_var_comparison(
         fig.colorbar(im, cax=cax, label="OML Bias")
         ax.set_xlabel("Outcome Coefficient")
         ax.set_ylabel("Treatment Coefficient")
-        plt.tight_layout()
         plt.savefig(os.path.join(experiment_dir, "heatmap_homl_biases.svg"), dpi=300, bbox_inches="tight")
         plt.close()
 
@@ -923,7 +921,6 @@ def plot_asymptotic_var_comparison(
         fig.colorbar(im, cax=cax, label="Error Difference (OML - ICA)")
         ax.set_xlabel("Outcome Coefficient")
         ax.set_ylabel("Treatment Coefficient")
-        plt.tight_layout()
         plt.savefig(os.path.join(experiment_dir, "heatmap_bias_differences.svg"), dpi=300, bbox_inches="tight")
         plt.close()
 
@@ -983,7 +980,6 @@ def plot_asymptotic_var_comparison(
         fig.colorbar(im, cax=cax, ticks=[-1, 0, 1], label="Error Difference (OML - ICA)")
         ax.set_xlabel("Outcome Coefficient")
         ax.set_ylabel("Treatment Coefficient")
-        plt.tight_layout()
         plt.savefig(os.path.join(experiment_dir, "discrete_heatmap_bias_differences.svg"), dpi=300, bbox_inches="tight")
         plt.close()
 

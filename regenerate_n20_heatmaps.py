@@ -185,7 +185,6 @@ def plot_diff_heatmap_fixed(
         cax = divider.append_axes("right", size="5%", pad=0.15)
         fig.colorbar(im, cax=cax, label=cbar_label)
 
-        plt.tight_layout()
         plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
         plt.close()
         print(f"  Saved {filename}")
@@ -259,7 +258,6 @@ def plot_diff_heatmap_fixed(
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.15)
         fig.colorbar(im, cax=cax, label=cbar_label)
-    plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"heatmap_combined{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
     print(f"  Saved heatmap_combined{suffix}.svg")
