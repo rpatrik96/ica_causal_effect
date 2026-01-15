@@ -284,6 +284,7 @@ def run_single_experiment(
     lambda_reg: float,
     check_convergence: bool = False,
     verbose: bool = False,
+    oracle_support: bool = True,
 ) -> Tuple:
     """Run a single OML experiment with specified noise samples.
 
@@ -301,6 +302,8 @@ def run_single_experiment(
         lambda_reg: Regularization parameter
         check_convergence: Whether to check ICA convergence
         verbose: Enable verbose output
+        oracle_support: If True, both OML and ICA receive x[:, support] (oracle knowledge).
+            If False, both methods receive full x matrix.
 
     Returns:
         Tuple of estimation results from all methods
@@ -316,10 +319,18 @@ def run_single_experiment(
 
     assert (treatment_support == outcome_support).all()
 
+    # Select covariates based on oracle_support flag
+    # When oracle_support=True, both OML and ICA receive x[:, support] (oracle knowledge)
+    # When oracle_support=False, both methods receive full x
+    if oracle_support:
+        covariates = x[:, treatment_support]
+    else:
+        covariates = x
+
     try:
         ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(
-            np.hstack((x[:, treatment_support], treatment.reshape(-1, 1), outcome.reshape(-1, 1))),
-            np.hstack((x[:, treatment_support], eta.reshape(-1, 1), epsilon.reshape(-1, 1))),
+            np.hstack((covariates, treatment.reshape(-1, 1), outcome.reshape(-1, 1))),
+            np.hstack((covariates, eta.reshape(-1, 1), epsilon.reshape(-1, 1))),
             check_convergence=check_convergence,
             verbose=verbose,
         )
@@ -333,7 +344,7 @@ def run_single_experiment(
 
     return (
         *all_together_cross_fitting(
-            x,
+            covariates,
             treatment,
             outcome,
             eta_second_moment,
@@ -363,6 +374,7 @@ def run_parallel_experiments(
     lambda_reg: float,
     check_convergence: bool = False,
     verbose: bool = False,
+    oracle_support: bool = True,
 ) -> List[Tuple]:
     """Run experiments in parallel using joblib.
 
@@ -383,6 +395,8 @@ def run_parallel_experiments(
         lambda_reg: Regularization parameter
         check_convergence: Whether to check ICA convergence
         verbose: Enable verbose output
+        oracle_support: If True, both OML and ICA receive x[:, support] (oracle knowledge).
+            If False, both methods receive full x matrix.
 
     Returns:
         List of experiment result tuples (filtered for convergence if required)
@@ -404,6 +418,7 @@ def run_parallel_experiments(
                 lambda_reg,
                 check_convergence,
                 verbose,
+                oracle_support,
             )
             for _ in range(n_experiments)
         )

@@ -35,6 +35,8 @@ class OMLExperimentConfig:
             'rademacher' (bounded discrete), 'gennorm_heavy', 'gennorm_light'
         treatment_coef_range: (min, max) range for random treatment coefficients
         outcome_coef_range: (min, max) range for random outcome coefficients
+        oracle_support: If True, both OML and ICA receive x[:, support] (oracle knowledge).
+            If False, both methods receive full x matrix.
     """
 
     n_samples: int = 500
@@ -53,6 +55,7 @@ class OMLExperimentConfig:
     eta_noise_dist: str = "discrete"
     treatment_coef_range: Tuple[float, float] = (-5.0, 5.0)
     outcome_coef_range: Tuple[float, float] = (-5.0, 5.0)
+    oracle_support: bool = True
 
 
 @dataclass
@@ -681,5 +684,10 @@ def setup_results_filename(config: OMLExperimentConfig) -> str:
     eta_noise_dist = getattr(config, "eta_noise_dist", "discrete")
     if eta_noise_dist != "discrete":
         filename_parts.append(f"eta_{eta_noise_dist}")
+
+    # Add no_oracle to filename when oracle_support is disabled
+    oracle_support = getattr(config, "oracle_support", True)
+    if not oracle_support:
+        filename_parts.append("no_oracle")
 
     return "_".join(filename_parts) + ".npy"

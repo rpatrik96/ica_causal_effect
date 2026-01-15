@@ -1,0 +1,42 @@
+# HTCondor submit file for eta noise ablation experiments
+# Runs all eta ablation modes with both oracle configurations
+
+executable = run_experiment.sh
+
+# Resource requirements - these experiments can be memory-intensive
+request_cpus = 8
+request_memory = 32GB
+request_disk = 20GB
+
+# Log files
+log_root = /home/preizinger/jobs/doml_eta_$(ClusterId)_$(exp_type)_oracle$(oracle_flag)
+error = $(log_root).err
+output = $(log_root).out
+log = $(log_root).log
+
+# Max runtime: 24 hours
+MaxTime = 86400
+periodic_remove = (JobStatus =?= 2) && ((CurrentTime - JobCurrentStartDate) >= $(MaxTime))
+
+# No file transfer - run from project directory on shared filesystem
+should_transfer_files = NO
+
+getenv = True
+
+# Common parameters
+n_experiments = 20
+
+# Arguments
+arguments = $(exp_type) --n_experiments $(n_experiments) $(oracle_arg)
+
+# With oracle support (default)
+oracle_flag = 1
+oracle_arg =
+
+queue exp_type in (eta_filtered_heatmap, eta_variance_ablation, eta_coefficient_ablation, eta_default)
+
+# Without oracle support
+oracle_flag = 0
+oracle_arg = --no_oracle_support
+
+queue exp_type in (eta_filtered_heatmap, eta_variance_ablation, eta_coefficient_ablation, eta_default)

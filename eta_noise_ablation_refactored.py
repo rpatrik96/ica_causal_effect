@@ -176,6 +176,7 @@ def run_noise_ablation_experiments(
     treatment_effect_range: Tuple[float, float] = (0.1, 5.0),
     treatment_coef_range: Tuple[float, float] = (-2.0, 2.0),
     outcome_coef_range: Tuple[float, float] = (-2.0, 2.0),
+    oracle_support: bool = True,
 ):
     """Run experiments across different noise distributions.
 
@@ -196,6 +197,8 @@ def run_noise_ablation_experiments(
         treatment_effect_range: Range for random treatment effect [min, max]
         treatment_coef_range: Range for random treatment coefficients [min, max]
         outcome_coef_range: Range for random outcome coefficients [min, max]
+        oracle_support: If True, ICA receives x[:, support]. If False, both
+            OML and ICA receive full x matrix.
 
     Returns:
         Dictionary with results for each noise distribution.
@@ -307,6 +310,7 @@ def run_noise_ablation_experiments(
                 lambda_reg=lambda_reg,
                 check_convergence=check_convergence,
                 verbose=verbose,
+                oracle_support=oracle_support,
             )
 
             if len(results) == 0:
@@ -416,6 +420,7 @@ def run_variance_ablation_experiments(
     check_convergence: bool = False,
     verbose: bool = False,
     seed: int = 12143,
+    oracle_support: bool = True,
 ) -> dict:
     """Run experiments varying gennorm beta and variance.
 
@@ -435,6 +440,8 @@ def run_variance_ablation_experiments(
         check_convergence: Whether to check ICA convergence
         verbose: Enable verbose output
         seed: Random seed
+        oracle_support: If True, ICA receives x[:, support]. If False, both
+            OML and ICA receive full x matrix.
 
     Returns:
         Dictionary with results organized by (beta, variance) pairs
@@ -535,6 +542,7 @@ def run_variance_ablation_experiments(
                 lambda_reg=lambda_reg,
                 check_convergence=check_convergence,
                 verbose=verbose,
+                oracle_support=oracle_support,
             )
 
             print(f"  Experiments kept: {len(results)} out of {n_experiments}")
@@ -586,6 +594,7 @@ def run_coefficient_ablation_experiments(
     check_convergence: bool = False,
     verbose: bool = False,
     seed: int = 12143,
+    oracle_support: bool = True,
 ) -> List[dict]:
     """Run experiments with varying coefficient configurations.
 
@@ -603,6 +612,8 @@ def run_coefficient_ablation_experiments(
         check_convergence: Whether to check ICA convergence
         verbose: Enable verbose output
         seed: Random seed
+        oracle_support: If True, ICA receives x[:, support]. If False, both
+            OML and ICA receive full x matrix.
 
     Returns:
         List of result dictionaries, one per coefficient configuration
@@ -685,6 +696,7 @@ def run_coefficient_ablation_experiments(
             lambda_reg=lambda_reg,
             check_convergence=check_convergence,
             verbose=verbose,
+            oracle_support=oracle_support,
         )
 
         print(f"  Experiments kept: {len(results)} out of {n_experiments}")
@@ -741,6 +753,7 @@ def run_sample_dimension_grid_experiments(
     check_convergence: bool = False,
     verbose: bool = False,
     seed: int = 12143,
+    oracle_support: bool = True,
 ) -> List[dict]:
     """Run experiments over sample size and dimension/beta grid.
 
@@ -761,6 +774,8 @@ def run_sample_dimension_grid_experiments(
         check_convergence: Whether to check ICA convergence
         verbose: Enable verbose output
         seed: Random seed
+        oracle_support: If True, ICA receives x[:, support]. If False, both
+            OML and ICA receive full x matrix.
 
     Returns:
         List of result dictionaries, one per (sample_size, dimension/beta) configuration
@@ -863,6 +878,7 @@ def run_sample_dimension_grid_experiments(
             lambda_reg=lambda_reg,
             check_convergence=check_convergence,
             verbose=verbose,
+            oracle_support=oracle_support,
         )
 
         print(f"  Experiments kept: {len(results)} out of {n_experiments}")
@@ -3123,14 +3139,32 @@ Examples:
         "When enabled, --heatmap_treatment_coef is ignored and computed from --ica_var_threshold.",
     )
 
+    # Oracle support arguments
+    parser.add_argument(
+        "--oracle_support",
+        dest="oracle_support",
+        action="store_true",
+        default=True,
+        help="If True, both OML and ICA receive x[:, support] (oracle knowledge). Default: True.",
+    )
+    parser.add_argument(
+        "--no_oracle_support",
+        dest="oracle_support",
+        action="store_false",
+        help="Disable oracle support (both methods receive full x).",
+    )
+
     if args is None:
         args = sys.argv[1:]
     opts = parser.parse_args(args)
 
+    # Compute oracle suffix for output directories
+    oracle_suffix = "" if opts.oracle_support else "_no_oracle"
+
     if opts.variance_ablation:
         # Run variance ablation
-        var_output_dir = os.path.join(opts.output_dir, "variance_ablation")
-        results_file = os.path.join(var_output_dir, "variance_ablation_results.npy")
+        var_output_dir = os.path.join(opts.output_dir, f"variance_ablation{oracle_suffix}")
+        results_file = os.path.join(var_output_dir, f"variance_ablation_results{oracle_suffix}.npy")
 
         if os.path.exists(results_file):
             print(f"Loading existing results from {results_file}")
@@ -3149,6 +3183,7 @@ Examples:
                 check_convergence=opts.check_convergence,
                 verbose=opts.verbose,
                 seed=opts.seed,
+                oracle_support=opts.oracle_support,
             )
 
             os.makedirs(var_output_dir, exist_ok=True)
@@ -3162,8 +3197,8 @@ Examples:
 
     elif opts.coefficient_ablation:
         # Run coefficient ablation
-        coef_output_dir = os.path.join(opts.output_dir, "coefficient_ablation")
-        results_file = os.path.join(coef_output_dir, "coefficient_ablation_results.npy")
+        coef_output_dir = os.path.join(opts.output_dir, f"coefficient_ablation{oracle_suffix}")
+        results_file = os.path.join(coef_output_dir, f"coefficient_ablation_results{oracle_suffix}.npy")
 
         if os.path.exists(results_file):
             print(f"Loading existing results from {results_file}")
@@ -3180,6 +3215,7 @@ Examples:
                 check_convergence=opts.check_convergence,
                 verbose=opts.verbose,
                 seed=opts.seed,
+                oracle_support=opts.oracle_support,
             )
 
             os.makedirs(coef_output_dir, exist_ok=True)
@@ -3193,7 +3229,7 @@ Examples:
 
     elif opts.filtered_heatmap:
         # Run filtered heatmap experiments
-        heatmap_output_dir = os.path.join(opts.output_dir, "filtered_heatmap")
+        heatmap_output_dir = os.path.join(opts.output_dir, f"filtered_heatmap{oracle_suffix}")
 
         # Compute treatment coefficient if constrain_ica_var is enabled
         if opts.constrain_ica_var:
@@ -3232,7 +3268,7 @@ Examples:
 
         results_file = os.path.join(
             heatmap_output_dir,
-            f"filtered_heatmap_results_{opts.heatmap_axis_mode}.npy",
+            f"filtered_heatmap_results_{opts.heatmap_axis_mode}{oracle_suffix}.npy",
         )
 
         if os.path.exists(results_file):
@@ -3256,6 +3292,7 @@ Examples:
                 check_convergence=opts.check_convergence,
                 verbose=opts.verbose,
                 seed=opts.seed,
+                oracle_support=opts.oracle_support,
             )
 
             os.makedirs(heatmap_output_dir, exist_ok=True)
@@ -3345,19 +3382,21 @@ Examples:
             print(f"Final distribution list: {distributions}")
 
         # Setup results file path
+        # Use subdirectory with oracle suffix for noise ablation too
+        noise_output_dir = opts.output_dir + oracle_suffix if oracle_suffix else opts.output_dir
         if opts.randomize_coeffs:
             tc_range = tuple(opts.treatment_coef_range)
             oc_range = tuple(opts.outcome_coef_range)
             te_range = tuple(opts.treatment_effect_range)
             results_file = os.path.join(
-                opts.output_dir,
+                noise_output_dir,
                 f"noise_ablation_results_n{opts.n_random_configs}"
                 f"_tc{tc_range[0]:.1f}to{tc_range[1]:.1f}"
                 f"_oc{oc_range[0]:.1f}to{oc_range[1]:.1f}"
-                f"_te{te_range[0]:.1f}to{te_range[1]:.1f}.npy",
+                f"_te{te_range[0]:.1f}to{te_range[1]:.1f}{oracle_suffix}.npy",
             )
         else:
-            results_file = os.path.join(opts.output_dir, "noise_ablation_results.npy")
+            results_file = os.path.join(noise_output_dir, f"noise_ablation_results{oracle_suffix}.npy")
 
         if os.path.exists(results_file):
             print(f"Loading existing results from {results_file}")
@@ -3380,18 +3419,19 @@ Examples:
                 treatment_effect_range=tuple(opts.treatment_effect_range),
                 treatment_coef_range=tuple(opts.treatment_coef_range),
                 outcome_coef_range=tuple(opts.outcome_coef_range),
+                oracle_support=opts.oracle_support,
             )
 
-            os.makedirs(opts.output_dir, exist_ok=True)
+            os.makedirs(noise_output_dir, exist_ok=True)
             np.save(results_file, results)
             print(f"Results saved to {results_file}")
 
-        plot_noise_ablation_results(results, opts.output_dir)
+        plot_noise_ablation_results(results, noise_output_dir)
 
         if opts.randomize_coeffs:
             plot_noise_ablation_coeff_scatter(
                 results,
-                opts.output_dir,
+                noise_output_dir,
                 n_configs=opts.n_random_configs,
                 treatment_coef_range=tc_range,
                 outcome_coef_range=oc_range,
@@ -3399,7 +3439,7 @@ Examples:
             )
             plot_noise_ablation_std_scatter(
                 results,
-                opts.output_dir,
+                noise_output_dir,
                 n_configs=opts.n_random_configs,
                 treatment_coef_range=tc_range,
                 outcome_coef_range=oc_range,
@@ -3407,7 +3447,7 @@ Examples:
             )
             plot_diff_heatmaps(
                 results,
-                opts.output_dir,
+                noise_output_dir,
                 n_configs=opts.n_random_configs,
                 treatment_coef_range=tc_range,
                 outcome_coef_range=oc_range,
