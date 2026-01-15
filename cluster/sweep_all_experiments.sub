@@ -1,6 +1,14 @@
-# HTCondor submit file for filtered heatmap experiments
-# Generates bias_diff_sample_size_vs_beta_filtered_below_1.25 figures
-# with outcome_coefficient = 0.05
+# HTCondor submit file for all experiment configurations
+# Covers all 10 combinations: 5 experiment types × 2 oracle modes
+#
+# Experiments:
+#   1. monte_carlo_single_instance.py (oracle / no_oracle)
+#   2. eta_noise_ablation --filtered_heatmap (oracle / no_oracle)
+#   3. eta_noise_ablation --variance_ablation (oracle / no_oracle)
+#   4. eta_noise_ablation --coefficient_ablation (oracle / no_oracle)
+#   5. eta_noise_ablation (default mode) (oracle / no_oracle)
+#
+# Filtered heatmap params: outcome_coef=0.05, ica_var_threshold=1.25
 
 executable = run_experiment.sh
 
@@ -25,6 +33,7 @@ should_transfer_files = NO
 getenv = True
 
 # Arguments: experiment_type followed by experiment-specific args
+# Note: filtered heatmap params are ignored by other experiment types
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode beta_vs_n $(oracle_arg)
 
 # Common parameters
@@ -33,7 +42,11 @@ n_experiments = 20
 outcome_coef = 0.05
 ica_var_threshold = 1.25
 
-# Queue filtered heatmap experiments
+# Filtered heatmap specific parameters (ignored by other experiment types)
+outcome_coef = 0.05
+ica_var_threshold = 1.25
+
+# Queue all 10 configurations
 # With oracle support (default)
 oracle_flag = 1
 oracle_arg =
