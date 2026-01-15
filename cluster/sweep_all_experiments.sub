@@ -39,6 +39,8 @@ arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments
 # Common parameters
 n_samples = 5000
 n_experiments = 20
+outcome_coef = 0.05
+ica_var_threshold = 1.25
 
 # Filtered heatmap specific parameters (ignored by other experiment types)
 outcome_coef = 0.05
@@ -49,10 +51,10 @@ ica_var_threshold = 1.25
 oracle_flag = 1
 oracle_arg =
 
-queue exp_type in (single_instance, eta_filtered_heatmap, eta_variance_ablation, eta_coefficient_ablation, eta_default)
+queue exp_type in (eta_filtered_heatmap)
 
 # Without oracle support
 oracle_flag = 0
 oracle_arg = --no_oracle_support
 
-queue exp_type in (single_instance, eta_filtered_heatmap, eta_variance_ablation, eta_coefficient_ablation, eta_default)
+queue exp_type in (eta_filtered_heatmap)
