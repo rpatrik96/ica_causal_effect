@@ -1629,7 +1629,6 @@ def plot_distribution_diff_heatmap(results: dict, output_dir: str = "figures/noi
     cax = divider.append_axes("right", size="5%", pad=0.15)
     fig.colorbar(im, cax=cax, label="ICA - OML")
 
-    plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "distribution_diff_heatmap.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
@@ -2058,7 +2057,6 @@ def plot_diff_heatmaps(
         cax = divider.append_axes("right", size="5%", pad=0.15)
         fig.colorbar(im, cax=cax, label=cbar_label)
 
-        plt.tight_layout()
         plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
         plt.close()
 
@@ -2123,7 +2121,6 @@ def plot_diff_heatmaps(
         fig.colorbar(im, cax=cax)
 
     fig.suptitle("ICA - HOML Differences vs Distribution and Outcome Coef\n(Blue = ICA better, Red = HOML better)")
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.savefig(os.path.join(output_dir, f"heatmap_combined{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
@@ -2302,7 +2299,6 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
         cax = divider.append_axes("right", size="5%", pad=0.15)
         fig.colorbar(im, cax=cax, label=cbar_label_final)
 
-        plt.tight_layout()
         plt.savefig(os.path.join(output_dir, filename), dpi=300, bbox_inches="tight")
         plt.close()
 
@@ -2365,7 +2361,6 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
         fig.colorbar(im, cax=cax)
 
     fig.suptitle(r"Estimation Metrics vs $\beta$ and Variance")
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.savefig(os.path.join(output_dir, "combined_metrics_heatmap.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
@@ -2404,7 +2399,6 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
         cax = divider.append_axes("right", size="5%", pad=0.1)
         fig.colorbar(im, cax=cax)
 
-    plt.tight_layout(rect=[0, 0, 1, 0.92])
     plt.savefig(os.path.join(output_dir, "combined_diff_heatmap.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
