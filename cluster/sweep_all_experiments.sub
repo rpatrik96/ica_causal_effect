@@ -21,7 +21,7 @@ request_memory = 32GB
 request_disk = 20GB
 
 # Log files with experiment info
-log_root = /home/preizinger/jobs/doml_$(ClusterId)_$(exp_type)_$(axis_mode)_oracle$(oracle_flag)
+log_root = /is/cluster/fast/preizinger/double_orthogonal_ml/cluster/jobs/doml_$(ClusterId)_$(exp_type)_$(axis_mode)_oracle$(oracle_flag)
 error = $(log_root).err
 output = $(log_root).out
 log = $(log_root).log
@@ -35,17 +35,11 @@ should_transfer_files = NO
 
 getenv = True
 
-# Arguments: experiment_type followed by experiment-specific args
-# Note: filtered heatmap params are ignored by other experiment types
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
-
 # Common parameters
 n_samples = 5000
 n_experiments = 20
-outcome_coef = 0.05
-ica_var_threshold = 1.5
 
-# Filtered heatmap specific parameters (ignored by other experiment types)
+# Filtered heatmap specific parameters
 outcome_coef = 0.05
 ica_var_threshold = 1.5
 
@@ -53,21 +47,23 @@ ica_var_threshold = 1.5
 # With oracle support (default)
 oracle_flag = 1
 oracle_arg =
-axis_mode = none
 
-# Non-filtered-heatmap experiments (axis_mode ignored)
+# Non-filtered-heatmap experiments (no heatmap-specific args)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
 queue exp_type in (single_instance, eta_variance_ablation, eta_coefficient_ablation, eta_default)
 
-# Filtered heatmap experiments with both axis modes
+# Filtered heatmap experiments with both axis modes (include heatmap-specific args)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
 queue exp_type, axis_mode in (eta_filtered_heatmap, d_vs_n) (eta_filtered_heatmap, beta_vs_n)
 
 # Without oracle support
 oracle_flag = 0
 oracle_arg = --no_oracle_support
-axis_mode = none
 
-# Non-filtered-heatmap experiments (axis_mode ignored)
+# Non-filtered-heatmap experiments (no heatmap-specific args)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
 queue exp_type in (single_instance, eta_variance_ablation, eta_coefficient_ablation, eta_default)
 
-# Filtered heatmap experiments with both axis modes
+# Filtered heatmap experiments with both axis modes (include heatmap-specific args)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
 queue exp_type, axis_mode in (eta_filtered_heatmap, d_vs_n) (eta_filtered_heatmap, beta_vs_n)
