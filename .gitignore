@@ -68,5 +68,18 @@ all_results_*.npy
 *.png
 *.svg
 
+# Interim analysis files
+figures/
+figures_before_oracle/
+figures_no_oracle/
+*.backup
+
+# Claude Code / OMC
+.claude/
+.omc/
+
+# uv
+uv.lock
+
 # Pre-commit
 .pre-commit-config.yaml.bak
