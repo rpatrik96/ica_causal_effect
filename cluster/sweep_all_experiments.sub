@@ -1,12 +1,14 @@
-# HTCondor submit file for all experiment configurations
-# Covers all 10 combinations: 5 experiment types × 2 oracle modes
+# HTCondor submit file for all ICA vs OML comparison experiments
 #
 # Experiments:
-#   1. monte_carlo_single_instance.py (oracle / no_oracle)
-#   2. eta_noise_ablation --filtered_heatmap (oracle / no_oracle)
-#   3. eta_noise_ablation --variance_ablation (oracle / no_oracle)
-#   4. eta_noise_ablation --coefficient_ablation (oracle / no_oracle)
-#   5. eta_noise_ablation (default mode) (oracle / no_oracle)
+#   1. single_instance - Monte Carlo with sample size sweep (500, 1000, 2000, 5000)
+#   2. single_instance_seed - Multi-seed stability experiments (100 seeds)
+#   3. eta_filtered_heatmap - Filtered heatmap (d_vs_n and beta_vs_n axis modes)
+#   4. eta_variance_ablation - Variance ablation experiments
+#   5. eta_coefficient_ablation - Coefficient ablation experiments
+#   6. eta_default - Default eta noise ablation
+#
+# All experiments run with both oracle and no_oracle configurations.
 #
 # Filtered heatmap params: outcome_coef=0.05, ica_var_threshold=1.5
 # With outcome_coef=0.05, treatment_coef=0.5, treatment_effect=1.0:
@@ -36,29 +38,82 @@ should_transfer_files = NO
 getenv = True
 
 # Common parameters
-n_samples = 5000
 n_experiments = 20
+n_experiments_seed = 2000
+covariate_pdf = gennorm
+sigma_outcome = 1.732
 
 # Filtered heatmap specific parameters
 outcome_coef = 0.05
 ica_var_threshold = 1.5
 
-# Queue all configurations
-# With oracle support (default)
+# ============================================================================
+# SECTION 1: Single instance sample size sweep (500, 1000, 2000, 5000)
+# ============================================================================
+
+# With oracle support
 oracle_flag = 1
 oracle_arg =
+exp_type = single_instance
+axis_mode = none
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --covariate_pdf $(covariate_pdf) --sigma_outcome $(sigma_outcome) $(oracle_arg)
+queue n_samples in (500, 1000, 2000, 5000)
 
-# Non-filtered-heatmap experiments (no heatmap-specific args)
+# Without oracle support
+oracle_flag = 0
+oracle_arg = --no_oracle_support
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --covariate_pdf $(covariate_pdf) --sigma_outcome $(sigma_outcome) $(oracle_arg)
+queue n_samples in (500, 1000, 2000, 5000)
+
+# ============================================================================
+# SECTION 2: Multi-seed stability experiments (100 seeds)
+# ============================================================================
+
+# With oracle support
+oracle_flag = 1
+oracle_arg =
+exp_type = single_instance_seed
+n_samples = 5000
+axis_mode = none
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments_seed) --seed $(seed) $(oracle_arg)
+queue seed in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100)
+
+# Without oracle support
+oracle_flag = 0
+oracle_arg = --no_oracle_support
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments_seed) --seed $(seed) $(oracle_arg)
+queue seed in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100)
+
+# ============================================================================
+# SECTION 3: Eta noise ablation experiments
+# ============================================================================
+
+# With oracle support
+oracle_flag = 1
+oracle_arg =
+n_samples = 5000
+
+# Variance and coefficient ablation experiments
+exp_type = eta_variance_ablation
+axis_mode = none
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
-queue exp_type in (single_instance, eta_variance_ablation, eta_coefficient_ablation, eta_default)
+queue 1
 
-# Filtered heatmap experiments with d_vs_n axis mode
+exp_type = eta_coefficient_ablation
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+queue 1
+
+exp_type = eta_default
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+queue 1
+
+# Filtered heatmap with d_vs_n axis mode
 exp_type = eta_filtered_heatmap
 axis_mode = d_vs_n
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
 queue 1
 
-# Filtered heatmap experiments with beta_vs_n axis mode
+# Filtered heatmap with beta_vs_n axis mode
 axis_mode = beta_vs_n
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
 queue 1
@@ -67,17 +122,27 @@ queue 1
 oracle_flag = 0
 oracle_arg = --no_oracle_support
 
-# Non-filtered-heatmap experiments (no heatmap-specific args)
+# Variance and coefficient ablation experiments
+exp_type = eta_variance_ablation
+axis_mode = none
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
-queue exp_type in (single_instance, eta_variance_ablation, eta_coefficient_ablation, eta_default)
+queue 1
 
-# Filtered heatmap experiments with d_vs_n axis mode
+exp_type = eta_coefficient_ablation
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+queue 1
+
+exp_type = eta_default
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+queue 1
+
+# Filtered heatmap with d_vs_n axis mode
 exp_type = eta_filtered_heatmap
 axis_mode = d_vs_n
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
 queue 1
 
-# Filtered heatmap experiments with beta_vs_n axis mode
+# Filtered heatmap with beta_vs_n axis mode
 axis_mode = beta_vs_n
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
 queue 1
