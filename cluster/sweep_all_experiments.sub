@@ -93,56 +93,54 @@ oracle_flag = 1
 oracle_arg =
 n_samples = 5000
 
-# Variance and coefficient ablation experiments
-exp_type = eta_variance_ablation
-axis_mode = none
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
-queue 1
+# Variance and coefficient ablation experiments (COMPLETED - batch 16824421)
+# exp_type = eta_variance_ablation
+# axis_mode = none
+# arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+# queue 1
 
-exp_type = eta_coefficient_ablation
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
-queue 1
+# exp_type = eta_coefficient_ablation
+# arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+# queue 1
 
 exp_type = eta_default
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --randomize_coeffs $(oracle_arg)
 queue 1
 
-# Filtered heatmap with d_vs_n axis mode
-exp_type = eta_filtered_heatmap
-axis_mode = d_vs_n
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
-queue 1
+# Filtered heatmap experiments (COMPLETED - batch 16824421)
+# exp_type = eta_filtered_heatmap
+# axis_mode = d_vs_n
+# arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
+# queue 1
 
-# Filtered heatmap with beta_vs_n axis mode
-axis_mode = beta_vs_n
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
-queue 1
+# axis_mode = beta_vs_n
+# arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
+# queue 1
 
 # Without oracle support
 oracle_flag = 0
 oracle_arg = --no_oracle_support
 
-# Variance and coefficient ablation experiments
-exp_type = eta_variance_ablation
-axis_mode = none
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
-queue 1
+# Variance and coefficient ablation experiments (COMPLETED - batch 16824421)
+# exp_type = eta_variance_ablation
+# axis_mode = none
+# arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+# queue 1
 
-exp_type = eta_coefficient_ablation
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
-queue 1
+# exp_type = eta_coefficient_ablation
+# arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+# queue 1
 
 exp_type = eta_default
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --randomize_coeffs $(oracle_arg)
 queue 1
 
-# Filtered heatmap with d_vs_n axis mode
-exp_type = eta_filtered_heatmap
-axis_mode = d_vs_n
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
-queue 1
+# Filtered heatmap experiments (COMPLETED - batch 16824421)
+# exp_type = eta_filtered_heatmap
+# axis_mode = d_vs_n
+# arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
+# queue 1
 
-# Filtered heatmap with beta_vs_n axis mode
-axis_mode = beta_vs_n
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
-queue 1
+# axis_mode = beta_vs_n
+# arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
+# queue 1
