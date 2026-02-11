@@ -49,9 +49,9 @@ case "${EXPERIMENT_TYPE}" in
         ;;
 
     "single_instance_seed")
-        # Single instance with specific seed
+        # Single instance with specific seed (reuses monte_carlo_single_instance.py which accepts --seed)
         # Example args: --n_samples 500 --n_experiments 20 --seed 42
-        python monte_carlo_single_instance_with_seed.py --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
+        python monte_carlo_single_instance.py --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
         ;;
 
     "eta_filtered_heatmap")

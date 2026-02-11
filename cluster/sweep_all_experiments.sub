@@ -104,7 +104,7 @@ arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments
 queue 1
 
 exp_type = eta_default
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --randomize_coeffs $(oracle_arg)
 queue 1
 
 # Filtered heatmap with d_vs_n axis mode
@@ -133,7 +133,7 @@ arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments
 queue 1
 
 exp_type = eta_default
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --randomize_coeffs $(oracle_arg)
 queue 1
 
 # Filtered heatmap with d_vs_n axis mode

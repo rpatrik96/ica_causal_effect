@@ -294,7 +294,8 @@ def run_experiments_for_configuration(
 
     # Extract results
     ortho_rec_tau = [
-        [ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] + ica_estimate.tolist()
+        [ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml]
+        + (ica_estimate.tolist() if hasattr(ica_estimate, "tolist") else [ica_estimate])
         for ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_estimate, _ in results
     ]
 
