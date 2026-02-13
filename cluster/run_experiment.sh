@@ -8,9 +8,9 @@ shift
 EXPERIMENT_ARGS="$@"
 
 # Setup paths - adjust these to your cluster configuration
-CLUSTER_HOME="/home/preizinger"
+CLUSTER_HOME="/is/cluster/fast/preizinger/"
 PROJECT_DIR="${CLUSTER_HOME}/double_orthogonal_ml"
-VENV_DIR="${PROJECT_DIR}/.venv"
+VENV_DIR="/is/cluster/fast/preizinger/nl-causal-representations/care"
 # Output to project figures directory (will be synced back)
 OUTPUT_DIR="${PROJECT_DIR}/figures"
 
