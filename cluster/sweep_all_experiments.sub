@@ -2,7 +2,7 @@
 #
 # Experiments:
 #   1. single_instance - Monte Carlo with sample size sweep (500, 1000, 2000, 5000)
-#   2. single_instance_seed - Multi-seed stability experiments (20 seeds)
+#   2. single_instance_seed - Multi-seed stability experiments (10 seeds, 10 reps each)
 #   3. eta_filtered_heatmap - Filtered heatmap (d_vs_n and beta_vs_n axis modes)
 #   4. eta_variance_ablation - Variance ablation experiments
 #   5. eta_coefficient_ablation - Coefficient ablation experiments
@@ -39,7 +39,7 @@ getenv = True
 
 # Common parameters
 n_experiments = 20
-n_experiments_seed = 20
+n_experiments_seed = 10
 covariate_pdf = gennorm
 sigma_outcome = 1.732
 
@@ -75,14 +75,14 @@ oracle_arg =
 exp_type = single_instance_seed
 n_samples = 5000
 axis_mode = none
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments_seed) --seed $(seed) $(oracle_arg)
-queue seed in (101, 207, 314, 428, 539, 643, 757, 862, 971, 1087, 1193, 1301, 1417, 1523, 1637, 1742, 1859, 1963, 2071, 2179)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments_seed) --seed $(seed) --single_config $(oracle_arg)
+queue seed in (101, 314, 539, 757, 971, 1193, 1417, 1637, 1859, 2071)
 
 # Without oracle support
 oracle_flag = 0
 oracle_arg = --no_oracle_support
-arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments_seed) --seed $(seed) $(oracle_arg)
-queue seed in (101, 207, 314, 428, 539, 643, 757, 862, 971, 1087, 1193, 1301, 1417, 1523, 1637, 1742, 1859, 1963, 2071, 2179)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments_seed) --seed $(seed) --single_config $(oracle_arg)
+queue seed in (101, 314, 539, 757, 971, 1193, 1417, 1637, 1859, 2071)
 
 # ============================================================================
 # SECTION 3: Eta noise ablation experiments

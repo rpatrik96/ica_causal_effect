@@ -438,6 +438,13 @@ def main(args):
         default=[-5.0, 5.0],
     )
     parser.add_argument(
+        "--single_config",
+        dest="single_config",
+        action="store_true",
+        default=False,
+        help="Collapse grid to single config for seed stability testing.",
+    )
+    parser.add_argument(
         "--oracle_support",
         dest="oracle_support",
         action="store_true",
@@ -472,6 +479,7 @@ def main(args):
         treatment_coef_range=tuple(opts.treatment_coef_range),
         outcome_coef_range=tuple(opts.outcome_coef_range),
         oracle_support=opts.oracle_support,
+        single_config=opts.single_config,
     )
 
     # Set random seed

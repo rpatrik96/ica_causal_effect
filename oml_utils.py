@@ -56,6 +56,7 @@ class OMLExperimentConfig:
     treatment_coef_range: Tuple[float, float] = (-5.0, 5.0)
     outcome_coef_range: Tuple[float, float] = (-5.0, 5.0)
     oracle_support: bool = True
+    single_config: bool = False
 
 
 @dataclass
@@ -110,6 +111,16 @@ class OMLParameterGrid:
                 # Asymptotic variance specific coefficients
                 grid.treatment_coefs = [-0.002, -0.33, 1.26]
                 grid.outcome_coefs = [-0.05, 0.7, 1.9]
+
+        # Single config mode: collapse grid to one point for seed stability testing
+        if config.single_config:
+            grid.data_samples = [config.n_samples]
+            grid.support_sizes = [10]
+            grid.beta_values = [4.0]
+            grid.treatment_effects = [1]
+            grid.treatment_coefs = [1.56]
+            grid.outcome_coefs = [-1.45]
+            return grid
 
         # Adjust beta values
         if config.covariate_pdf != "gennorm" or config.asymptotic_var:
