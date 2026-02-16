@@ -57,6 +57,7 @@ class OMLExperimentConfig:
     outcome_coef_range: Tuple[float, float] = (-5.0, 5.0)
     oracle_support: bool = True
     single_config: bool = False
+    beta: Optional[float] = None
 
 
 @dataclass
@@ -129,6 +130,13 @@ class OMLParameterGrid:
         # Adjust treatment effects
         if config.matched_coefficients:
             grid.treatment_effects = [1.0]
+
+        # Restrict grid to the CLI-specified n_samples (enables per-sample-size job splitting)
+        grid.data_samples = [config.n_samples]
+
+        # Restrict beta if explicitly specified (enables per-beta job splitting)
+        if config.beta is not None:
+            grid.beta_values = [config.beta]
 
         return grid
 
@@ -695,6 +703,14 @@ def setup_results_filename(config: OMLExperimentConfig) -> str:
     eta_noise_dist = getattr(config, "eta_noise_dist", "discrete")
     if eta_noise_dist != "discrete":
         filename_parts.append(f"eta_{eta_noise_dist}")
+
+    # Add sample size to filename (each split job runs one n_samples)
+    filename_parts.append(f"n{config.n_samples}")
+
+    # Add beta to filename when explicitly specified (per-beta job splitting)
+    beta = getattr(config, "beta", None)
+    if beta is not None:
+        filename_parts.append(f"beta{beta}")
 
     # Add no_oracle to filename when oracle_support is disabled
     oracle_support = getattr(config, "oracle_support", True)

@@ -445,6 +445,20 @@ def main(args):
         help="Collapse grid to single config for seed stability testing.",
     )
     parser.add_argument(
+        "--beta",
+        dest="beta",
+        type=float,
+        default=None,
+        help="Restrict gennorm beta to this single value (enables per-beta job splitting).",
+    )
+    parser.add_argument(
+        "--no_plot",
+        dest="no_plot",
+        action="store_true",
+        default=False,
+        help="Skip final plot generation (use with split jobs; merge_results.py plots later).",
+    )
+    parser.add_argument(
         "--oracle_support",
         dest="oracle_support",
         action="store_true",
@@ -480,6 +494,7 @@ def main(args):
         outcome_coef_range=tuple(opts.outcome_coef_range),
         oracle_support=opts.oracle_support,
         single_config=opts.single_config,
+        beta=opts.beta,
     )
 
     # Set random seed
@@ -564,8 +579,9 @@ def main(args):
 
     print("\nDone with all experiments!")
 
-    # Generate all plots
-    generate_all_oml_plots(all_results, config, param_grid, param_grid.treatment_effects)
+    # Generate all plots (skip for split jobs; merge_results.py handles combined plotting)
+    if not opts.no_plot:
+        generate_all_oml_plots(all_results, config, param_grid, param_grid.treatment_effects)
 
     return 0
 
