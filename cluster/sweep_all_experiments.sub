@@ -50,7 +50,9 @@ ica_var_threshold = 1.5
 # ============================================================================
 # SECTION 1: Single instance sample size × beta sweep
 # Each (n_samples, beta) pair is a separate job for parallelism.
-# 4 sample sizes × 5 betas × 2 oracle = 40 jobs
+# 6 sample sizes × 5 betas × 2 oracle = 60 jobs
+# Per job: 4 treatment_coefs × 4 outcome_coefs × 5 support_sizes × 6 treatment_effects
+#        = 480 configs × 20 MC reps = 9,600 experiments
 # ============================================================================
 
 # With oracle support
@@ -60,26 +62,36 @@ exp_type = single_instance
 axis_mode = none
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --covariate_pdf $(covariate_pdf) --sigma_outcome $(sigma_outcome) --beta $(beta) --no_plot $(oracle_arg)
 queue n_samples, beta from (
-    500, 0.5
-    500, 1.0
-    500, 2.0
-    500, 3.0
-    500, 4.0
-    1000, 0.5
-    1000, 1.0
-    1000, 2.0
-    1000, 3.0
-    1000, 4.0
-    2000, 0.5
-    2000, 1.0
-    2000, 2.0
-    2000, 3.0
-    2000, 4.0
-    5000, 0.5
-    5000, 1.0
-    5000, 2.0
-    5000, 3.0
-    5000, 4.0
+    100, 0.5
+    100, 1.0
+    100, 2.0
+    100, 3.0
+    100, 4.0
+    200, 0.5
+    200, 1.0
+    200, 2.0
+    200, 3.0
+    200, 4.0
+#    500, 0.5
+#    500, 1.0
+#    500, 2.0
+#    500, 3.0
+#    500, 4.0
+#    1000, 0.5
+#    1000, 1.0
+#    1000, 2.0
+#    1000, 3.0
+#    1000, 4.0
+#    2000, 0.5
+#    2000, 1.0
+#    2000, 2.0
+#    2000, 3.0
+#    2000, 4.0
+#    5000, 0.5
+#    5000, 1.0
+#    5000, 2.0
+#    5000, 3.0
+#    5000, 4.0
 )
 
 # Without oracle support
@@ -87,26 +99,36 @@ oracle_flag = 0
 oracle_arg = --no_oracle_support
 arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --covariate_pdf $(covariate_pdf) --sigma_outcome $(sigma_outcome) --beta $(beta) --no_plot $(oracle_arg)
 queue n_samples, beta from (
-    500, 0.5
-    500, 1.0
-    500, 2.0
-    500, 3.0
-    500, 4.0
-    1000, 0.5
-    1000, 1.0
-    1000, 2.0
-    1000, 3.0
-    1000, 4.0
-    2000, 0.5
-    2000, 1.0
-    2000, 2.0
-    2000, 3.0
-    2000, 4.0
-    5000, 0.5
-    5000, 1.0
-    5000, 2.0
-    5000, 3.0
-    5000, 4.0
+    100, 0.5
+    100, 1.0
+    100, 2.0
+    100, 3.0
+    100, 4.0
+    200, 0.5
+    200, 1.0
+    200, 2.0
+    200, 3.0
+    200, 4.0
+#    500, 0.5
+#    500, 1.0
+#    500, 2.0
+#    500, 3.0
+#    500, 4.0
+#    1000, 0.5
+#    1000, 1.0
+#    1000, 2.0
+#    1000, 3.0
+#    1000, 4.0
+#    2000, 0.5
+#    2000, 1.0
+#    2000, 2.0
+#    2000, 3.0
+#    2000, 4.0
+#    5000, 0.5
+#    5000, 1.0
+#    5000, 2.0
+#    5000, 3.0
+#    5000, 4.0
 )
 
 # ============================================================================
