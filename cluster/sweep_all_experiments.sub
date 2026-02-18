@@ -21,6 +21,7 @@ executable = run_experiment.sh
 request_cpus = 4
 request_memory = 32GB
 request_disk = 20GB
++MaxRuntime = 259200
 
 # Log files with experiment info
 log_root = /is/cluster/fast/preizinger/double_orthogonal_ml/cluster/jobs/doml_$(ClusterId)_$(exp_type)_n$(n_samples)_beta$(beta)_d$(support_size)_$(axis_mode)_oracle$(oracle_flag)
