@@ -148,7 +148,7 @@ def run_experiments_for_configuration(
     Returns:
         Dictionary with experiment results
     """
-    cov_dim_max = param_grid.support_sizes[-1]
+    cov_dim_max = param_grid.cov_dim_max
 
     # Setup coefficients
     treatment_coef_list = np.zeros(cov_dim_max)
@@ -452,6 +452,13 @@ def main(args):
         help="Restrict gennorm beta to this single value (enables per-beta job splitting).",
     )
     parser.add_argument(
+        "--support_size",
+        dest="support_size",
+        type=int,
+        default=None,
+        help="Restrict support size (covariate dim d) to this value (enables per-d job splitting).",
+    )
+    parser.add_argument(
         "--no_plot",
         dest="no_plot",
         action="store_true",
@@ -495,6 +502,7 @@ def main(args):
         oracle_support=opts.oracle_support,
         single_config=opts.single_config,
         beta=opts.beta,
+        support_size=opts.support_size,
     )
 
     # Set random seed
@@ -524,7 +532,7 @@ def main(args):
         all_results = []
 
         # Setup coefficient arrays for non-scalar mode
-        cov_dim_max = param_grid.support_sizes[-1]
+        cov_dim_max = param_grid.cov_dim_max
         if config.scalar_coeffs:
             treatment_coef_array = outcome_coef_array = None
         else:

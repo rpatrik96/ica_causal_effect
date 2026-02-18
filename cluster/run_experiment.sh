@@ -45,13 +45,13 @@ case "${EXPERIMENT_TYPE}" in
     "single_instance")
         # Single instance Monte Carlo experiment
         # Example args: --n_samples 5000 --n_experiments 20 [--no_oracle_support]
-        python monte_carlo_single_instance.py --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
+        python -u monte_carlo_single_instance.py --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
         ;;
 
     "single_instance_seed")
         # Single instance with specific seed (reuses monte_carlo_single_instance.py which accepts --seed)
         # Example args: --n_samples 500 --n_experiments 20 --seed 42
-        python monte_carlo_single_instance.py --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
+        python -u monte_carlo_single_instance.py --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
         ;;
 
     "eta_filtered_heatmap")

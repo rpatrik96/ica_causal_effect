@@ -1,6 +1,6 @@
 """Merge partial OML experiment results from split HTCondor jobs.
 
-After running split jobs (one per n_samples × beta combination), this script:
+After running split jobs (one per n_samples × beta × support_size combination), this script:
 1. Loads all partial .npy result files matching a glob pattern
 2. Concatenates them into a single results list
 3. Saves the merged file
@@ -25,7 +25,7 @@ import sys
 import numpy as np
 
 
-def find_partial_results(results_dir, pattern="all_results_*_n[0-9]*_beta*.npy"):
+def find_partial_results(results_dir, pattern="all_results_*_n[0-9]*_beta*_d*.npy"):
     """Find all partial result files matching the pattern.
 
     Args:
@@ -61,8 +61,8 @@ def main():
     parser.add_argument("results_dir", help="Directory containing partial .npy result files")
     parser.add_argument(
         "--pattern",
-        default="all_results_*_n[0-9]*_beta*.npy",
-        help="Glob pattern for partial result files (default: all_results_*_n[0-9]*_beta*.npy)",
+        default="all_results_*_n[0-9]*_beta*_d*.npy",
+        help="Glob pattern for partial result files (default: all_results_*_n[0-9]*_beta*_d*.npy)",
     )
     parser.add_argument(
         "--output",
@@ -121,6 +121,7 @@ def main():
 
         # Build full parameter grid (not restricted) for plotting
         param_grid = OMLParameterGrid()
+        param_grid.cov_dim_max = param_grid.support_sizes[-1]
         if config.covariate_pdf != "gennorm":
             param_grid.beta_values = [1.0]
 

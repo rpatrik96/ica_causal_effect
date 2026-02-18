@@ -125,7 +125,7 @@ class OMLExperimentRunner:
         # In the actual refactoring, this would call setup_treatment_outcome_coefs
 
         # Compute lambda regularization parameter
-        cov_dim_max = self.param_grid.support_sizes[-1]
+        cov_dim_max = self.param_grid.cov_dim_max
         lambda_reg = np.sqrt(np.log(cov_dim_max) / n_samples)
 
         # Run parallel experiments

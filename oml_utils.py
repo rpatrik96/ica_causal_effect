@@ -58,6 +58,7 @@ class OMLExperimentConfig:
     oracle_support: bool = True
     single_config: bool = False
     beta: Optional[float] = None
+    support_size: Optional[int] = None
 
 
 @dataclass
@@ -83,6 +84,7 @@ class OMLParameterGrid:
     outcome_coefs: List[float] = field(default_factory=lambda: [0.003, -0.02, 0.63, -1.45])
     beta_filter: float = 4.0
     support_filter: int = 10
+    cov_dim_max: int = 50
 
     @classmethod
     def create_from_config(cls, config: OMLExperimentConfig) -> "OMLParameterGrid":
@@ -95,6 +97,9 @@ class OMLParameterGrid:
             Configured parameter grid
         """
         grid = cls()
+
+        # Capture cov_dim_max from the full default grid before any restriction
+        grid.cov_dim_max = grid.support_sizes[-1]
 
         # Adjust for small_data mode
         if config.small_data:
@@ -137,6 +142,10 @@ class OMLParameterGrid:
         # Restrict beta if explicitly specified (enables per-beta job splitting)
         if config.beta is not None:
             grid.beta_values = [config.beta]
+
+        # Restrict support_size if explicitly specified (enables per-support-size job splitting)
+        if config.support_size is not None:
+            grid.support_sizes = [config.support_size]
 
         return grid
 
@@ -711,6 +720,11 @@ def setup_results_filename(config: OMLExperimentConfig) -> str:
     beta = getattr(config, "beta", None)
     if beta is not None:
         filename_parts.append(f"beta{beta}")
+
+    # Add support_size to filename when explicitly specified (per-support-size job splitting)
+    support_size = getattr(config, "support_size", None)
+    if support_size is not None:
+        filename_parts.append(f"d{support_size}")
 
     # Add no_oracle to filename when oracle_support is disabled
     oracle_support = getattr(config, "oracle_support", True)
