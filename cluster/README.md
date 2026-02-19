@@ -159,7 +159,7 @@ Default resource requests (adjust in submit files based on experiment size):
 | CPUs | 4-8 | Eta ablations use 8 CPUs |
 | Memory | 32GB | For large matrix operations |
 | Disk | 20GB | For result files |
-| Max Time | 24h | Adjust based on experiment |
+| Max Time | 3 days | Set via `MaxTime` in submit file; must match `+MaxRuntime` |
 
 These experiments are CPU-only (no GPU required).
 
@@ -174,7 +174,7 @@ cat ~/jobs/doml_<cluster_id>_<exp_type>_oracle<flag>.err
 
 Common issues:
 - **Memory exceeded**: Increase `request_memory`
-- **Time limit exceeded**: Increase `MaxTime`
+- **Time limit exceeded**: Increase `MaxTime` **and** `+MaxRuntime` — both must match, as `periodic_remove` uses `MaxTime` independently of `+MaxRuntime`
 - **Missing dependencies**: Ensure venv is properly set up
 
 ### Virtual environment issues
