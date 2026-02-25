@@ -789,14 +789,12 @@ def run_sample_dimension_grid_experiments(
             dimension_values = [5, 10, 20, 50]
         grid_values = dimension_values
         grid_key = "support_size"
-        fixed_value = fixed_beta
         covariate_beta = fixed_beta
     elif axis_mode == "beta_vs_n":
         if beta_values is None:
             beta_values = [0.5, 1.0, 2.0, 3.0, 4.0]
         grid_values = beta_values
         grid_key = "beta"
-        fixed_value = fixed_dimension
     else:
         raise ValueError(f"Invalid axis_mode: {axis_mode}. Use 'd_vs_n' or 'beta_vs_n'.")
 
@@ -2448,7 +2446,7 @@ def plot_ica_var_filtered_rmse_heatmap(
     # Determine axes based on mode
     if axis_mode == "d_vs_n":
         x_key = "support_size"
-        x_label = r"Covariate dimension $d$"
+        x_label = r"Sparsity level $s$"
         filename_suffix = "dim"
     else:  # beta_vs_n
         x_key = "beta"
@@ -2548,13 +2546,13 @@ def plot_ica_var_filtered_rmse_heatmap(
 
     # Also create a summary of the filtering
     summary_file = os.path.join(output_dir, f"filtering_summary_{filter_desc}.txt")
-    with open(summary_file, "w") as f:
-        f.write(f"ICA Variance Coefficient Filtering Summary\n")
-        f.write(f"==========================================\n")
+    with open(summary_file, "w", encoding="utf-8") as f:
+        f.write("ICA Variance Coefficient Filtering Summary\n")
+        f.write("==========================================\n")
         f.write(f"Threshold: {ica_var_threshold}\n")
         f.write(f"Filter mode: {'<=' if filter_below else '>'} threshold\n")
         f.write(f"Results kept: {len(filtered_results)} / {len(results)}\n\n")
-        f.write(f"ICA var coeff range in filtered data:\n")
+        f.write("ICA var coeff range in filtered data:\n")
         if filtered_results:
             ica_coeffs = [r["ica_var_coeff"] for r in filtered_results]
             f.write(f"  Min: {min(ica_coeffs):.4f}\n")
@@ -2607,7 +2605,7 @@ def plot_ica_var_filtered_bias_heatmaps(
     # Determine axes based on mode
     if axis_mode == "d_vs_n":
         x_key = "support_size"
-        x_label = r"Covariate dimension $d$"
+        x_label = r"Sparsity level $s$"
         filename_suffix = "dim"
     else:  # beta_vs_n
         x_key = "beta"
@@ -2729,7 +2727,7 @@ def plot_ica_var_filtered_bias_heatmaps(
 
     # Save filtering summary
     summary_file = os.path.join(output_dir, f"bias_filtering_summary_{filter_desc}.txt")
-    with open(summary_file, "w") as f:
+    with open(summary_file, "w", encoding="utf-8") as f:
         f.write("ICA Variance Coefficient Filtering Summary (Bias Heatmaps)\n")
         f.write("=========================================================\n")
         f.write(f"Threshold: {ica_var_threshold}\n")
@@ -3311,12 +3309,11 @@ Examples:
                     f"ICA variance constraint violated: {len(results_above_threshold)} results "
                     f"exceed threshold {opts.ica_var_threshold}. Max: {max_ica_var:.6f}"
                 )
-            else:
-                print(
-                    f"\nValidation passed: All {len(ica_var_coeffs)} results have "
-                    f"ica_var_coeff <= {opts.ica_var_threshold}"
-                )
-                print(f"  Range: [{min_ica_var:.6f}, {max_ica_var:.6f}]")
+            print(
+                f"\nValidation passed: All {len(ica_var_coeffs)} results have "
+                f"ica_var_coeff <= {opts.ica_var_threshold}"
+            )
+            print(f"  Range: [{min_ica_var:.6f}, {max_ica_var:.6f}]")
 
         # Plot filtered RMSE heatmap
         plot_ica_var_filtered_rmse_heatmap(
