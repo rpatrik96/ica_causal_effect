@@ -2085,7 +2085,13 @@ def plot_diff_heatmaps(
     )
 
     # Also create a combined 1x3 figure
-    fig, axes = plt.subplots(1, 3, figsize=(20, 7))
+    with plt.rc_context({"figure.constrained_layout.use": False}):
+        fig, axes = plt.subplots(
+            1,
+            3,
+            figsize=(26, 7),
+            gridspec_kw={"wspace": 0.6},
+        )
 
     for ax, data, title in zip(
         axes,
@@ -2105,21 +2111,29 @@ def plot_diff_heatmaps(
         )
 
         ax.set_xticks(np.arange(n_dists))
-        x_labels = [f"{dist_data[d]['label']}\n(κ={dist_data[d]['kurtosis']:.1f})" for d in sorted_dists]
-        ax.set_xticklabels(x_labels, rotation=45, ha="right")
+        x_labels = [f"{dist_data[d]['label']}\n(\u03ba={dist_data[d]['kurtosis']:.1f})" for d in sorted_dists]
+        ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=6)
         ax.set_yticks(np.arange(0, n_outcome_bins, 2))
-        ax.set_yticklabels([f"{outcome_centers[i]:.2f}" for i in range(0, n_outcome_bins, 2)])
-        ax.set_xlabel("Distribution")
-        ax.set_ylabel(r"Outcome Coef $b$")
-        ax.set_title(title)
+        ax.set_yticklabels(
+            [f"{outcome_centers[i]:.2f}" for i in range(0, n_outcome_bins, 2)],
+            fontsize=7,
+        )
+        ax.set_xlabel("Distribution", fontsize=8)
+        ax.set_ylabel(r"Outcome Coef $b$", fontsize=8)
+        ax.set_title(title, fontsize=9)
 
-        # Add colorbar next to each subplot
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.1)
-        fig.colorbar(im, cax=cax)
+        cbar = fig.colorbar(im, ax=ax, shrink=0.8, pad=0.08)
+        cbar.ax.tick_params(labelsize=6)
 
-    fig.suptitle("ICA - HOML Differences vs Distribution and Outcome Coef\n(Blue = ICA better, Red = HOML better)")
-    plt.savefig(os.path.join(output_dir, f"heatmap_combined{suffix}.svg"), dpi=300, bbox_inches="tight")
+    fig.suptitle(
+        "ICA - HOML Differences vs Distribution and Outcome Coef\n(Blue = ICA better, Red = HOML better)",
+        fontsize=10,
+    )
+    plt.savefig(
+        os.path.join(output_dir, f"heatmap_combined{suffix}.svg"),
+        dpi=300,
+        bbox_inches="tight",
+    )
     plt.close()
 
     print(f"\nHeatmaps saved to {output_dir}")
@@ -2363,7 +2377,9 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
     plt.close()
 
     # Create combined 1x3 figure for differences
-    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    with plt.rc_context({"figure.constrained_layout.use": False}):
+        fig, axes = plt.subplots(1, 3, figsize=(20, 5))
+    fig.subplots_adjust(wspace=0.5)
 
     diff_metrics = [
         (bias_diff_grid, r"$|\mathrm{Bias}|$ Diff"),
@@ -2376,12 +2392,12 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
         vmin = -vmax
         im = ax.imshow(data, aspect="auto", origin="lower", cmap="coolwarm", vmin=vmin, vmax=vmax)
         ax.set_xticks(np.arange(n_betas))
-        ax.set_xticklabels([f"{b:.1f}" for b in beta_values])
+        ax.set_xticklabels([f"{b:.1f}" for b in beta_values], fontsize=7)
         ax.set_yticks(np.arange(n_vars))
-        ax.set_yticklabels([f"{v:.2f}" for v in variance_values])
-        ax.set_xlabel(r"$\beta$")
-        ax.set_ylabel(r"Var")
-        ax.set_title(title)
+        ax.set_yticklabels([f"{v:.2f}" for v in variance_values], fontsize=7)
+        ax.set_xlabel(r"$\beta$", fontsize=8)
+        ax.set_ylabel(r"Var", fontsize=8)
+        ax.set_title(title, fontsize=9)
 
         # Add value annotations to each cell
         for i in range(data.shape[0]):
@@ -2391,11 +2407,12 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
                     # Use white text on dark backgrounds, black on light
                     val_norm = abs(val) / (vmax + 1e-10)
                     color = "white" if val_norm > 0.5 else "black"
-                    ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=color, fontsize=8)
+                    ax.text(j, i, f"{val:.3f}", ha="center", va="center", color=color, fontsize=7)
 
         divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.1)
-        fig.colorbar(im, cax=cax)
+        cax = divider.append_axes("right", size="4%", pad=0.15)
+        cbar = fig.colorbar(im, cax=cax)
+        cbar.ax.tick_params(labelsize=6)
 
     plt.savefig(os.path.join(output_dir, "combined_diff_heatmap.svg"), dpi=300, bbox_inches="tight")
     plt.close()
