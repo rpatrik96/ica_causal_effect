@@ -2063,6 +2063,18 @@ def plot_diff_heatmaps(
     bias_heatmap = create_heatmap_data("bias_diffs")
     std_heatmap = create_heatmap_data("std_diffs")
 
+    # Filter out rows that are all-NaN across all heatmaps (empty bins)
+    valid_rows = ~(
+        np.all(np.isnan(rmse_heatmap), axis=1)
+        & np.all(np.isnan(bias_heatmap), axis=1)
+        & np.all(np.isnan(std_heatmap), axis=1)
+    )
+    rmse_heatmap = rmse_heatmap[valid_rows]
+    bias_heatmap = bias_heatmap[valid_rows]
+    std_heatmap = std_heatmap[valid_rows]
+    outcome_centers = outcome_centers[valid_rows]
+    n_outcome_bins = int(valid_rows.sum())
+
     plot_single_heatmap(
         rmse_heatmap,
         "RMSE Difference\n(Blue = ICA better, Red = HOML better)",
