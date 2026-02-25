@@ -83,6 +83,11 @@ case "${EXPERIMENT_TYPE}" in
         python ica.py ${EXPERIMENT_ARGS}
         ;;
 
+    "gaussian_eta")
+        # Gaussian eta experiment (Option B: eps non-Gaussian, eta Gaussian)
+        python -u gaussian_eta_experiment.py --output_dir "${OUTPUT_DIR}/gaussian_eta" ${EXPERIMENT_ARGS}
+        ;;
+
     *)
         echo "Unknown experiment type: ${EXPERIMENT_TYPE}"
         echo "Available types:"
@@ -93,6 +98,7 @@ case "${EXPERIMENT_TYPE}" in
         echo "  eta_coefficient_ablation - Eta ablation: coefficient ablation"
         echo "  eta_default             - Eta ablation: default mode"
         echo "  ica                     - ICA experiments"
+        echo "  gaussian_eta            - Gaussian eta experiment (Option B)"
         exit 1
         ;;
 esac

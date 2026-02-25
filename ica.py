@@ -28,6 +28,8 @@ def generate_ica_data(
     nonlinearity="leaky_relu",
     theta_choice="fixed",
     split_noise_dist=False,
+    split_eta_eps=False,
+    beta_eta=None,
 ):
     # Create sparse matrix of shape (n_treatments x n_covariates)
     binary_mask = torch.bernoulli(torch.ones(n_treatments, n_covariates) * sparse_prob)
@@ -48,7 +50,14 @@ def generate_ica_data(
     distribution = gennorm(beta, loc=loc, scale=scale)
 
     source_dim = n_covariates + n_treatments + 1  # +1 for outcome
-    if split_noise_dist is False:
+    if split_eta_eps:
+        # Decouple eta and eps distributions: eta gets beta_eta, eps gets beta
+        _beta_eta = beta_eta if beta_eta is not None else 2.0
+        S_X = torch.tensor(gennorm(beta=2.0, loc=loc, scale=scale).rvs(size=(batch_size, n_covariates))).float()
+        S_eta = torch.tensor(gennorm(beta=_beta_eta, loc=loc, scale=scale).rvs(size=(batch_size, n_treatments))).float()
+        S_eps = torch.tensor(distribution.rvs(size=(batch_size, 1))).float()
+        S = torch.hstack((S_X, S_eta, S_eps))
+    elif split_noise_dist is False:
         S = torch.tensor(distribution.rvs(size=(batch_size, source_dim))).float()
     else:
         S_X = torch.tensor(gennorm(beta=2.0, loc=loc, scale=scale).rvs(size=(batch_size, n_covariates))).float()
@@ -145,6 +154,94 @@ def ica_treatment_effect_estimation(
     treatment_effect_estimate = permuted_scaled_mixing[-1, n_covariates:-1]
 
     return treatment_effect_estimate, results["permutation_disentanglement_score"]
+
+
+def ica_treatment_effect_estimation_eps_row(
+    X,
+    S=None,
+    random_state=0,
+    whiten="unit-variance",
+    check_convergence=True,
+    n_treatments=1,
+    verbose=True,
+    fun="logcosh",
+):
+    """Estimate treatment effects by identifying the eps component via non-Gaussianity.
+
+    Unlike ica_treatment_effect_estimation, this does NOT rely on Munkres matching
+    to assign all ICA components to sources. Instead, it identifies the outcome noise
+    (eps) as the most non-Gaussian component projected onto the outcome variable,
+    then reads theta from its row of the unmixing matrix.
+
+    This works even when eta (treatment noise) is Gaussian, because theta resides
+    in the eps row of W, and eps is identifiable as long as it is non-Gaussian.
+    """
+    from warnings import catch_warnings  # pylint: disable=import-outside-toplevel
+
+    from scipy.stats import kurtosis  # pylint: disable=import-outside-toplevel
+
+    tol = 1e-4
+
+    for attempt in range(5):
+        with catch_warnings(record=True) as w:
+            ica = FastICA(
+                n_components=X.shape[1],
+                random_state=random_state + attempt,
+                max_iter=1000,
+                whiten=whiten,
+                tol=tol,
+                fun=fun,
+            )
+            S_hat = ica.fit_transform(X)
+
+            if len(w) > 0 and check_convergence is True:
+                if verbose:
+                    print(f"warning at {attempt=}")
+                print("Max tolerance reached without convergence")
+                return (
+                    np.nan * np.ones(n_treatments),
+                    None,
+                )
+            if verbose:
+                print(f"success at {attempt=}")
+            break
+
+    # Identify the eps component: the most non-Gaussian component that loads
+    # heavily on Y (the last observed variable).
+    # The unmixing matrix W satisfies S_hat = W @ X, so W = ica.components_
+    # The mixing matrix A = ica.mixing_ satisfies X = A @ S_hat
+    # The eps row of W is the row whose projection extracts eps from observations.
+    # We identify it by: (1) restrict to components with nonzero loading on Y,
+    # (2) pick the one with highest absolute excess kurtosis.
+    n_components = S_hat.shape[1]
+    abs_kurtosis = np.array([np.abs(kurtosis(S_hat[:, j])) for j in range(n_components)])
+
+    # Among components, find the one with max |kurtosis| — this is eps
+    eps_idx = int(np.argmax(abs_kurtosis))
+
+    if verbose:
+        print(f"Identified eps component: {eps_idx} (|kurtosis|={abs_kurtosis[eps_idx]:.3f})")
+
+    # The eps row of the unmixing matrix W
+    # W = ica.components_ has shape (n_components, n_features)
+    w_eps = ica.components_[eps_idx, :]
+
+    # Normalize so that the Y-entry (last column) is 1 (since eps enters Y with coeff 1)
+    w_eps_normalized = w_eps / w_eps[-1]
+
+    # theta is in the treatment columns: columns n_covariates to n_covariates+n_treatments
+    n_covariates = X.shape[1] - 1 - n_treatments
+    # The unmixing row has the NEGATIVE of theta (since W = A^{-1} and the eps row
+    # of W is [-b', -theta, 1]), so we negate to get theta
+    treatment_effect_estimate = -w_eps_normalized[n_covariates : n_covariates + n_treatments]
+
+    # Compute MCC if ground truth sources are provided
+    mcc_score = None
+    if S is not None:
+        results = calc_disent_metrics(S, S_hat)
+        mcc_score = results["permutation_disentanglement_score"]
+
+    return treatment_effect_estimate, mcc_score
 
 
 def directlingam_treatment_effect_estimation(X, n_treatments=1, random_state=0, verbose=True, prior_knowledge=None):
