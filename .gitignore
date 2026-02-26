@@ -1,6 +1,7 @@
 # IDE
 .idea
 .vscode/
+*.tmp
 *.swp
 *.swo
 *~
@@ -72,11 +73,20 @@ all_results_*.npy
 figures/
 figures_before_oracle/
 figures_no_oracle/
+figures_no_oracle_older/
+figures_no_oracle_v2/
+figures_v1/
+figures_v2/
 *.backup
+
+# Cluster job logs
+cluster/jobs/
+cluster/jobs_v2/
 
 # Claude Code / OMC
 .claude/
 .omc/
+cluster/CLAUDE.md
 
 # uv
 uv.lock
