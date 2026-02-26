@@ -2517,7 +2517,7 @@ def plot_ica_var_filtered_rmse_heatmap(
         im = ax.imshow(data, cmap="coolwarm", vmin=-vmax, vmax=vmax, aspect="auto")
 
         if is_difference:
-            cbar_label = r"RMSE diff (ICA $-$ HOML)"
+            cbar_label = r"RMSE diff (ICA $-$ OML)"
         else:
             cbar_label = r"RMSE"
 
