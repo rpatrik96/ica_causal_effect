@@ -2475,7 +2475,7 @@ def plot_ica_var_filtered_rmse_heatmap(
     # Determine axes based on mode
     if axis_mode == "d_vs_n":
         x_key = "support_size"
-        x_label = r"Sparsity level $s$"
+        x_label = r"Covariate dimension $d$"
         filename_suffix = "dim"
     else:  # beta_vs_n
         x_key = "beta"
@@ -2634,7 +2634,7 @@ def plot_ica_var_filtered_bias_heatmaps(
     # Determine axes based on mode
     if axis_mode == "d_vs_n":
         x_key = "support_size"
-        x_label = r"Sparsity level $s$"
+        x_label = r"Covariate dimension $d$"
         filename_suffix = "dim"
     else:  # beta_vs_n
         x_key = "beta"
@@ -2715,7 +2715,7 @@ def plot_ica_var_filtered_bias_heatmaps(
         f"bias_sample_size_vs_{filename_suffix}_ica_mean_filtered_{filter_desc}.svg",
     )
 
-    # Create difference heatmap (ICA - HOML) for reference
+    # Create difference heatmap (ICA - OML) for reference
     bias_diff_data = ica_bias_data - homl_bias_data
 
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -2746,7 +2746,7 @@ def plot_ica_var_filtered_bias_heatmaps(
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.1)
     cbar = fig.colorbar(im, cax=cax)
-    cbar.set_label(r"$|\mathrm{Bias}|$ diff (ICA $-$ HOML)")
+    cbar.set_label(r"$|\mathrm{Bias}|$ diff (ICA $-$ OML)")
 
     diff_filename = f"bias_diff_sample_size_vs_{filename_suffix}_filtered_{filter_desc}.svg"
     plt.savefig(os.path.join(output_dir, diff_filename), dpi=300, bbox_inches="tight")
