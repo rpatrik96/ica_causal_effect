@@ -67,6 +67,7 @@ results_*.npy
 all_results_*.npy
 *.pdf
 *.png
+!assets/*.png
 *.svg
 
 # Interim analysis files
