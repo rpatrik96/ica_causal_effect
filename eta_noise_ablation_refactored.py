@@ -2394,9 +2394,9 @@ def plot_variance_ablation_heatmaps(results: dict, output_dir: str = "figures/va
     fig.subplots_adjust(wspace=0.5)
 
     diff_metrics = [
+        (rmse_diff_grid, "RMSE Diff"),
         (bias_diff_grid, r"$|\mathrm{Bias}|$ Diff"),
         (std_diff_grid, "Std Diff"),
-        (rmse_diff_grid, "RMSE Diff"),
     ]
 
     for ax, (data, title) in zip(axes, diff_metrics):
