@@ -1,6 +1,16 @@
-#!/bin/bash
-# Wrapper script for running double_orthogonal_ml experiments on HTCondor cluster
-set -e
+#!/usr/bin/env bash
+# Usage: run_experiment.sh <experiment_type> [experiment_args...]
+# Wrapper script for running double_orthogonal_ml experiments on HTCondor cluster.
+# Available experiment types: single_instance, single_instance_seed, eta_filtered_heatmap,
+#   eta_variance_ablation, eta_coefficient_ablation, eta_default, ica, gaussian_eta
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <experiment_type> [experiment_args...]" >&2
+    echo "Available types: single_instance, single_instance_seed, eta_filtered_heatmap," >&2
+    echo "  eta_variance_ablation, eta_coefficient_ablation, eta_default, ica, gaussian_eta" >&2
+    exit 1
+fi
 
 # Parse arguments
 EXPERIMENT_TYPE=${1:-"single_instance"}

@@ -58,11 +58,16 @@ DISTRIBUTION_LABELS = {
 def get_distribution_label(dist_key: str) -> str:
     """Generate a display label for a distribution key.
 
-    Args:
-        dist_key: Distribution specification (e.g., "discrete", "gennorm:1.5")
+    Parameters
+    ----------
+    dist_key : str
+        Distribution specification, e.g. "discrete", "laplace", or
+        "gennorm:1.5" for a generalized normal with beta=1.5.
 
-    Returns:
-        Human-readable label for the distribution
+    Returns
+    -------
+    str
+        Human-readable label suitable for plot legends.
     """
     if dist_key in DISTRIBUTION_LABELS:
         return DISTRIBUTION_LABELS[dist_key]
@@ -110,17 +115,26 @@ class AblationExperimentConfig:
 
 
 def create_covariate_sampler(covariate_pdf: str, beta: float = 1.0) -> Callable[[int, int], np.ndarray]:
-    """Create a covariate sampling function based on the specified distribution.
+    """Create a covariate sampling function for the specified distribution.
 
-    Args:
-        covariate_pdf: Distribution type ('gennorm', 'gauss', 'uniform')
-        beta: Beta parameter for generalized normal distribution
+    Parameters
+    ----------
+    covariate_pdf : str
+        Distribution type: "gennorm", "gauss", or "uniform".
+    beta : float
+        Shape parameter for the generalized normal distribution (ignored for
+        "gauss" and "uniform").
 
-    Returns:
-        Function that takes (n_samples, n_dimensions) and returns samples
+    Returns
+    -------
+    Callable[[int, int], np.ndarray]
+        Function ``f(n_samples, n_dimensions) -> np.ndarray`` of shape
+        ``(n_samples, n_dimensions)``.
 
-    Raises:
-        ValueError: If unknown covariate_pdf is specified
+    Raises
+    ------
+    ValueError
+        If an unknown ``covariate_pdf`` is specified.
     """
     if covariate_pdf == "gennorm":
         from scipy.stats import gennorm
@@ -137,13 +151,17 @@ def create_covariate_sampler(covariate_pdf: str, beta: float = 1.0) -> Callable[
 
 
 def create_outcome_noise_sampler(sigma_outcome: float) -> Callable[[int], np.ndarray]:
-    """Create an outcome noise sampling function.
+    """Create an outcome noise sampling function (uniform on [-sigma, sigma]).
 
-    Args:
-        sigma_outcome: Standard deviation (half-width for uniform)
+    Parameters
+    ----------
+    sigma_outcome : float
+        Half-width of the uniform distribution; Var[eps] = sigma_outcome² / 3.
 
-    Returns:
-        Function that takes n_samples and returns noise samples
+    Returns
+    -------
+    Callable[[int], np.ndarray]
+        Function ``f(n_samples) -> np.ndarray`` of shape ``(n_samples,)``.
     """
     return lambda n: np.random.uniform(-sigma_outcome, sigma_outcome, size=n)
 
@@ -159,16 +177,25 @@ def calculate_homl_moments(
     mean_discount: float,
     probs: Optional[np.ndarray],
 ) -> Dict[str, float]:
-    """Calculate HOML-related moments for a noise distribution.
+    """Calculate HOML-related moments for a treatment noise distribution.
 
-    Args:
-        noise_dist: Distribution type
-        params_or_discounts: Distribution parameters or discount values
-        mean_discount: Mean of discounts (for discrete)
-        probs: Probabilities (for discrete)
+    Parameters
+    ----------
+    noise_dist : str
+        Distribution type (see ``oml_utils.compute_distribution_moments``).
+    params_or_discounts : np.ndarray
+        Discount values for "discrete", or distribution parameter array for
+        continuous distributions.
+    mean_discount : float
+        Mean of the distribution (used for centering in the discrete case).
+    probs : np.ndarray or None
+        Probability vector for "discrete"; None for continuous distributions.
 
-    Returns:
-        Dictionary with moment values
+    Returns
+    -------
+    Dict[str, float]
+        Keys: "eta_cubed_variance", "eta_fourth_moment", "eta_second_moment",
+        "eta_third_moment", "homl_asymptotic_var".
     """
     var_calculator = AsymptoticVarianceCalculator()
 
@@ -212,20 +239,32 @@ def calculate_ica_moments(
     probs: Optional[np.ndarray],
     eta_cubed_variance: float,
 ) -> Dict[str, float]:
-    """Calculate ICA-related moments for a noise distribution and coefficients.
+    """Calculate ICA asymptotic variance components for a noise distribution.
 
-    Args:
-        noise_dist: Distribution type
-        treatment_coef: Treatment coefficients
-        outcome_coef: Outcome coefficients
-        treatment_effect: Treatment effect value
-        params_or_discounts: Distribution parameters or discount values
-        mean_discount: Mean of discounts (for discrete)
-        probs: Probabilities (for discrete)
-        eta_cubed_variance: Pre-computed cubed variance
+    Parameters
+    ----------
+    noise_dist : str
+        Distribution type (see ``oml_utils.compute_distribution_moments``).
+    treatment_coef : np.ndarray
+        Treatment coefficient vector (a in the PLM).
+    outcome_coef : np.ndarray
+        Outcome coefficient vector (b in the PLM).
+    treatment_effect : float
+        True treatment effect theta.
+    params_or_discounts : np.ndarray
+        Discount values for "discrete", or distribution parameter array for
+        continuous distributions.
+    mean_discount : float
+        Mean of the distribution (used for centering in the discrete case).
+    probs : np.ndarray or None
+        Probability vector for "discrete"; None for continuous distributions.
+    eta_cubed_variance : float
+        Pre-computed Var[eta³] = E[eta⁴]*E[eta²] - (E[eta³])².
 
-    Returns:
-        Dictionary with ICA moment values
+    Returns
+    -------
+    Dict[str, float]
+        Keys: "eta_excess_kurtosis", "eta_skewness_squared", "ica_asymptotic_var".
     """
     var_calculator = AsymptoticVarianceCalculator()
 
@@ -288,25 +327,49 @@ def run_single_experiment(
 ) -> Tuple:
     """Run a single OML experiment with specified noise samples.
 
-    Args:
-        x: Covariate matrix
-        eta: Treatment noise samples
-        epsilon: Outcome noise
-        treatment_effect: True treatment effect
-        treatment_support: Support indices for treatment
-        treatment_coef: Treatment coefficients
-        outcome_support: Support indices for outcome
-        outcome_coef: Outcome coefficients
-        eta_second_moment: Second moment of treatment noise
-        eta_third_moment: Third moment of treatment noise
-        lambda_reg: Regularization parameter
-        check_convergence: Whether to check ICA convergence
-        verbose: Enable verbose output
-        oracle_support: If True, both OML and ICA receive x[:, support] (oracle knowledge).
-            If False, both methods receive full x matrix.
+    Constructs the PLM D = X*a + eta, Y = theta*D + X*b + eps, fits Lasso
+    nuisance models, runs cross-fitted OML and ICA estimation, and returns
+    all method estimates.
 
-    Returns:
-        Tuple of estimation results from all methods
+    Parameters
+    ----------
+    x : np.ndarray
+        Covariate matrix of shape (n_samples, cov_dim_max).
+    eta : np.ndarray
+        Treatment noise samples of shape (n_samples,).
+    epsilon : np.ndarray
+        Outcome noise samples of shape (n_samples,).
+    treatment_effect : float
+        True treatment effect theta.
+    treatment_support : np.ndarray
+        Integer indices of active covariates for the treatment model.
+    treatment_coef : np.ndarray
+        Treatment coefficient vector of shape (support_size,).
+    outcome_support : np.ndarray
+        Integer indices of active covariates for the outcome model (must equal
+        ``treatment_support``).
+    outcome_coef : np.ndarray
+        Outcome coefficient vector of shape (support_size,).
+    eta_second_moment : float
+        E[eta²], used by the HOML estimator.
+    eta_third_moment : float
+        E[eta³], used by the HOML estimator.
+    lambda_reg : float
+        Lasso regularization parameter for nuisance models.
+    check_convergence : bool
+        If True, filter out runs where ICA did not converge.
+    verbose : bool
+        Print per-run diagnostic information.
+    oracle_support : bool
+        If True, both OML and ICA receive ``x[:, support]`` (oracle support).
+        If False, both methods receive the full covariate matrix.
+
+    Returns
+    -------
+    tuple
+        ``(ortho_ml, robust_ortho_ml, robust_ortho_est_ml,
+        robust_ortho_est_split_ml, first_stage_mse_treatment,
+        first_stage_mse_outcome, ica_estimate, ica_mcc)``
     """
     # Generate treatment as a function of covariates
     treatment = np.dot(x[:, treatment_support], treatment_coef) + eta
@@ -376,30 +439,50 @@ def run_parallel_experiments(
     verbose: bool = False,
     oracle_support: bool = True,
 ) -> List[Tuple]:
-    """Run experiments in parallel using joblib.
+    """Run Monte Carlo experiments in parallel using joblib.
 
-    Args:
-        n_experiments: Number of experiments to run
-        x_sample: Covariate sampling function
-        eta_sample: Treatment noise sampling function
-        epsilon_sample: Outcome noise sampling function
-        n_samples: Number of samples per experiment
-        cov_dim_max: Maximum covariate dimension
-        treatment_effect: True treatment effect
-        treatment_support: Support indices for treatment
-        treatment_coef: Treatment coefficients
-        outcome_support: Support indices for outcome
-        outcome_coef: Outcome coefficients
-        eta_second_moment: Second moment of treatment noise
-        eta_third_moment: Third moment of treatment noise
-        lambda_reg: Regularization parameter
-        check_convergence: Whether to check ICA convergence
-        verbose: Enable verbose output
-        oracle_support: If True, both OML and ICA receive x[:, support] (oracle knowledge).
-            If False, both methods receive full x matrix.
+    Parameters
+    ----------
+    n_experiments : int
+        Number of Monte Carlo replications.
+    x_sample : Callable
+        Function ``f(n_samples, cov_dim_max) -> np.ndarray`` for covariates.
+    eta_sample : Callable
+        Function ``f(n_samples) -> np.ndarray`` for treatment noise.
+    epsilon_sample : Callable
+        Function ``f(n_samples) -> np.ndarray`` for outcome noise.
+    n_samples : int
+        Number of samples per experiment.
+    cov_dim_max : int
+        Total covariate dimension passed to ``x_sample``.
+    treatment_effect : float
+        True treatment effect theta.
+    treatment_support : np.ndarray
+        Integer indices of active covariates for treatment.
+    treatment_coef : np.ndarray
+        Treatment coefficient vector of shape (support_size,).
+    outcome_support : np.ndarray
+        Integer indices of active covariates for outcome.
+    outcome_coef : np.ndarray
+        Outcome coefficient vector of shape (support_size,).
+    eta_second_moment : float
+        E[eta²], used by the HOML estimator.
+    eta_third_moment : float
+        E[eta³], used by the HOML estimator.
+    lambda_reg : float
+        Lasso regularization parameter.
+    check_convergence : bool
+        If True, filter out runs where ICA did not converge.
+    verbose : bool
+        Pass through to ``run_single_experiment``.
+    oracle_support : bool
+        If True, pass oracle support to both OML and ICA.
 
-    Returns:
-        List of experiment result tuples (filtered for convergence if required)
+    Returns
+    -------
+    List[Tuple]
+        Experiment result tuples; filtered for ICA convergence when
+        ``check_convergence=True``.
     """
     results = [
         r
@@ -434,14 +517,20 @@ def run_parallel_experiments(
 
 
 def extract_treatment_estimates(results: List[Tuple]) -> List[List[float]]:
-    """Extract treatment effect estimates from experiment results.
+    """Extract treatment effect estimates from experiment result tuples.
 
-    Args:
-        results: List of experiment result tuples
+    Parameters
+    ----------
+    results : List[Tuple]
+        Output of ``run_parallel_experiments``; each tuple has the form
+        ``(ortho_ml, robust_ortho_ml, robust_ortho_est_ml,
+        robust_ortho_est_split_ml, ..., ica_estimate, ica_mcc)``.
 
-    Returns:
-        List of treatment estimates for each experiment
-        [ortho_ml, robust_ortho_ml, robust_ortho_est, robust_ortho_split, ica...]
+    Returns
+    -------
+    List[List[float]]
+        One list per experiment: ``[ortho_ml, robust_ortho_ml,
+        robust_ortho_est, robust_ortho_split, ica_0, ...]``.
     """
     ortho_rec_tau = [
         [ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] + ica_estimate.tolist()
@@ -453,14 +542,24 @@ def extract_treatment_estimates(results: List[Tuple]) -> List[List[float]]:
 def compute_estimation_statistics(
     ortho_rec_tau: List[List[float]], treatment_effect: float
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Compute bias, standard deviation, and RMSE from estimates.
+    """Compute bias, standard deviation, and RMSE across Monte Carlo estimates.
 
-    Args:
-        ortho_rec_tau: List of treatment estimates
-        treatment_effect: True treatment effect value
+    Parameters
+    ----------
+    ortho_rec_tau : List[List[float]]
+        Estimates from ``extract_treatment_estimates``; shape
+        (n_experiments, n_methods).
+    treatment_effect : float
+        True treatment effect theta (constant across experiments).
 
-    Returns:
-        Tuple of (biases, sigmas, rmse) arrays
+    Returns
+    -------
+    biases : np.ndarray
+        Mean error per method, shape (n_methods,).
+    sigmas : np.ndarray
+        Standard deviation per method, shape (n_methods,).
+    rmse : np.ndarray
+        Root mean squared error per method, shape (n_methods,).
     """
     ortho_rec_tau_array = np.array(ortho_rec_tau)
     biases = np.mean(ortho_rec_tau_array - treatment_effect, axis=0)
@@ -472,14 +571,27 @@ def compute_estimation_statistics(
 def compute_estimation_statistics_varying_te(
     ortho_rec_tau: List[List[float]], treatment_effects: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Compute statistics when treatment effect varies per experiment.
+    """Compute bias, standard deviation, and RMSE when theta varies per experiment.
 
-    Args:
-        ortho_rec_tau: List of treatment estimates
-        treatment_effects: Array of true treatment effects (one per experiment)
+    Use this variant instead of ``compute_estimation_statistics`` when the
+    true treatment effect differs across Monte Carlo replications.
 
-    Returns:
-        Tuple of (biases, sigmas, rmse) arrays
+    Parameters
+    ----------
+    ortho_rec_tau : List[List[float]]
+        Estimates from ``extract_treatment_estimates``; shape
+        (n_experiments, n_methods).
+    treatment_effects : np.ndarray
+        True treatment effect per experiment, shape (n_experiments,).
+
+    Returns
+    -------
+    biases : np.ndarray
+        Mean error per method, shape (n_methods,).
+    sigmas : np.ndarray
+        Standard deviation of estimates per method, shape (n_methods,).
+    rmse : np.ndarray
+        Root mean squared error per method, shape (n_methods,).
     """
     ortho_rec_tau_array = np.array(ortho_rec_tau)
     # Compute bias relative to each experiment's true treatment effect

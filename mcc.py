@@ -3,7 +3,7 @@
 
 # Documentation is intended to be processed by Epydoc.
 
-"""
+r"""
 Introduction
 ============
 
@@ -265,7 +265,7 @@ import sys
 # Exports
 # ---------------------------------------------------------------------------
 
-__all__ = ["Munkres", "make_cost_matrix"]
+__all__ = ["Munkres"]
 
 # ---------------------------------------------------------------------------
 # Globals
@@ -657,76 +657,6 @@ class Munkres:
 # ---------------------------------------------------------------------------
 
 
-def make_cost_matrix(profit_matrix, inversion_function):
-    """
-    Create a cost matrix from a profit matrix by calling
-    'inversion_function' to invert each value. The inversion
-    function must take one numeric argument (of any type) and return
-    another numeric argument which is presumed to be the cost inverse
-    of the original profit.
-
-    This is a static method. Call it like this:
-
-    .. python::
-
-        cost_matrix = Munkres.make_cost_matrix(matrix, inversion_func)
-
-    For example:
-
-    .. python::
-
-        cost_matrix = Munkres.make_cost_matrix(matrix, lambda x : sys.maxsize - x)
-
-    :Parameters:
-        profit_matrix : list of lists
-            The matrix to convert from a profit to a cost matrix
-
-        inversion_function : function
-            The function to use to invert each entry in the profit matrix
-
-    :rtype: list of lists
-    :return: The converted matrix
-    """
-    cost_matrix = []
-    for row in profit_matrix:
-        cost_matrix.append([inversion_function(value) for value in row])
-    return cost_matrix
-
-
-def print_matrix(matrix, msg=None):
-    """
-    Convenience function: Displays the contents of a matrix of integers.
-
-    :Parameters:
-        matrix : list of lists
-            Matrix to print
-
-        msg : str
-            Optional message to print before displaying the matrix
-    """
-    import math
-
-    if msg is not None:
-        print(msg)
-
-    # Calculate the appropriate format width.
-    width = 0
-    for row in matrix:
-        for val in row:
-            width = max(width, int(math.log10(val)) + 1)
-
-    # Make the format string
-    format = "%%%dd" % width
-
-    # Print the matrix
-    for row in matrix:
-        sep = "["
-        for val in row:
-            sys.stdout.write(sep + format % val)
-            sep = ", "
-        sys.stdout.write("]\n")
-
-
 """Disentanglement evaluation scores such as R2 and MCC."""
 
 from typing import Union
@@ -927,7 +857,7 @@ def permutation_disentanglement(
     # use cache to speed up repeated calls to the function
     if cache_permutations and not solver == "munkres":
         key = (rescaling, n)
-        if not key in permutation_disentanglement.permutation_matrices:
+        if key not in permutation_disentanglement.permutation_matrices:
             permutation_disentanglement.permutation_matrices[key] = list(gen_permutations(n))
         permutations = permutation_disentanglement.permutation_matrices[key]
     else:

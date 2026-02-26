@@ -45,17 +45,15 @@ def regenerate_n20_heatmaps():
 
 
 def regenerate_noise_ablation_plots():
-    """Regenerate noise ablation plots from eta_noise_ablation_refactored.py."""
+    """Regenerate noise ablation plots from eta_ablation_plotting.py."""
     print("\n" + "=" * 60)
     print("Regenerating noise ablation plots...")
     print("=" * 60)
 
     # Import only the functions we actually use
     # pylint: disable=import-outside-toplevel
-    from eta_noise_ablation_refactored import (
-        plot_asymptotic_variance_comparison,
+    from eta_ablation_plotting import (
         plot_diff_heatmaps,
-        plot_diff_vs_kurtosis,
         plot_noise_ablation_coeff_scatter,
         plot_noise_ablation_std_scatter,
     )
@@ -129,28 +127,6 @@ def regenerate_noise_ablation_plots():
 
         print(f"  Distributions: {list(dist_results.keys())}")
 
-        # Generate difference vs kurtosis plots
-        try:
-            print("  Generating diff vs kurtosis plots...")
-            plot_diff_vs_kurtosis(
-                dist_results,
-                metric="rmse",
-                output_dir=output_dir,
-                filename="rmse_diff_vs_kurtosis.svg",
-                ylabel="RMSE Diff (ICA - OML)",
-                title="RMSE Difference vs Excess Kurtosis",
-            )
-        except (KeyError, ValueError) as e:
-            print(f"    Error generating diff vs kurtosis: {e}")
-
-        # Generate asymptotic variance comparison plots
-        try:
-            if any("homl_asymptotic_var" in v for v in dist_results.values() if isinstance(v, dict)):
-                print("  Generating asymptotic variance plots...")
-                plot_asymptotic_variance_comparison(dist_results, output_dir)
-        except (KeyError, ValueError) as e:
-            print(f"    Error generating asymptotic variance plots: {e}")
-
         # Generate coefficient scatter plots (RMSE)
         try:
             if any("config_results" in v for v in dist_results.values() if isinstance(v, dict)):
@@ -204,7 +180,7 @@ def regenerate_coefficient_ablation_plots():
     print("=" * 60)
 
     # pylint: disable=import-outside-toplevel
-    from eta_noise_ablation_refactored import plot_coefficient_ablation_results
+    from eta_ablation_plotting import plot_coefficient_ablation_results
 
     coeff_ablation_dir = "figures/coefficient_ablation"
 

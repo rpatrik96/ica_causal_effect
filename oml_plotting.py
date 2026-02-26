@@ -198,57 +198,6 @@ def generate_all_oml_plots(
     print("All plots generated successfully!")
 
 
-def extract_method_results(
-    results: List[tuple], treatment_effect: float, true_coef_treatment: np.ndarray, true_coef_outcome: np.ndarray
-) -> tuple:
-    """Extract and structure method results from raw experiment outputs.
-
-    Args:
-        results: List of raw experiment results
-        treatment_effect: True treatment effect
-        true_coef_treatment: True treatment coefficients
-        true_coef_outcome: True outcome coefficients
-
-    Returns:
-        Tuple of (ortho_rec_tau, first_stage_mse)
-    """
-    ortho_rec_tau = [
-        [ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml]
-        + ica_treatment_effect_estimate.tolist()
-        for (
-            ortho_ml,
-            robust_ortho_ml,
-            robust_ortho_est_ml,
-            robust_ortho_est_split_ml,
-            _,
-            _,
-            ica_treatment_effect_estimate,
-            _,
-        ) in results
-    ]
-
-    first_stage_mse = [
-        [
-            np.linalg.norm(true_coef_treatment - coef_treatment),
-            np.linalg.norm(true_coef_outcome - coef_outcome),
-            np.linalg.norm(ica_treatment_effect_estimate - treatment_effect),
-            ica_mcc,
-        ]
-        for (
-            _,
-            _,
-            _,
-            _,
-            coef_treatment,
-            coef_outcome,
-            ica_treatment_effect_estimate,
-            ica_mcc,
-        ) in results
-    ]
-
-    return ortho_rec_tau, first_stage_mse
-
-
 def save_results_with_metadata(
     all_results: List[Dict], output_dir: str, results_filename: str, config: OMLExperimentConfig
 ) -> None:

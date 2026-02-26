@@ -1,6 +1,16 @@
-dir=$1
-mkdir -p $dir
-echo $dir
+#!/usr/bin/env bash
+# Usage: multi_instance.sh <output_dir>
+# Runs 100 seeds for a fixed parameter configuration for stability analysis.
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <output_dir>" >&2
+    exit 1
+fi
+
+output_dir="${1}"
+mkdir -p "${output_dir}"
+echo "${output_dir}"
 
 for n_samples in 5000;
 do
@@ -12,7 +22,7 @@ do
             do
                 for instance in $(seq 1 100);
                 do
-                    python3 monte_carlo_single_instance_with_seed.py --n_samples $n_samples --n_experiments $n_experiments --n_dim $n_dim --support_size $support_size --output_dir $dir --seed $instance
+                    python3 monte_carlo_single_instance.py --n_samples "${n_samples}" --n_experiments "${n_experiments}" --n_dim "${n_dim}" --support_size "${support_size}" --output_dir "${output_dir}" --seed "${instance}"
                 done
             done
         done
@@ -21,6 +31,6 @@ done
 
 mkdir -p figures
 mkdir -p figures/multi_instance
-python3 plot_multi_instance.py --input_dir $dir --output_dir figures/multi_instance
+python3 plot_multi_instance.py --input_dir "${output_dir}" --output_dir figures/multi_instance
 
 echo "Saved figures in figures/multi_instance!"

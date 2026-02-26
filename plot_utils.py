@@ -1,3 +1,10 @@
+"""
+Shared plotting utilities for OML and ICA experiment visualizations.
+
+Provides typography setup, method-comparison histograms, heatmaps, and
+asymptotic-variance scatter plots used across the experiment pipeline.
+"""
+
 import os
 
 import joblib
@@ -26,8 +33,6 @@ def plot_typography(usetex: bool = False, small: int = 28, medium: int = 34, big
 
     # font family
     rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
-    ## for Palatino and other serif fonts use:
-    # rc('font',**{'family':'serif','serif':['Palatino']})
 
     # backend
     rc("text", usetex=usetex)
@@ -70,6 +75,30 @@ def add_legend_outside(ax, loc="right", **kwargs):
 def plot_estimates(
     estimate_list, true_tau, treatment_effect, title="Histogram of estimates", plot=False, relative_error=False
 ):
+    """Plot histogram of treatment effect estimates and return error statistics.
+
+    Parameters
+    ----------
+    estimate_list : array-like
+        Collection of scalar treatment effect estimates.
+    true_tau : array-like
+        True treatment effect vector used for error computation.
+    treatment_effect : float
+        Scalar true treatment effect, used for the vertical reference line.
+    title : str, optional
+        Histogram title (default: "Histogram of estimates").
+    plot : bool, optional
+        If True, render the histogram with a normal-density overlay and reference line.
+    relative_error : bool, optional
+        If True, normalise errors by ``true_tau`` before computing the norm.
+
+    Returns
+    -------
+    mean_error : float
+        Mean absolute (or relative) error across estimates.
+    std_error : float
+        Standard deviation of the errors.
+    """
     # the histogram of the data
     _, bins, _ = plt.hist(estimate_list, 40, facecolor="green", alpha=0.75)
     sigma = float(np.nanstd(estimate_list))
@@ -107,6 +136,48 @@ def plot_method_comparison(
     relative_error=False,
     verbose=False,
 ):
+    """Compare treatment-effect estimates across all five methods and compute errors.
+
+    Optionally saves per-method histograms. Always computes and returns bias and
+    standard deviation for OML, Robust OML, Robust OML (Est.), Robust OML (Split),
+    and ICA.
+
+    Parameters
+    ----------
+    ortho_rec_tau : array-like of shape (n_experiments, 5+)
+        Recovered treatment effects; columns correspond to the five methods.
+    treatment_effect : float
+        True treatment effect used as reference.
+    output_dir : str
+        Root directory for saving figures.
+    n_samples : int
+        Number of samples (used in filename).
+    n_dim : int
+        Covariate dimension (used in filename).
+    n_experiments : int
+        Number of Monte Carlo replications (used in filename).
+    support_size : int
+        Support size (used in filename).
+    sigma_outcome : float
+        Outcome noise standard deviation (used in filename).
+    covariate_pdf : str
+        Covariate distribution name (used in filename).
+    beta : float
+        Generalized-normal shape parameter (used in filename).
+    plot : bool, optional
+        If True, save histogram SVGs to ``output_dir/recovered_coefficients/``.
+    relative_error : bool, optional
+        If True, normalise errors by the true treatment effect.
+    verbose : bool, optional
+        Print per-method MSE summaries.
+
+    Returns
+    -------
+    biases : list of float
+        Mean absolute error for each of the five methods.
+    sigmas : list of float
+        Standard deviation of errors for each of the five methods.
+    """
     # Create subfolder for the experiment
     experiment_dir = os.path.join(output_dir, "recovered_coefficients")
     os.makedirs(experiment_dir, exist_ok=True)
@@ -203,6 +274,36 @@ def plot_and_save_model_errors(
     plot=False,
     save=False,
 ):
+    """Optionally plot first-stage model errors and serialize raw estimates.
+
+    Parameters
+    ----------
+    first_stage_mse : list of list of float
+        Per-experiment first-stage errors: [treatment_coef_error, outcome_coef_error,
+        ica_te_error, ica_mcc].
+    ortho_rec_tau : array-like
+        Recovered treatment effects (passed through to joblib serialization).
+    output_dir : str
+        Root directory; figures are saved in ``output_dir/model_errors/``.
+    n_samples : int
+        Number of samples (used in filename).
+    n_dim : int
+        Covariate dimension (used in filename).
+    n_experiments : int
+        Number of Monte Carlo replications (used in filename).
+    support_size : int
+        Support size (used in filename).
+    sigma_outcome : float
+        Outcome noise standard deviation (used in filename).
+    covariate_pdf : str
+        Covariate distribution name (used in filename).
+    beta : float
+        Generalized-normal shape parameter (used in filename).
+    plot : bool, optional
+        If True, save four-panel histogram SVG.
+    save : bool, optional
+        If True, serialize ``ortho_rec_tau`` and ``first_stage_mse`` with joblib.
+    """
     # Create subfolder for the experiment
     experiment_dir = os.path.join(output_dir, "model_errors")
     os.makedirs(experiment_dir, exist_ok=True)
@@ -237,66 +338,6 @@ def plot_and_save_model_errors(
         joblib.dump(first_stage_mse, os.path.join(experiment_dir, filename_base))
 
 
-def plot_error_bar_stats(all_results, n_dim, n_experiments, n_samples, opts, beta):
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(opts.output_dir, "error_bars")
-    os.makedirs(experiment_dir, exist_ok=True)
-
-    # Create a high-quality error bar plot comparing errors across dimensions
-    plt.figure(figsize=(10, 6))
-    methods = ["OML", "OML", "OML (Est.)", "OML (Split)", "ICA"]
-    method_biases = {method: [] for method in methods}
-    method_sigmas = {method: [] for method in methods}
-    dimensions = []
-
-    for result in all_results:
-        dimensions.append(result["support_size"])
-        for i, method in enumerate(methods):
-            method_biases[method].append(result["biases"][i])
-            method_sigmas[method].append(result["sigmas"][i])
-
-    # Define a color palette for better visual distinction
-    colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
-
-    # Plot error bars for each method with enhanced styling
-    for method, color in zip(methods, colors):
-        plt.errorbar(
-            dimensions,
-            method_biases[method],
-            yerr=method_sigmas[method],
-            fmt="o-",
-            label=method,
-            color=color,
-            capsize=4,
-            elinewidth=2,
-            markeredgewidth=2,
-        )
-
-    # Use a logarithmic scale for the y-axis to handle large error magnitudes and variances
-    plt.yscale("log")
-
-    plt.xlabel(r"Covariate dimension $d$")
-    plt.ylabel(r"$\Vert\theta-\hat{\theta} \Vert_2$")
-    # plt.title('Method Errors vs Dimension', fontsize=14, fontweight='bold')
-    plt.legend()
-    plt.grid(True, which="both", linestyle="-.", linewidth=0.5)
-    plt.xticks(ticks=dimensions, labels=[int(dim) for dim in dimensions])
-    plt.yticks()
-    # plt.tight_layout()
-
-    # Save the plot with a high resolution suitable for conferences
-    plt.savefig(
-        os.path.join(
-            experiment_dir,
-            f"error_by_dimension_n_samples_{n_samples}_n_dim_{n_dim}_n_exp_{n_experiments}"
-            f"_pdf_{opts.covariate_pdf}_beta_{beta}.svg",
-        ),
-        dpi=600,
-        bbox_inches="tight",
-    )
-    plt.close()
-
-
 def plot_gennorm(
     all_results,
     opts,
@@ -310,6 +351,40 @@ def plot_gennorm(
     filter_below=True,
     filter_ica_var_coeff=False,
 ):
+    """Generate heatmap comparing ICA vs a baseline method across beta or dimension.
+
+    Prepares a heatmap with sample size on one axis and either the generalized-normal
+    shape parameter (beta) or covariate dimension (support_size) on the other,
+    showing bias, RMSE, or MCC differences between ICA and the selected baseline.
+
+    Parameters
+    ----------
+    all_results : list of dict
+        Experiment result dictionaries as produced by
+        ``run_experiments_for_configuration``.
+    opts : namespace
+        Parsed CLI options; must expose ``output_dir``, ``asymptotic_var``,
+        and ``covariate_pdf``.
+    filter_type : {"support", "beta"}
+        Which axis to fix: "support" fixes support size, "beta" fixes beta.
+    filter_value : int or float
+        Value to fix for the non-varying axis.
+    compare_method : {"oml", "homl", None}
+        Baseline for differencing: "oml" (index 0), "homl" (index 3), or
+        None to plot ICA absolute values.
+    plot_type : {"bias", "rmse", "mcc"}
+        Metric to display.
+    plot_binary : bool, optional
+        If True, also save a binary (winner) heatmap.
+    save_subfolder : bool, optional
+        If True, nest output under ``gennorm/treatment_effect_{value}/``.
+    ica_var_threshold : float, optional
+        Threshold for ICA variance coefficient filtering.
+    filter_below : bool, optional
+        If True, keep results where ``ica_var_coeff <= ica_var_threshold``.
+    filter_ica_var_coeff : bool, optional
+        If True, apply the ICA variance coefficient filter before plotting.
+    """
     if save_subfolder:
         treatment_effect_value = all_results[0]["treatment_effect"]
         experiment_dir = os.path.join(opts.output_dir, "gennorm", f"treatment_effect_{treatment_effect_value}")
@@ -436,6 +511,23 @@ def plot_gennorm(
 
 
 def plot_multi_treatment(all_results, opts, treatment_effects):
+    """Plot variance and MSE comparisons across multiple treatment effect values.
+
+    When ``treatment_effects`` contains more than one value, produces two figures:
+    a scatter plot of asymptotic vs actual variance and a bar chart of bias with
+    error bars, both indexed by the true treatment effect.
+
+    Parameters
+    ----------
+    all_results : list of dict
+        Experiment results; each entry must contain ``treatment_effect``,
+        ``ica_asymptotic_var``, ``homl_asymptotic_var``, ``sigmas``, ``biases``,
+        and ``n_samples``.
+    opts : namespace
+        Parsed CLI options; must expose ``output_dir``.
+    treatment_effects : list of float
+        Treatment effect values that were swept; used to decide whether to plot.
+    """
     experiment_dir = os.path.join(opts.output_dir, "multi_treatment")
     os.makedirs(experiment_dir, exist_ok=True)
 
@@ -519,6 +611,31 @@ def plot_multi_treatment(all_results, opts, treatment_effects):
 def plot_asymptotic_var_comparison(
     all_results, opts, asymptotic_var_versions=False, save_subfolder=True, coeff_plots=False
 ):
+    """Produce scatter and violin plots comparing ICA vs OML asymptotic variance.
+
+    Generates error-bar scatter plots of empirical bias vs the ICA variance
+    coefficient, violin plots grouped by binned variance coefficient, and
+    optional heatmaps over treatment/outcome coefficient grids.  Additional
+    scatter plots comparing theoretical and empirical variances are produced
+    when ``asymptotic_var_versions=True``.
+
+    Parameters
+    ----------
+    all_results : list of dict
+        Experiment results; each entry must contain ``ica_var_coeff``,
+        ``treatment_coefficient``, ``outcome_coefficient``, ``biases``,
+        ``sigmas``, ``n_samples``, and optionally ``ica_asymptotic_var``,
+        ``homl_asymptotic_var``, and ``ica_asymptotic_var_hyvarinen``.
+    opts : namespace
+        Parsed CLI options; must expose ``output_dir``, ``covariate_pdf``,
+        ``asymptotic_var``, and ``scalar_coeffs``.
+    asymptotic_var_versions : bool, optional
+        If True, also produce theoretical-vs-empirical variance scatter plots.
+    save_subfolder : bool, optional
+        If True, nest output under ``asymptotic_var_comparison/treatment_effect_{value}/``.
+    coeff_plots : bool, optional
+        If True, add subplots breaking down bias vs each coefficient separately.
+    """
     treatment_effect_value = all_results[0]["treatment_effect"]
     if save_subfolder:
         experiment_dir = os.path.join(
@@ -530,7 +647,6 @@ def plot_asymptotic_var_comparison(
 
     if opts.covariate_pdf == "gennorm" and opts.asymptotic_var is False:
         # Prepare data for the scatter plot
-        # filtered_results = [res for res in all_results if res['ica_var_coeff'] <= 50]
 
         x_values_ica_var_coeff = [res["ica_var_coeff"] for res in all_results]
         treatment_coef = [res["treatment_coefficient"] for res in all_results]
@@ -567,7 +683,6 @@ def plot_asymptotic_var_comparison(
         axs.set_ylabel(r"Mean squared $|\theta-\hat{\theta}|$")
         axs.legend()
 
-        # plt.tight_layout()
         plt.savefig(os.path.join(experiment_dir, "gennorm_asymp_var.svg"), dpi=300, bbox_inches="tight")
         plt.close()
 
@@ -585,7 +700,6 @@ def plot_asymptotic_var_comparison(
         plt.colorbar(scatter, label="Beta")
         plt.xlabel("Difference in Asymptotic Variance (ICA - OML)")
         plt.ylabel("Difference in Bias (ICA - OML)")
-        # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
         plt.savefig(os.path.join(experiment_dir, "scatter_plot_var_vs_bias_diff.svg"), dpi=300, bbox_inches="tight")
         plt.close()
         plt.figure(figsize=(10, 8))
@@ -593,7 +707,6 @@ def plot_asymptotic_var_comparison(
         plt.colorbar(scatter, label="Beta")
         plt.xlabel("Difference in Asymptotic Variance (ICA - OML)")
         plt.ylabel("Difference in Variance (ICA - OML)")
-        # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
         plt.savefig(os.path.join(experiment_dir, "scatter_plot_var_vs_asy_var_diff.svg"), dpi=300, bbox_inches="tight")
         plt.close()
         plt.figure(figsize=(10, 8))
@@ -601,7 +714,6 @@ def plot_asymptotic_var_comparison(
         plt.colorbar(scatter, label="Beta")
         plt.xlabel("Difference in Asymptotic Variance (ICA - OML) Hyvarinen")
         plt.ylabel("Difference in Variance (ICA - OML)")
-        # plt.title('Scatter Plot: Asymptotic Variance vs Bias Difference')
         plt.savefig(
             os.path.join(experiment_dir, "scatter_plot_var_vs_asy_var_diff_hyvarinen.svg"), dpi=300, bbox_inches="tight"
         )
@@ -613,8 +725,6 @@ def plot_asymptotic_var_comparison(
         y_values_homl_asymptotic_var = [res["homl_asymptotic_var"] for res in all_results]
         y_values_actual_variance_ica = [res["sigmas"][-1] ** 2 * res["n_samples"] for res in all_results]
         y_values_actual_variance_homl = [res["sigmas"][3] ** 2 * res["n_samples"] for res in all_results]
-        # colors = [res['beta'] for res in all_results]
-        # Scatter plot for ICA asymptotic and actual variance
         plt.figure(figsize=(10, 8))
         plt.scatter(
             x_values_sample_size, y_values_ica_asymptotic_var, c="blue", alpha=0.75, label="ICA Asymptotic Variance"
@@ -725,8 +835,6 @@ def plot_asymptotic_var_comparison(
         positions_homl = [i * 3 + 1 for i in range(10) if data_grouped[i]["homl"]]
         data_ica = [data_grouped[i]["ica"] for i in range(10) if data_grouped[i]["ica"]]
         data_homl = [data_grouped[i]["homl"] for i in range(10) if data_grouped[i]["homl"]]
-        # labels = [f'ICA {bins[i]:.2f}' for i in range(10) if data_grouped[i]['ica']] + \
-        #  [f'HOML {bins[i]:.2f}' for i in range(10) if data_grouped[i]['homl']]
 
         if data_ica or data_homl:  # Check if there is any data to plot
             if data_ica:
@@ -836,11 +944,11 @@ def plot_asymptotic_var_comparison(
             ],
         )
         # Add value annotations
-        for i, _ in enumerate(treatment_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
-            for j, _ in enumerate(outcome_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+        for i, treatment_coef in enumerate(treatment_coef_unique):
+            for j, outcome_coef in enumerate(outcome_coef_unique):
                 ax.text(
-                    outcome_coef_unique[j],
-                    treatment_coef_unique[i],
+                    outcome_coef,
+                    treatment_coef,
                     f"{ica_bias_matrix[i, j]:.2f}",
                     ha="center",
                     va="center",
@@ -870,11 +978,11 @@ def plot_asymptotic_var_comparison(
             ],
         )
         # Add value annotations
-        for i, _ in enumerate(treatment_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
-            for j, _ in enumerate(outcome_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+        for i, treatment_coef in enumerate(treatment_coef_unique):
+            for j, outcome_coef in enumerate(outcome_coef_unique):
                 ax.text(
-                    outcome_coef_unique[j],
-                    treatment_coef_unique[i],
+                    outcome_coef,
+                    treatment_coef,
                     f"{homl_bias_matrix[i, j]:.2f}",
                     ha="center",
                     va="center",
@@ -905,11 +1013,11 @@ def plot_asymptotic_var_comparison(
         )
         # Add value annotations
         vmax = max(abs(bias_difference_matrix.min()), abs(bias_difference_matrix.max()))
-        for i, _ in enumerate(treatment_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
-            for j, _ in enumerate(outcome_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+        for i, treatment_coef in enumerate(treatment_coef_unique):
+            for j, outcome_coef in enumerate(outcome_coef_unique):
                 ax.text(
-                    outcome_coef_unique[j],
-                    treatment_coef_unique[i],
+                    outcome_coef,
+                    treatment_coef,
                     f"{bias_difference_matrix[i, j]:.2f}",
                     ha="center",
                     va="center",
@@ -962,13 +1070,13 @@ def plot_asymptotic_var_comparison(
             ],
         )
         # Add value annotations
-        for i, _ in enumerate(treatment_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
-            for j, _ in enumerate(outcome_coef_unique):  # pylint: disable=unnecessary-list-index-lookup
+        for i, treatment_coef in enumerate(treatment_coef_unique):
+            for j, outcome_coef in enumerate(outcome_coef_unique):
                 val = discrete_bias_difference_matrix[i, j]
                 label = "OML" if val > 0 else "ICA" if val < 0 else "="
                 ax.text(
-                    outcome_coef_unique[j],
-                    treatment_coef_unique[i],
+                    outcome_coef,
+                    treatment_coef,
                     label,
                     ha="center",
                     va="center",
@@ -997,6 +1105,33 @@ def plot_heatmap(
     annot_fontsize=12,
     figsize=(10, 8),
 ):
+    """Render and save a seaborn annotated heatmap.
+
+    Parameters
+    ----------
+    data_matrix : ndarray of shape (n_y, n_x)
+        Values to display in the heatmap cells.
+    x_labels : list
+        Tick labels for the x-axis (columns).
+    y_labels : list
+        Tick labels for the y-axis (rows).
+    xlabel : str
+        X-axis label string (supports LaTeX when usetex is active).
+    ylabel : str
+        Y-axis label string.
+    filename : str
+        Output filename (SVG); saved inside ``output_dir``.
+    output_dir : str
+        Directory where the figure is written.
+    cmap : str, optional
+        Matplotlib colormap name (default: "coolwarm").
+    center : float or None, optional
+        Value at which to center the colormap divergence.
+    annot_fontsize : int, optional
+        Font size for cell annotations (default: 12).
+    figsize : tuple of int, optional
+        Figure size in inches (default: (10, 8)).
+    """
     plot_typography()
     plt.figure(figsize=figsize)
     # Set the midpoint of the color scale to the specified center if provided
@@ -1027,6 +1162,52 @@ def prepare_heatmap_data(
     relative_error=False,
     compute_rmse=False,
 ):
+    """Aggregate experiment results into 2-D arrays for heatmap plotting.
+
+    Iterates over all ``(x_key, y_key)`` pairs in ``all_results``, optionally
+    filters by beta or support size, and computes mean, std, binary-winner, and
+    RMSE matrices that can be passed directly to ``plot_heatmap``.
+
+    Parameters
+    ----------
+    all_results : list of dict
+        Experiment result dictionaries; each must contain ``x_key``, ``y_key``,
+        ``value_key``, and ``"sigmas"`` (or their ``_rel`` variants).
+    x_key : str
+        Key used as the x-axis (e.g., ``"beta"`` or ``"support_size"``).
+    y_key : str
+        Key used as the y-axis (e.g., ``"n_samples"``); sorted in descending
+        order so larger values appear at the top.
+    value_key : str
+        Result key containing per-method scalar metrics (e.g., ``"biases"``
+        or ``"first_stage_mse"``).  The ICA entry is always the last element.
+    diff_index : int or None, optional
+        Column index of the baseline method for differencing.  If None, ICA
+        absolute values are returned instead of differences.
+    beta_filter : float or None, optional
+        If set, restrict to results where ``res["beta"] == beta_filter``.
+    support_size_filter : int or None, optional
+        If set, restrict to results where ``res["support_size"] == support_size_filter``.
+    relative_error : bool, optional
+        If True, use ``value_key + "_rel"`` and ``"sigmas_rel"`` variants.
+    compute_rmse : bool, optional
+        If True, also compute and return an RMSE difference matrix.
+
+    Returns
+    -------
+    data_matrix_mean : ndarray of shape (n_y, n_x)
+        Mean of ICA (minus baseline when ``diff_index`` is not None) per cell.
+    data_matrix_std : ndarray of shape (n_y, n_x)
+        ICA standard deviation per cell.
+    data_matrix : ndarray of shape (n_y, n_x)
+        Binary winner matrix: -1 (ICA better), 0 (overlap), 1 (baseline better).
+    x_values : list
+        Sorted unique x-axis values.
+    y_values : list
+        Sorted (descending) unique y-axis values.
+    data_matrix_rmse : ndarray of shape (n_y, n_x) or None
+        RMSE difference matrix; ``None`` when ``compute_rmse=False``.
+    """
     x_values = sorted(
         {
             res[x_key]

@@ -31,6 +31,9 @@ from oml_utils import (
 )
 from plot_utils import plot_and_save_model_errors, plot_typography
 
+# Default random seed for reproducibility
+DEFAULT_SEED = 12143
+
 
 def experiment(
     x,
@@ -232,9 +235,20 @@ def run_experiments_for_configuration(
         )
 
     # Outcome noise distribution
-    epsilon_sample = lambda x: np.random.uniform(  # pylint: disable=unnecessary-lambda-assignment
-        -config.sigma_outcome, config.sigma_outcome, size=x
-    )
+    def epsilon_sample(x):
+        """Sample outcome noise from Uniform[-sigma_outcome, sigma_outcome].
+
+        Parameters
+        ----------
+        x : int
+            Number of samples to draw.
+
+        Returns
+        -------
+        ndarray of shape (x,)
+            Uniform noise samples.
+        """
+        return np.random.uniform(-config.sigma_outcome, config.sigma_outcome, size=x)
 
     # True coefficients - shape depends on oracle_support flag
     if config.oracle_support:
@@ -387,7 +401,7 @@ def main(args):
     parser = argparse.ArgumentParser(description="Second order orthogonal ML!")
     parser.add_argument("--n_samples", dest="n_samples", type=int, help="n_samples", default=500)
     parser.add_argument("--n_experiments", dest="n_experiments", type=int, help="n_experiments", default=20)
-    parser.add_argument("--seed", dest="seed", type=int, help="seed", default=12143)
+    parser.add_argument("--seed", dest="seed", type=int, help="seed", default=DEFAULT_SEED)
     parser.add_argument("--sigma_outcome", dest="sigma_outcome", type=float, help="sigma_outcome", default=np.sqrt(3.0))
     parser.add_argument("--covariate_pdf", dest="covariate_pdf", type=str, help="pdf of covariates", default="gennorm")
     parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
@@ -418,7 +432,7 @@ def main(args):
         "--eta_noise_dist",
         dest="eta_noise_dist",
         type=str,
-        help="Distribution for treatment noise eta: discrete, laplace, uniform, rademacher, gennorm_heavy, gennorm_light",
+        help="Distribution for treatment noise eta: discrete, laplace, uniform, rademacher, gennorm_heavy, gennorm_light",  # noqa: E501
         default="discrete",
     )
     parser.add_argument(

@@ -86,69 +86,6 @@ class OMLParameterGrid:
     support_filter: int = 10
     cov_dim_max: int = 50
 
-    @classmethod
-    def create_from_config(cls, config: OMLExperimentConfig) -> "OMLParameterGrid":
-        """Create parameter grid based on experiment configuration.
-
-        Args:
-            config: Experiment configuration
-
-        Returns:
-            Configured parameter grid
-        """
-        grid = cls()
-
-        # Capture cov_dim_max from the full default grid before any restriction
-        grid.cov_dim_max = grid.support_sizes[-1]
-
-        # Adjust for small_data mode
-        if config.small_data:
-            grid.support_sizes = [2, 5, 10]
-            grid.data_samples = [20, 50, 100]
-            grid.support_filter = 5
-        else:
-            # Adjust for asymptotic_var or scalar_coeffs modes
-            if config.asymptotic_var or config.scalar_coeffs:
-                grid.support_sizes = [10]
-                grid.treatment_effects = [1]
-
-            if config.asymptotic_var:
-                grid.data_samples = [10**4]
-                # Asymptotic variance specific coefficients
-                grid.treatment_coefs = [-0.002, -0.33, 1.26]
-                grid.outcome_coefs = [-0.05, 0.7, 1.9]
-
-        # Single config mode: collapse grid to one point for seed stability testing
-        if config.single_config:
-            grid.data_samples = [config.n_samples]
-            grid.support_sizes = [10]
-            grid.beta_values = [4.0]
-            grid.treatment_effects = [1]
-            grid.treatment_coefs = [1.56]
-            grid.outcome_coefs = [-1.45]
-            return grid
-
-        # Adjust beta values
-        if config.covariate_pdf != "gennorm" or config.asymptotic_var:
-            grid.beta_values = [1.0]
-
-        # Adjust treatment effects
-        if config.matched_coefficients:
-            grid.treatment_effects = [1.0]
-
-        # Restrict grid to the CLI-specified n_samples (enables per-sample-size job splitting)
-        grid.data_samples = [config.n_samples]
-
-        # Restrict beta if explicitly specified (enables per-beta job splitting)
-        if config.beta is not None:
-            grid.beta_values = [config.beta]
-
-        # Restrict support_size if explicitly specified (enables per-support-size job splitting)
-        if config.support_size is not None:
-            grid.support_sizes = [config.support_size]
-
-        return grid
-
 
 @dataclass
 class OMLMethodConfig:
@@ -219,68 +156,37 @@ class OMLResultsContainer:
     homl_asymptotic_var: Optional[float] = None
     homl_asymptotic_var_num: Optional[float] = None
 
-    def to_dict(self) -> Dict:
-        """Convert container to dictionary for saving.
-
-        Returns:
-            Dictionary representation of results
-        """
-        return {
-            "n_samples": self.n_samples,
-            "support_size": self.support_size,
-            "beta": self.beta,
-            "treatment_effect": self.treatment_effect,
-            "cov_dim_max": self.cov_dim_max,
-            "sigma_outcome": self.sigma_outcome,
-            "ortho_rec_tau": self.ortho_rec_tau,
-            "first_stage_mse": self.first_stage_mse,
-            "biases": self.biases,
-            "sigmas": self.sigmas,
-            "eta_second_moment": self.eta_second_moment,
-            "eta_third_moment": self.eta_third_moment,
-            "eta_non_gauss_cond": self.eta_non_gauss_cond,
-            "eta_cubed_variance": self.eta_cubed_variance,
-            "eta_fourth_moment": self.eta_fourth_moment,
-            "eta_skewness_squared": self.eta_skewness_squared,
-            "eta_excess_kurtosis": self.eta_excess_kurtosis,
-            "ica_var_coeff": self.ica_var_coeff,
-            "ica_asymptotic_var": self.ica_asymptotic_var,
-            "ica_asymptotic_var_hyvarinen": self.ica_asymptotic_var_hyvarinen,
-            "ica_asymptotic_var_num": self.ica_asymptotic_var_num,
-            "homl_asymptotic_var": self.homl_asymptotic_var,
-            "homl_asymptotic_var_num": self.homl_asymptotic_var_num,
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict) -> "OMLResultsContainer":
-        """Create container from dictionary.
-
-        Args:
-            data: Dictionary with result data
-
-        Returns:
-            OMLResultsContainer instance
-        """
-        return cls(**data)
-
 
 def compute_distribution_moments(
     distribution: str, params: np.ndarray = None, probs: np.ndarray = None, scale: float = 1.0, beta: float = None
 ) -> Dict:
-    """Compute analytical moments for different noise distributions.
+    """Compute analytical moments for supported treatment noise distributions.
 
-    Args:
-        distribution: Type of noise distribution (discrete, laplace, uniform, rademacher,
-                     gennorm_heavy, gennorm_light, gennorm)
-        params: Distribution parameters (discounts for discrete, or [beta, loc, scale] for gennorm)
-        probs: Probabilities for discrete distributions
-        scale: Scale parameter (used for standardization)
-        beta: Shape parameter for generalized normal distribution. If None and distribution
-              is 'gennorm', will be extracted from params[0].
+    Parameters
+    ----------
+    distribution : str
+        Noise distribution type: "discrete", "laplace", "uniform", "rademacher",
+        "gennorm_heavy", "gennorm_light", or "gennorm".
+    params : np.ndarray, optional
+        For "discrete": discount values. For "gennorm": [beta, loc, scale].
+    probs : np.ndarray, optional
+        Probability vector for discrete distributions.
+    scale : float
+        Scale parameter used to normalize continuous distributions to variance
+        ``scale²``.
+    beta : float, optional
+        Shape parameter for "gennorm". If None, extracted from ``params[0]``.
 
-    Returns:
-        Dictionary with moments: second_moment, third_moment, fourth_moment,
-        cubed_variance, excess_kurtosis, skewness
+    Returns
+    -------
+    dict
+        Keys: "second_moment", "third_moment", "fourth_moment",
+        "cubed_variance", "excess_kurtosis", "skewness", "skewness_squared".
+
+    Raises
+    ------
+    ValueError
+        If required parameters are missing or the distribution is unknown.
     """
     from scipy.special import gamma
 
@@ -389,17 +295,25 @@ class AsymptoticVarianceCalculator:
     ) -> Tuple[float, float, float, float, float, float, float]:
         """Calculate HOML asymptotic variance for any supported distribution.
 
-        Args:
-            distribution: Type of noise distribution
-            params: Distribution parameters
-            probs: Probabilities for discrete distributions
-            scale: Scale parameter
-            beta: Shape parameter for generalized normal distribution
+        Parameters
+        ----------
+        distribution : str
+            Noise distribution type (see ``compute_distribution_moments``).
+        params : np.ndarray, optional
+            Distribution parameters.
+        probs : np.ndarray, optional
+            Probability vector for discrete distributions.
+        scale : float
+            Scale parameter.
+        beta : float, optional
+            Shape parameter for generalized normal distribution.
 
-        Returns:
-            Tuple of (eta_cubed_variance, eta_fourth_moment, eta_non_gauss_cond,
-                     eta_second_moment, eta_third_moment, homl_asymptotic_var,
-                     homl_asymptotic_var_num)
+        Returns
+        -------
+        tuple
+            ``(eta_cubed_variance, eta_fourth_moment, eta_non_gauss_cond,
+            eta_second_moment, eta_third_moment, homl_asymptotic_var,
+            homl_asymptotic_var_num)``
         """
         moments = compute_distribution_moments(distribution, params, probs, scale, beta)
 
@@ -434,17 +348,27 @@ class AsymptoticVarianceCalculator:
     def calc_homl_asymptotic_var(
         discounts: np.ndarray, mean_discount: float, probs: np.ndarray
     ) -> Tuple[float, float, float, float, float, float, float]:
-        """Calculate HOML asymptotic variance components.
+        """Calculate HOML asymptotic variance components for discrete treatment noise.
 
-        Args:
-            discounts: Discount values for treatment noise
-            mean_discount: Mean of discounts
-            probs: Probabilities for each discount
+        The HOML asymptotic variance is Var[eta³] / (E[eta³] / sqrt(Var[eta³]))²,
+        which simplifies to Var[eta³] / (E[eta³])² * Var[eta³] = Var[eta³]².
+        Returns inf when E[eta³] = 0 (symmetric distribution).
 
-        Returns:
-            Tuple of (eta_cubed_variance, eta_fourth_moment, eta_non_gauss_cond,
-                     eta_second_moment, eta_third_moment, homl_asymptotic_var,
-                     homl_asymptotic_var_num)
+        Parameters
+        ----------
+        discounts : np.ndarray
+            Discrete support values of the treatment noise distribution.
+        mean_discount : float
+            Mean of the discrete distribution.
+        probs : np.ndarray
+            Probability vector corresponding to each discount value.
+
+        Returns
+        -------
+        tuple
+            ``(eta_cubed_variance, eta_fourth_moment, eta_non_gauss_cond,
+            eta_second_moment, eta_third_moment, homl_asymptotic_var,
+            homl_asymptotic_var_num)``
         """
         # Center discounts
         centered_discounts = discounts - mean_discount
@@ -484,20 +408,34 @@ class AsymptoticVarianceCalculator:
         probs: np.ndarray,
         eta_cubed_variance: float,
     ) -> Tuple[float, float, float, float, float, float]:
-        """Calculate ICA asymptotic variance components.
+        """Calculate ICA asymptotic variance components for discrete treatment noise.
 
-        Args:
-            treatment_coef: Treatment coefficients
-            outcome_coef: Outcome coefficients
-            treatment_effect: True treatment effect
-            discounts: Discount values for treatment noise
-            mean_discount: Mean of discounts
-            probs: Probabilities for each discount
-            eta_cubed_variance: Variance of cubed treatment noise
+        The ICA variance coefficient is c_ICA = 1 + ||b + a*theta||², where b is
+        the outcome coefficient vector and a is the treatment coefficient vector.
+        The asymptotic variance is c_ICA * Var[eta³] / kurtosis(eta)².
 
-        Returns:
-            Tuple of (eta_excess_kurtosis, eta_skewness_squared, ica_asymptotic_var,
-                     ica_asymptotic_var_hyvarinen, ica_asymptotic_var_num, ica_var_coeff)
+        Parameters
+        ----------
+        treatment_coef : np.ndarray
+            Treatment coefficient vector (a in the PLM).
+        outcome_coef : np.ndarray
+            Outcome coefficient vector (b in the PLM).
+        treatment_effect : float
+            True treatment effect theta.
+        discounts : np.ndarray
+            Discrete support values of the treatment noise distribution.
+        mean_discount : float
+            Mean of the discrete distribution.
+        probs : np.ndarray
+            Probability vector corresponding to each discount value.
+        eta_cubed_variance : float
+            Pre-computed Var[eta³] = E[eta⁴]*E[eta²] - (E[eta³])².
+
+        Returns
+        -------
+        tuple
+            ``(eta_excess_kurtosis, eta_skewness_squared, ica_asymptotic_var,
+            ica_asymptotic_var_hyvarinen, ica_asymptotic_var_num, ica_var_coeff)``
         """
         # Center discounts
         centered_discounts = discounts - mean_discount
@@ -541,19 +479,30 @@ class AsymptoticVarianceCalculator:
     ) -> Tuple[float, float, float, float, float, float]:
         """Calculate ICA asymptotic variance for any supported distribution.
 
-        Args:
-            treatment_coef: Treatment coefficients
-            outcome_coef: Outcome coefficients
-            treatment_effect: True treatment effect
-            distribution: Type of noise distribution
-            params: Distribution parameters
-            probs: Probabilities for discrete distributions
-            scale: Scale parameter
-            beta: Shape parameter for generalized normal distribution
+        Parameters
+        ----------
+        treatment_coef : np.ndarray
+            Treatment coefficient vector (a in the PLM).
+        outcome_coef : np.ndarray
+            Outcome coefficient vector (b in the PLM).
+        treatment_effect : float
+            True treatment effect theta.
+        distribution : str
+            Noise distribution type (see ``compute_distribution_moments``).
+        params : np.ndarray, optional
+            Distribution parameters.
+        probs : np.ndarray, optional
+            Probability vector for discrete distributions.
+        scale : float
+            Scale parameter.
+        beta : float, optional
+            Shape parameter for generalized normal distribution.
 
-        Returns:
-            Tuple of (eta_excess_kurtosis, eta_skewness_squared, ica_asymptotic_var,
-                     ica_asymptotic_var_hyvarinen, ica_asymptotic_var_num, ica_var_coeff)
+        Returns
+        -------
+        tuple
+            ``(eta_excess_kurtosis, eta_skewness_squared, ica_asymptotic_var,
+            ica_asymptotic_var_hyvarinen, ica_asymptotic_var_num, ica_var_coeff)``
         """
         moments = compute_distribution_moments(distribution, params, probs, scale, beta)
 
@@ -594,48 +543,65 @@ class OMLResultsManager:
     def __init__(self, results_file: str):
         """Initialize the results manager.
 
-        Args:
-            results_file: Path to the results .npy file
+        Parameters
+        ----------
+        results_file : str
+            Path to the results ``.npy`` file.
         """
         self.results_file = results_file
 
     def exists(self) -> bool:
         """Check if the results file exists.
 
-        Returns:
-            True if results file exists, False otherwise
+        Returns
+        -------
+        bool
+            True if the results file exists on disk, False otherwise.
         """
         return os.path.exists(self.results_file)
 
     def load(self) -> List[Dict]:
-        """Load existing results.
+        """Load existing results from the ``.npy`` file.
 
-        Returns:
-            List of result dictionaries
+        Returns
+        -------
+        List[Dict]
+            List of result dictionaries, or an empty list if the file does not
+            exist.
         """
         if self.exists():
             print(f"Results file '{self.results_file}' already exists. Loading data.")
             return list(np.load(self.results_file, allow_pickle=True))
         return []
 
-    def save(self, results: List[Dict]):
-        """Save results to file.
+    def save(self, results: List[Dict]) -> None:
+        """Save results to the ``.npy`` file.
 
-        Args:
-            results: List of result dictionaries to save
+        Parameters
+        ----------
+        results : List[Dict]
+            List of result dictionaries to serialize with ``np.save``.
         """
         np.save(self.results_file, np.array(results))
         print(f"Results saved to '{self.results_file}'")
 
 
 def setup_output_dir(config: OMLExperimentConfig) -> str:
-    """Setup output directory based on configuration.
+    """Construct and create the output directory for an experiment run.
 
-    Args:
-        config: Experiment configuration
+    The path encodes key configuration flags (n_experiments, sigma_outcome,
+    covariate_pdf, and optional suffixes for convergence, small_data, etc.)
+    so that results from different configurations are stored separately.
 
-    Returns:
-        Full output directory path
+    Parameters
+    ----------
+    config : OMLExperimentConfig
+        Experiment configuration.
+
+    Returns
+    -------
+    str
+        Absolute path to the created output directory.
     """
     dir_parts = [
         config.output_dir,
@@ -671,13 +637,21 @@ def setup_output_dir(config: OMLExperimentConfig) -> str:
 
 
 def setup_results_filename(config: OMLExperimentConfig) -> str:
-    """Setup results filename based on configuration.
+    """Construct a results filename that encodes the experiment configuration.
 
-    Args:
-        config: Experiment configuration
+    Filename components are joined with underscores and reflect n_experiments,
+    covariate_pdf, sigma_outcome, convergence/scalar flags, n_samples, beta,
+    support_size, and oracle_support as applicable.
 
-    Returns:
-        Results filename
+    Parameters
+    ----------
+    config : OMLExperimentConfig
+        Experiment configuration.
+
+    Returns
+    -------
+    str
+        Results filename (e.g., ``all_results_n_exp_20_gennorm_sigma_outcome_1.732_..._n500.npy``).
     """
     filename_parts = []
 
