@@ -2170,7 +2170,7 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
 
     # Plot 1: RMSE vs ICA variance coefficient
     _, ax = plt.subplots(figsize=(8, 6))
-    ax.scatter(ica_var_coeffs, homl_rmse, c=OML_COLOR, alpha=0.7, label="HOML", s=60, marker="o")
+    ax.scatter(ica_var_coeffs, homl_rmse, c=OML_COLOR, alpha=0.7, label="OML", s=60, marker="o")
     ax.scatter(ica_var_coeffs, ica_rmse, c=ICA_COLOR, alpha=0.7, label="ICA", s=60, marker="s")
     ax.set_xlabel(r"ICA Variance Coefficient: $1 + \|b + a\theta\|_2^2$")
     ax.set_ylabel("RMSE")
@@ -2442,9 +2442,9 @@ def plot_ica_var_filtered_rmse_heatmap(
     """Plot RMSE heatmaps filtered by ICA variance coefficient.
 
     Creates three heatmaps:
-    1. HOML RMSE heatmap
+    1. OML RMSE heatmap
     2. ICA RMSE heatmap
-    3. RMSE difference heatmap (ICA - HOML)
+    3. RMSE difference heatmap (ICA - OML)
 
     Args:
         results: List of result dictionaries from run_sample_dimension_grid_experiments
@@ -2486,7 +2486,7 @@ def plot_ica_var_filtered_rmse_heatmap(
     x_values = sorted(set(r[x_key] for r in filtered_results))
     y_values = sorted(set(r["n_samples"] for r in filtered_results), reverse=True)
 
-    # Create heatmap data matrices for HOML, ICA, and difference
+    # Create heatmap data matrices for OML, ICA, and difference
     homl_rmse_data = np.full((len(y_values), len(x_values)), np.nan)
     ica_rmse_data = np.full((len(y_values), len(x_values)), np.nan)
     rmse_diff_data = np.full((len(y_values), len(x_values)), np.nan)
