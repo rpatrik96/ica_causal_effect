@@ -2117,7 +2117,7 @@ def plot_diff_heatmaps(
             data,
             aspect="auto",
             origin="lower",
-            cmap="RdYlGn_r",
+            cmap="coolwarm",
             vmin=vmin,
             vmax=vmax,
         )

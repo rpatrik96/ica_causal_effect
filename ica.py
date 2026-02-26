@@ -565,7 +565,6 @@ def main_multi():
     all_vals = all_vals[~np.isnan(all_vals)]
     vmin_robust = np.percentile(all_vals, 2)
     vmax_robust = np.percentile(all_vals, 98)
-    center_robust = np.median(all_vals)
 
     _, axes = plt.subplots(
         1, len(num_treatments_list), figsize=(6 * len(num_treatments_list), 8), constrained_layout=True
@@ -581,7 +580,6 @@ def main_multi():
             annot=True,
             fmt=".2f",
             annot_kws={"size": 10},
-            center=center_robust,
             vmin=vmin_robust,
             vmax=vmax_robust,
             ax=ax,
