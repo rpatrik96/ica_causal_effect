@@ -42,13 +42,11 @@ pre-commit install
 
 ### Experiment Runners
 
-* `monte_carlo_single_instance.py` and `monte_carlo_single_instance_with_seed.py`: Generate data from the partially linear model DGP based on input parameters, execute the proposed second-order orthogonal method and benchmarks, and save results. The former is for single instance plots and parameter sweeps, while the latter is used for generating plots with multiple instances.
-
-* `experiment_runner.py`: Unified experiment runner for OML experiments with parallel execution support.
+* `monte_carlo_single_instance.py`: Generates data from the partially linear model DGP, executes second-order orthogonal methods and benchmarks, and saves results.
 
 * `oml_runner.py`: Runner for orthogonal machine learning experiments.
 
-* `eta_noise_ablation_refactored.py`: Ablation studies for noise distributions, variance parameters, and coefficient configurations. Supports:
+* `eta_noise_ablation.py`: CLI entry point for ablation studies. Supports:
   - **Filtered heatmap experiments**: Compare HOML vs ICA RMSE across sample sizes and dimensions/beta values
   - **ICA variance coefficient constraint**: Automatically compute coefficients to achieve a target ICA variance coefficient
   - **Coefficient ablation**: Vary treatment/outcome coefficients to study their effect on estimation error
@@ -60,8 +58,6 @@ pre-commit install
 
 * `ica_utils.py`: Utility functions for ICA experiments.
 
-* `ica_plotting.py`: Plotting functions specific to ICA experiments.
-
 * `oml_utils.py`: Utility functions for OML experiments.
 
 * `oml_plotting.py`: Plotting functions for OML experiments.
@@ -70,21 +66,13 @@ pre-commit install
 
 ### Plotting Scripts
 
-* `plot_dumps_single_instance.py`: Generate figures from single instance results.
+* `regenerate_ica_heatmaps.py`: Regenerate ICA-specific heatmap plots from cached results.
 
-* `plot_multi_instance.py`: Generate figures from multi-instance results.
+* `regenerate_colorblind_plots.py`: Batch regenerate all plots with updated color scheme.
 
-* `regenerate_all_n20_plots.py`: Regenerate all plots for n=20 experiments.
+### Cluster Scripts
 
-* `regenerate_n20_heatmaps.py`: Regenerate heatmap plots for n=20 experiments.
-
-* `regenerate_ica_heatmaps.py`: Regenerate ICA-specific heatmap plots.
-
-### Shell Scripts
-
-* `single_instance_parameter_sweep.sh`: A shell script that runs a single instance as the DGP parameters vary, creating all related plots.
-
-* `multi_instance.sh`: A shell script that runs multiple instances of the DGP for a fixed set of parameters, generating related plots.
+Large-scale experiments run via HTCondor. See `cluster/README.md` for setup, submission files, and monitoring.
 
 ## Testing
 
@@ -153,13 +141,13 @@ Run filtered heatmap experiments comparing HOML vs ICA across sample sizes and d
 
 ```bash
 # Basic filtered heatmap (dimension vs sample size)
-python eta_noise_ablation_refactored.py --filtered_heatmap
+python eta_noise_ablation.py --filtered_heatmap
 
 # With ICA variance coefficient constraint (automatically computes coefficients)
-python eta_noise_ablation_refactored.py --filtered_heatmap --constrain_ica_var
+python eta_noise_ablation.py --filtered_heatmap --constrain_ica_var
 
 # Beta vs sample size mode with custom parameters
-python eta_noise_ablation_refactored.py --filtered_heatmap \
+python eta_noise_ablation.py --filtered_heatmap \
   --heatmap_axis_mode beta_vs_n \
   --ica_var_threshold 2.0 \
   --n_experiments 50
@@ -169,10 +157,10 @@ Run coefficient and variance ablation studies:
 
 ```bash
 # Coefficient ablation (varying treatment/outcome coefficients)
-python eta_noise_ablation_refactored.py --coefficient_ablation
+python eta_noise_ablation.py --coefficient_ablation
 
 # Variance ablation (noise variance across beta values)
-python eta_noise_ablation_refactored.py --variance_ablation
+python eta_noise_ablation.py --variance_ablation
 ```
 
 Key flags:

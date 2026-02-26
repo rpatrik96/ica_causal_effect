@@ -50,14 +50,14 @@ The cluster setup covers all 10 experiment configurations:
 |-----------------|----------------|---------|
 | `single_instance` | Yes (default) | `monte_carlo_single_instance.py` |
 | `single_instance` | No | `monte_carlo_single_instance.py --no_oracle_support` |
-| `eta_filtered_heatmap` | Yes | `eta_noise_ablation_refactored.py --filtered_heatmap` |
-| `eta_filtered_heatmap` | No | `eta_noise_ablation_refactored.py --filtered_heatmap --no_oracle_support` |
-| `eta_variance_ablation` | Yes | `eta_noise_ablation_refactored.py --variance_ablation` |
-| `eta_variance_ablation` | No | `eta_noise_ablation_refactored.py --variance_ablation --no_oracle_support` |
-| `eta_coefficient_ablation` | Yes | `eta_noise_ablation_refactored.py --coefficient_ablation` |
-| `eta_coefficient_ablation` | No | `eta_noise_ablation_refactored.py --coefficient_ablation --no_oracle_support` |
-| `eta_default` | Yes | `eta_noise_ablation_refactored.py` |
-| `eta_default` | No | `eta_noise_ablation_refactored.py --no_oracle_support` |
+| `eta_filtered_heatmap` | Yes | `eta_noise_ablation.py --filtered_heatmap` |
+| `eta_filtered_heatmap` | No | `eta_noise_ablation.py --filtered_heatmap --no_oracle_support` |
+| `eta_variance_ablation` | Yes | `eta_noise_ablation.py --variance_ablation` |
+| `eta_variance_ablation` | No | `eta_noise_ablation.py --variance_ablation --no_oracle_support` |
+| `eta_coefficient_ablation` | Yes | `eta_noise_ablation.py --coefficient_ablation` |
+| `eta_coefficient_ablation` | No | `eta_noise_ablation.py --coefficient_ablation --no_oracle_support` |
+| `eta_default` | Yes | `eta_noise_ablation.py` |
+| `eta_default` | No | `eta_noise_ablation.py --no_oracle_support` |
 
 ## Submit Files
 
@@ -106,11 +106,11 @@ condor_submit cluster.sub \
 | Type | Script | Description |
 |------|--------|-------------|
 | `single_instance` | `monte_carlo_single_instance.py` | Main OML Monte Carlo experiments |
-| `single_instance_seed` | `monte_carlo_single_instance_with_seed.py` | Seeded experiments for reproducibility |
-| `eta_filtered_heatmap` | `eta_noise_ablation_refactored.py --filtered_heatmap` | Filtered RMSE heatmaps |
-| `eta_variance_ablation` | `eta_noise_ablation_refactored.py --variance_ablation` | Variance ablation studies |
-| `eta_coefficient_ablation` | `eta_noise_ablation_refactored.py --coefficient_ablation` | Coefficient ablation studies |
-| `eta_default` | `eta_noise_ablation_refactored.py` | Default eta ablation mode |
+| `single_instance_seed` | `monte_carlo_single_instance.py --seed` | Seeded experiments for reproducibility |
+| `eta_filtered_heatmap` | `eta_noise_ablation.py --filtered_heatmap` | Filtered RMSE heatmaps |
+| `eta_variance_ablation` | `eta_noise_ablation.py --variance_ablation` | Variance ablation studies |
+| `eta_coefficient_ablation` | `eta_noise_ablation.py --coefficient_ablation` | Coefficient ablation studies |
+| `eta_default` | `eta_noise_ablation.py` | Default eta ablation mode |
 | `ica` | `ica.py` | ICA-specific experiments |
 
 ## Output Location

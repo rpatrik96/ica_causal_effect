@@ -19,7 +19,7 @@ MaxTime = 43200
 periodic_remove = (JobStatus =?= 2) && ((CurrentTime - JobCurrentStartDate) >= $(MaxTime))
 
 # Transfer files
-transfer_input_files = ../monte_carlo_single_instance.py, ../monte_carlo_single_instance_with_seed.py, ../ica.py, ../main_estimation.py, ../mcc.py, ../plot_utils.py, ../oml_plotting.py, ../oml_runner.py, ../oml_utils.py, ../requirements.txt
+transfer_input_files = ../monte_carlo_single_instance.py, ../eta_noise_ablation.py, ../eta_ablation_experiments.py, ../eta_ablation_plotting.py, ../ica.py, ../ica_utils.py, ../main_estimation.py, ../mcc.py, ../plot_utils.py, ../oml_plotting.py, ../oml_runner.py, ../oml_utils.py, ../ablation_utils.py, ../requirements.txt
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
 

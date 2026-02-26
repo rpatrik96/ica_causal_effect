@@ -29,7 +29,7 @@ from oml_utils import (
     setup_output_dir,
     setup_results_filename,
 )
-from plot_utils import plot_and_save_model_errors, plot_typography
+from plot_utils import plot_typography
 
 # Default random seed for reproducibility
 DEFAULT_SEED = 12143
@@ -327,31 +327,8 @@ def run_experiments_for_configuration(
     error_stats = plot_method_comparison_both_errors(
         ortho_rec_tau,
         treatment_effect,
-        config.output_dir,
-        n_samples,
-        cov_dim_max,
-        config.n_experiments,
-        support_size,
-        config.sigma_outcome,
-        config.covariate_pdf,
-        beta,
         plot=False,
         verbose=config.verbose,
-    )
-
-    # Plot model errors
-    plot_and_save_model_errors(
-        first_stage_mse,
-        ortho_rec_tau,
-        config.output_dir,
-        n_samples,
-        cov_dim_max,
-        config.n_experiments,
-        support_size,
-        config.sigma_outcome,
-        config.covariate_pdf,
-        beta,
-        plot=False,
     )
 
     # Assemble result dictionary
@@ -387,6 +364,39 @@ def run_experiments_for_configuration(
     }
 
     return result_dict
+
+
+def find_partial_results(results_dir, pattern="all_results_*_n[0-9]*_beta*_d*.npy"):
+    """Find all partial result files matching the pattern.
+
+    Args:
+        results_dir: Directory containing partial result files
+        pattern: Glob pattern for matching files
+
+    Returns:
+        Sorted list of matching file paths
+    """
+    import glob as _glob
+
+    files = sorted(_glob.glob(os.path.join(results_dir, pattern)))
+    return files
+
+
+def merge_partial_results(files):
+    """Load and merge partial result files.
+
+    Args:
+        files: List of .npy file paths to merge
+
+    Returns:
+        Combined list of result dictionaries
+    """
+    all_results = []
+    for f in files:
+        partial = list(np.load(f, allow_pickle=True))
+        print(f"  {os.path.basename(f)}: {len(partial)} configurations")
+        all_results.extend(partial)
+    return all_results
 
 
 def main(args):
@@ -477,7 +487,7 @@ def main(args):
         dest="no_plot",
         action="store_true",
         default=False,
-        help="Skip final plot generation (use with split jobs; merge_results.py plots later).",
+        help="Skip final plot generation (use with split jobs or --merge_dir).",
     )
     parser.add_argument(
         "--oracle_support",
@@ -492,8 +502,69 @@ def main(args):
         action="store_false",
         help="Disable oracle support (both methods receive full x).",
     )
+    parser.add_argument(
+        "--merge_dir",
+        dest="merge_dir",
+        type=str,
+        default=None,
+        help="Directory with partial .npy results to merge. "
+        "Triggers merge+plot workflow instead of running experiments.",
+    )
+    parser.add_argument(
+        "--merge_pattern",
+        dest="merge_pattern",
+        type=str,
+        default="all_results_*_n[0-9]*_beta*_d*.npy",
+        help="Glob pattern for partial result files (default: all_results_*_n[0-9]*_beta*_d*.npy)",
+    )
+    parser.add_argument(
+        "--merge_output",
+        dest="merge_output",
+        type=str,
+        default="all_results_merged.npy",
+        help="Output filename for merged results (default: all_results_merged.npy)",
+    )
 
     opts = parser.parse_args(args)
+
+    # --- Merge workflow: merge partial results and optionally plot ---
+    if opts.merge_dir is not None:
+        files = find_partial_results(opts.merge_dir, opts.merge_pattern)
+        if not files:
+            print(f"No files matching '{opts.merge_pattern}' in {opts.merge_dir}")
+            return 1
+
+        print(f"Found {len(files)} partial result files:")
+        all_results = merge_partial_results(files)
+        print(f"\nTotal configurations after merge: {len(all_results)}")
+
+        # Save merged results
+        output_path = os.path.join(opts.merge_dir, opts.merge_output)
+        np.save(output_path, np.array(all_results, dtype=object))
+        print(f"Merged results saved to {output_path}")
+
+        # Generate plots unless --no_plot
+        if not opts.no_plot:
+            plt.rcParams.update(bundles.icml2022(usetex=True))
+            plot_typography()
+
+            config = OMLExperimentConfig(
+                n_experiments=opts.n_experiments,
+                sigma_outcome=opts.sigma_outcome,
+                covariate_pdf=opts.covariate_pdf,
+                output_dir=opts.merge_dir,
+                oracle_support=opts.oracle_support,
+            )
+            param_grid = OMLParameterGrid()
+            param_grid.cov_dim_max = param_grid.support_sizes[-1]
+            if config.covariate_pdf != "gennorm":
+                param_grid.beta_values = [1.0]
+
+            print("\nGenerating combined plots...")
+            generate_all_oml_plots(all_results, config, param_grid, param_grid.treatment_effects)
+            print("Plots generated successfully!")
+
+        return 0
 
     # Create configuration from parsed arguments
     config = OMLExperimentConfig(

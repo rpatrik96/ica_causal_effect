@@ -7,7 +7,6 @@ asymptotic-variance scatter plots used across the experiment pipeline.
 
 import os
 
-import joblib
 import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
@@ -124,23 +123,14 @@ def plot_estimates(
 def plot_method_comparison(
     ortho_rec_tau,
     treatment_effect,
-    output_dir,
-    n_samples,
-    n_dim,
-    n_experiments,
-    support_size,
-    sigma_outcome,
-    covariate_pdf,
-    beta,
     plot=False,
     relative_error=False,
     verbose=False,
 ):
     """Compare treatment-effect estimates across all five methods and compute errors.
 
-    Optionally saves per-method histograms. Always computes and returns bias and
-    standard deviation for OML, Robust OML, Robust OML (Est.), Robust OML (Split),
-    and ICA.
+    Computes and returns bias and standard deviation for OML, Robust OML,
+    Robust OML (Est.), Robust OML (Split), and ICA.
 
     Parameters
     ----------
@@ -148,24 +138,8 @@ def plot_method_comparison(
         Recovered treatment effects; columns correspond to the five methods.
     treatment_effect : float
         True treatment effect used as reference.
-    output_dir : str
-        Root directory for saving figures.
-    n_samples : int
-        Number of samples (used in filename).
-    n_dim : int
-        Covariate dimension (used in filename).
-    n_experiments : int
-        Number of Monte Carlo replications (used in filename).
-    support_size : int
-        Support size (used in filename).
-    sigma_outcome : float
-        Outcome noise standard deviation (used in filename).
-    covariate_pdf : str
-        Covariate distribution name (used in filename).
-    beta : float
-        Generalized-normal shape parameter (used in filename).
     plot : bool, optional
-        If True, save histogram SVGs to ``output_dir/recovered_coefficients/``.
+        If True, display per-method histograms.
     relative_error : bool, optional
         If True, normalise errors by the true treatment effect.
     verbose : bool, optional
@@ -178,10 +152,6 @@ def plot_method_comparison(
     sigmas : list of float
         Standard deviation of errors for each of the five methods.
     """
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(output_dir, "recovered_coefficients")
-    os.makedirs(experiment_dir, exist_ok=True)
-
     # First figure - histograms
     if plot:
         plt.figure(figsize=(25, 5))
@@ -237,16 +207,6 @@ def plot_method_comparison(
 
     if plot:
         plt.tight_layout()
-        plt.savefig(
-            os.path.join(
-                experiment_dir,
-                f"recovered_coefficients_from_each_method_n_samples_{n_samples}_n_dim_{n_dim}"
-                f"_n_exp_{n_experiments}_support_{support_size}_sigma_outcome_{sigma_outcome}"
-                f"_pdf_{covariate_pdf}_beta_{beta}.svg",
-            ),
-            dpi=300,
-            bbox_inches="tight",
-        )
 
     if verbose:
         print(f"Ortho ML MSE: {bias_ortho**2 + sigma_ortho**2}")
@@ -258,84 +218,6 @@ def plot_method_comparison(
     sigmas = [sigma_ortho, sigma_robust, sigma_est, sigma_second, sigma_ica]
 
     return biases, sigmas
-
-
-def plot_and_save_model_errors(
-    first_stage_mse,
-    ortho_rec_tau,
-    output_dir,
-    n_samples,
-    n_dim,
-    n_experiments,
-    support_size,
-    sigma_outcome,
-    covariate_pdf,
-    beta,
-    plot=False,
-    save=False,
-):
-    """Optionally plot first-stage model errors and serialize raw estimates.
-
-    Parameters
-    ----------
-    first_stage_mse : list of list of float
-        Per-experiment first-stage errors: [treatment_coef_error, outcome_coef_error,
-        ica_te_error, ica_mcc].
-    ortho_rec_tau : array-like
-        Recovered treatment effects (passed through to joblib serialization).
-    output_dir : str
-        Root directory; figures are saved in ``output_dir/model_errors/``.
-    n_samples : int
-        Number of samples (used in filename).
-    n_dim : int
-        Covariate dimension (used in filename).
-    n_experiments : int
-        Number of Monte Carlo replications (used in filename).
-    support_size : int
-        Support size (used in filename).
-    sigma_outcome : float
-        Outcome noise standard deviation (used in filename).
-    covariate_pdf : str
-        Covariate distribution name (used in filename).
-    beta : float
-        Generalized-normal shape parameter (used in filename).
-    plot : bool, optional
-        If True, save four-panel histogram SVG.
-    save : bool, optional
-        If True, serialize ``ortho_rec_tau`` and ``first_stage_mse`` with joblib.
-    """
-    # Create subfolder for the experiment
-    experiment_dir = os.path.join(output_dir, "model_errors")
-    os.makedirs(experiment_dir, exist_ok=True)
-
-    filename_base = "model_errors"
-
-    if plot:
-        plt.figure(figsize=(15, 5))
-        plt.subplot(1, 4, 1)
-        plt.title("Model_treatment error")
-        plt.hist(np.array(first_stage_mse)[:, 0].flatten())
-        plt.subplot(1, 4, 2)
-        plt.hist(np.array(first_stage_mse)[:, 1].flatten())
-        plt.title("Model_outcome error")
-        plt.subplot(1, 4, 3)
-        plt.hist(np.array(first_stage_mse)[:, 2].flatten())
-        plt.title("ICA error")
-        plt.subplot(1, 4, 4)
-        plt.hist(np.array(first_stage_mse)[:, 3].flatten())
-        plt.title("ICA MCC")
-
-        plt.savefig(os.path.join(experiment_dir, filename_base + ".svg"), dpi=300, bbox_inches="tight")
-
-    # Save the data
-    if save:
-        coef_filename = (
-            f"recovered_coefficients_from_each_method_n_samples_{n_samples}_n_dim_{n_dim}"
-            f"_n_exp_{n_experiments}_support_{support_size}_sigma_outcome_{sigma_outcome}"
-            f"_pdf_{covariate_pdf}_beta_{beta}"
-        )
-        joblib.dump(ortho_rec_tau, os.path.join(experiment_dir, coef_filename))
-        joblib.dump(first_stage_mse, os.path.join(experiment_dir, filename_base))
 
 
 def plot_gennorm(

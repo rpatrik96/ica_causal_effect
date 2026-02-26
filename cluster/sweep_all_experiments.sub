@@ -373,79 +373,79 @@ queue n_samples, beta, support_size from (
 )
 
 # ============================================================================
-# SECTION 2: Multi-seed stability experiments (completed, results reusable)
+# SECTION 2: Multi-seed stability experiments
 # ============================================================================
 
 ## With oracle support
-#oracle_flag = 1
-#oracle_arg =
-#exp_type = single_instance_seed
-#n_samples = 5000
-#beta = 4.0
-#support_size = 10
-#axis_mode = none
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments_seed) --seed $(seed) --single_config $(oracle_arg)
-#queue seed in (101, 314, 539, 757, 971, 1193, 1417, 1637, 1859, 2071)
+oracle_flag = 1
+oracle_arg =
+exp_type = single_instance_seed
+n_samples = 5000
+beta = 4.0
+support_size = 10
+axis_mode = none
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments_seed) --seed $(seed) --single_config $(oracle_arg)
+queue seed in (101, 314, 539, 757, 971, 1193, 1417, 1637, 1859, 2071)
 
 ## Without oracle support
-#oracle_flag = 0
-#oracle_arg = --no_oracle_support
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments_seed) --seed $(seed) --single_config $(oracle_arg)
-#queue seed in (101, 314, 539, 757, 971, 1193, 1417, 1637, 1859, 2071)
+oracle_flag = 0
+oracle_arg = --no_oracle_support
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments_seed) --seed $(seed) --single_config $(oracle_arg)
+queue seed in (101, 314, 539, 757, 971, 1193, 1417, 1637, 1859, 2071)
 
 # ============================================================================
-# SECTION 3: Eta noise ablation experiments (commented out for this submission)
+# SECTION 3: Eta noise ablation experiments
 # ============================================================================
 
 ## With oracle support
-#oracle_flag = 1
-#oracle_arg =
-#n_samples = 5000
-#
-#exp_type = eta_variance_ablation
-#axis_mode = none
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
-#queue 1
-#
-#exp_type = eta_coefficient_ablation
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
-#queue 1
-#
-#exp_type = eta_default
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --randomize_coeffs $(oracle_arg)
-#queue 1
-#
-#exp_type = eta_filtered_heatmap
-#axis_mode = d_vs_n
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
-#queue 1
-#
-#axis_mode = beta_vs_n
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
-#queue 1
-#
+oracle_flag = 1
+oracle_arg =
+n_samples = 5000
+
+exp_type = eta_variance_ablation
+axis_mode = none
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+queue 1
+
+exp_type = eta_coefficient_ablation
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+queue 1
+
+exp_type = eta_default
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --randomize_coeffs $(oracle_arg)
+queue 1
+
+exp_type = eta_filtered_heatmap
+axis_mode = d_vs_n
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
+queue 1
+
+axis_mode = beta_vs_n
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
+queue 1
+
 ## Without oracle support
-#oracle_flag = 0
-#oracle_arg = --no_oracle_support
-#
-#exp_type = eta_variance_ablation
-#axis_mode = none
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
-#queue 1
-#
-#exp_type = eta_coefficient_ablation
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
-#queue 1
-#
-#exp_type = eta_default
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --randomize_coeffs $(oracle_arg)
-#queue 1
-#
-#exp_type = eta_filtered_heatmap
-#axis_mode = d_vs_n
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
-#queue 1
-#
-#axis_mode = beta_vs_n
-#arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
-#queue 1
+oracle_flag = 0
+oracle_arg = --no_oracle_support
+
+exp_type = eta_variance_ablation
+axis_mode = none
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+queue 1
+
+exp_type = eta_coefficient_ablation
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) $(oracle_arg)
+queue 1
+
+exp_type = eta_default
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --randomize_coeffs $(oracle_arg)
+queue 1
+
+exp_type = eta_filtered_heatmap
+axis_mode = d_vs_n
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
+queue 1
+
+axis_mode = beta_vs_n
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) --heatmap_outcome_coef $(outcome_coef) --ica_var_threshold $(ica_var_threshold) --heatmap_axis_mode $(axis_mode) $(oracle_arg)
+queue 1

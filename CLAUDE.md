@@ -12,7 +12,7 @@ This repository implements methods from the paper "Independent Component Analysi
 
 The codebase follows a modular pipeline structure:
 
-1. **Data Generation** (`monte_carlo_single_instance.py`, `monte_carlo_single_instance_with_seed.py`, `ica.py:generate_ica_data()`):
+1. **Data Generation** (`monte_carlo_single_instance.py`, `ica.py:generate_ica_data()`):
    - Generates synthetic data from partially linear model DGPs
    - Supports various distributions (Gaussian, uniform, generalized normal)
    - Configurable treatment/outcome relationships with sparsity patterns
@@ -63,39 +63,28 @@ python monte_carlo_single_instance.py \
   --output_dir ./figures
 ```
 
-**ICA-specific experiments:**
-```bash
-# Run sparsity ablation
-python ica.py  # Runs main_sparsity() by default (see __main__ block)
+**ICA functions:**
+`ica.py` provides `generate_ica_data()`, `ica_treatment_effect_estimation()`, and `ica_treatment_effect_estimation_eps_row()` as library functions imported by experiment scripts.
 
-# Other ICA experiments (uncomment in ica.py __main__ block):
-# - main_multi(): Multiple treatment effects
-# - main_nonlinear(): Nonlinear partially linear regression
-# - main_gennorm(): Generalized normal distributions
-# - main_gennorm_nonlinear(): Nonlinear with gennorm
-# - main_nonlinear_theta(): Different theta distributions
-# - main_nonlinear_noise_split(): Noise distribution ablations
-```
-
-**Eta noise ablation experiments (`eta_noise_ablation_refactored.py`):**
+**Eta noise ablation experiments (`eta_noise_ablation.py`):**
 ```bash
 # Run filtered heatmap experiments (sample size vs dimension/beta)
-python eta_noise_ablation_refactored.py --filtered_heatmap
+python eta_noise_ablation.py --filtered_heatmap
 
 # Constrain ICA variance coefficient to threshold (default 1.5)
-python eta_noise_ablation_refactored.py --filtered_heatmap --constrain_ica_var
+python eta_noise_ablation.py --filtered_heatmap --constrain_ica_var
 
 # Customize axis mode and parameters
-python eta_noise_ablation_refactored.py --filtered_heatmap \
+python eta_noise_ablation.py --filtered_heatmap \
   --heatmap_axis_mode beta_vs_n \
   --ica_var_threshold 2.0 \
   --n_experiments 50
 
 # Run coefficient ablation (varying treatment/outcome coefficients)
-python eta_noise_ablation_refactored.py --coefficient_ablation
+python eta_noise_ablation.py --coefficient_ablation
 
 # Run variance ablation (varying noise variance across beta values)
-python eta_noise_ablation_refactored.py --variance_ablation
+python eta_noise_ablation.py --variance_ablation
 ```
 
 **Common command-line flags:**
@@ -107,7 +96,7 @@ python eta_noise_ablation_refactored.py --variance_ablation
 - `--check_convergence`: Verify ICA convergence (default: True)
 - `--scalar_coeffs`: Use scalar coefficients only (default: True)
 
-**Eta noise ablation flags (`eta_noise_ablation_refactored.py`):**
+**Eta noise ablation flags (`eta_noise_ablation.py`):**
 - `--filtered_heatmap`: Run filtered RMSE heatmap experiments
 - `--constrain_ica_var`: Automatically compute treatment coefficient to achieve target ICA variance coefficient
 - `--ica_var_threshold`: Target ICA variance coefficient threshold (default: 1.5)
@@ -118,19 +107,9 @@ python eta_noise_ablation_refactored.py --variance_ablation
 - `--coefficient_ablation`: Run coefficient ablation experiments
 - `--variance_ablation`: Run variance ablation experiments
 
-### Shell Scripts for Large-Scale Experiments
+### Cluster Experiments
 
-**Single instance parameter sweep:**
-```bash
-./single_instance_parameter_sweep.sh <output_directory>
-```
-Sweeps over sample sizes, dimensions, support sizes, and outcome noise levels.
-
-**Multiple instances with fixed parameters:**
-```bash
-./multi_instance.sh <output_directory>
-```
-Runs 100 seeds for stability analysis.
+Large-scale experiments run via HTCondor. See `cluster/README.md` for setup and submission instructions.
 
 ### Loading and Plotting Existing Results
 
@@ -186,13 +165,13 @@ ica_asymptotic_var = ica_var_coeff * eta_cubed_variance / eta_excess_kurtosis **
 
 ### ICA Variance Coefficient Constraint
 
-The `--constrain_ica_var` flag in `eta_noise_ablation_refactored.py` automatically computes coefficients to achieve a target ICA variance coefficient:
+The `--constrain_ica_var` flag in `eta_noise_ablation.py` automatically computes coefficients to achieve a target ICA variance coefficient:
 
 ```python
-# eta_noise_ablation_refactored.py:compute_ica_var_coeff()
+# eta_noise_ablation.py:compute_ica_var_coeff()
 ica_var_coeff = 1 + (outcome_coef_scalar + treatment_coef_scalar * treatment_effect)²
 
-# eta_noise_ablation_refactored.py:compute_constrained_treatment_coef()
+# eta_noise_ablation.py:compute_constrained_treatment_coef()
 # Solves for treatment_coef_scalar given target ica_var_coeff:
 treatment_coef_scalar = (sqrt(target - 1) - outcome_coef_scalar) / treatment_effect
 ```
@@ -216,8 +195,6 @@ Results are saved in directories structured by experiment parameters:
 ```
 figures/
   n_exp_{n_experiments}_sigma_outcome_{sigma}_pdf_{pdf}/
-    recovered_coefficients/
-    model_errors/
     error_bars/
     gennorm/
       treatment_effect_{value}/

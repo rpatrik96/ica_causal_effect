@@ -16,51 +16,33 @@ from oml_utils import OMLExperimentConfig, OMLParameterGrid
 def plot_method_comparison_both_errors(
     ortho_rec_tau: List,
     treatment_effect: float,
-    output_dir: str,
-    n_samples: int,
-    cov_dim_max: int,
-    n_experiments: int,
-    support_size: int,
-    sigma_outcome: float,
-    covariate_pdf: str,
-    beta: float,
     plot: bool = False,
     verbose: bool = False,
 ) -> Dict[str, tuple]:
-    """Plot method comparison for both absolute and relative errors.
+    """Compute method comparison for both absolute and relative errors.
 
-    This consolidates the two separate calls to plot_method_comparison.
+    Parameters
+    ----------
+    ortho_rec_tau : list
+        Recovered treatment effects.
+    treatment_effect : float
+        True treatment effect.
+    plot : bool, optional
+        Whether to display histograms.
+    verbose : bool, optional
+        Enable verbose output.
 
-    Args:
-        ortho_rec_tau: Recovered treatment effects
-        treatment_effect: True treatment effect
-        output_dir: Output directory
-        n_samples: Number of samples
-        cov_dim_max: Maximum covariate dimension
-        n_experiments: Number of experiments
-        support_size: Support size
-        sigma_outcome: Outcome noise standard deviation
-        covariate_pdf: Covariate PDF type
-        beta: Beta parameter
-        plot: Whether to generate plots
-        verbose: Enable verbose output
-
-    Returns:
-        Dictionary with 'absolute' and 'relative' keys containing (biases, sigmas) tuples
+    Returns
+    -------
+    dict
+        Keys ``'absolute'`` and ``'relative'``, each mapping to
+        ``(biases, sigmas)`` tuples.
     """
     from plot_utils import plot_method_comparison
 
     biases_abs, sigmas_abs = plot_method_comparison(
         ortho_rec_tau,
         treatment_effect,
-        output_dir,
-        n_samples,
-        cov_dim_max,
-        n_experiments,
-        support_size,
-        sigma_outcome,
-        covariate_pdf,
-        beta,
         plot=plot,
         relative_error=False,
         verbose=verbose,
@@ -69,14 +51,6 @@ def plot_method_comparison_both_errors(
     biases_rel, sigmas_rel = plot_method_comparison(
         ortho_rec_tau,
         treatment_effect,
-        output_dir,
-        n_samples,
-        cov_dim_max,
-        n_experiments,
-        support_size,
-        sigma_outcome,
-        covariate_pdf,
-        beta,
         plot=plot,
         relative_error=True,
         verbose=verbose,

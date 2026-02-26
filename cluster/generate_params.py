@@ -2,7 +2,7 @@
 """Generate parameter files for HTCondor sweep experiments.
 
 This script generates parameter combinations for cluster experiments,
-replicating the logic from single_instance_parameter_sweep.sh and multi_instance.sh.
+replicating parameter grids for cluster submission.
 """
 
 import argparse
@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 def generate_single_instance_params(output_file: str = "single_instance_params.txt"):
-    """Generate parameters matching single_instance_parameter_sweep.sh."""
+    """Generate single-instance parameter grid for cluster sweep."""
     n_samples_list = [2000, 5000, 10000]
     n_experiments_list = [2000]
     n_dim_list = [1000, 2000, 5000]
@@ -35,7 +35,7 @@ def generate_single_instance_params(output_file: str = "single_instance_params.t
 
 
 def generate_multi_instance_params(output_file: str = "multi_instance_params.txt", n_seeds: int = 100):
-    """Generate parameters matching multi_instance.sh."""
+    """Generate multi-instance (multi-seed) parameter grid for cluster sweep."""
     n_samples = 5000
     n_experiments = 2000
     n_dim = 1000
@@ -54,7 +54,7 @@ def generate_multi_instance_params(output_file: str = "multi_instance_params.txt
 
 def generate_heatmap_params(output_file: str = "heatmap_params.txt"):
     """Generate parameters for eta ablation heatmap experiments."""
-    # Default parameters from eta_noise_ablation_refactored.py
+    # Default parameters from eta_noise_ablation.py
     sample_sizes = [500, 1000, 2000, 5000, 10000]
     dimensions = [5, 10, 20, 50]
     betas = [0.5, 1.0, 2.0, 3.0, 4.0]

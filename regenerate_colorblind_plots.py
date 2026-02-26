@@ -19,29 +19,15 @@ matplotlib.use("Agg")
 import numpy as np
 
 
-def regenerate_n20_plots():
-    """Regenerate all n20 plots from regenerate_all_n20_plots.py."""
+def regenerate_n20_all_plots():
+    """Regenerate all n20 plots (heatmaps + scatter) via eta_ablation_plotting."""
     print("=" * 60)
-    print("Regenerating n20 plots...")
-    print("=" * 60)
-
-    from regenerate_all_n20_plots import process_n20_files
-
-    process_n20_files()
-
-
-def regenerate_n20_heatmaps():
-    """Regenerate n20 heatmaps from regenerate_n20_heatmaps.py."""
-    print("\n" + "=" * 60)
-    print("Regenerating n20 heatmaps...")
+    print("Regenerating n20 plots (heatmaps + scatter)...")
     print("=" * 60)
 
-    try:
-        from regenerate_n20_heatmaps import main
+    from eta_ablation_plotting import regenerate_n20_plots  # pylint: disable=import-outside-toplevel
 
-        main()
-    except ImportError as e:
-        print(f"  Skipping n20 heatmaps: {e}")
+    regenerate_n20_plots(scatter=True)
 
 
 def regenerate_noise_ablation_plots():
@@ -212,17 +198,11 @@ def main():
     print("Markers: Squares (ICA better) / Circles (OML better)")
     print()
 
-    # Regenerate n20 plots (includes scatter plots with new markers)
+    # Regenerate n20 plots (heatmaps + scatter, consolidated)
     try:
-        regenerate_n20_plots()
+        regenerate_n20_all_plots()
     except ImportError as e:
         print(f"Error regenerating n20 plots: {e}")
-
-    # Regenerate n20 heatmaps
-    try:
-        regenerate_n20_heatmaps()
-    except ImportError as e:
-        print(f"Error regenerating n20 heatmaps: {e}")
 
     # Regenerate noise ablation plots
     try:

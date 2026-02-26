@@ -60,19 +60,19 @@ def main(args=None):
         epilog="""
 Examples:
   # Run default noise distribution ablation
-  python eta_noise_ablation_refactored.py
+  python eta_noise_ablation.py
 
   # Run noise ablation with specific gennorm beta values
-  python eta_noise_ablation_refactored.py --distributions gennorm:0.5 gennorm:1.0 gennorm:2.0
+  python eta_noise_ablation.py --distributions gennorm:0.5 gennorm:1.0 gennorm:2.0
 
   # Run coefficient ablation
-  python eta_noise_ablation_refactored.py --coefficient_ablation
+  python eta_noise_ablation.py --coefficient_ablation
 
   # Run variance ablation (beta vs variance heatmaps)
-  python eta_noise_ablation_refactored.py --variance_ablation
+  python eta_noise_ablation.py --variance_ablation
 
   # Run variance ablation with custom grid
-  python eta_noise_ablation_refactored.py --variance_ablation \
+  python eta_noise_ablation.py --variance_ablation \
     --variance_beta_values 0.5 1.0 1.5 2.5 3.0 --variance_values 0.5 1.0 2.0 4.0
         """,
     )

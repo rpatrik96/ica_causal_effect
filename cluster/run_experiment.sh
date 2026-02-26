@@ -2,13 +2,13 @@
 # Usage: run_experiment.sh <experiment_type> [experiment_args...]
 # Wrapper script for running double_orthogonal_ml experiments on HTCondor cluster.
 # Available experiment types: single_instance, single_instance_seed, eta_filtered_heatmap,
-#   eta_variance_ablation, eta_coefficient_ablation, eta_default, ica, gaussian_eta
+#   eta_variance_ablation, eta_coefficient_ablation, eta_default, ica
 set -euo pipefail
 
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <experiment_type> [experiment_args...]" >&2
     echo "Available types: single_instance, single_instance_seed, eta_filtered_heatmap," >&2
-    echo "  eta_variance_ablation, eta_coefficient_ablation, eta_default, ica, gaussian_eta" >&2
+    echo "  eta_variance_ablation, eta_coefficient_ablation, eta_default, ica" >&2
     exit 1
 fi
 
@@ -67,35 +67,30 @@ case "${EXPERIMENT_TYPE}" in
     "eta_filtered_heatmap")
         # Eta noise ablation - filtered heatmap experiments
         # Example args: --n_experiments 20 [--no_oracle_support]
-        python eta_noise_ablation_refactored.py --filtered_heatmap --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
+        python eta_noise_ablation.py --filtered_heatmap --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
         ;;
 
     "eta_variance_ablation")
         # Eta noise ablation - variance ablation experiments
         # Example args: --n_experiments 20 [--no_oracle_support]
-        python eta_noise_ablation_refactored.py --variance_ablation --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
+        python eta_noise_ablation.py --variance_ablation --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
         ;;
 
     "eta_coefficient_ablation")
         # Eta noise ablation - coefficient ablation experiments
         # Example args: --n_experiments 20 [--no_oracle_support]
-        python eta_noise_ablation_refactored.py --coefficient_ablation --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
+        python eta_noise_ablation.py --coefficient_ablation --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
         ;;
 
     "eta_default")
         # Eta noise ablation - default mode (no specific ablation flag)
         # Example args: --n_experiments 20 [--no_oracle_support]
-        python eta_noise_ablation_refactored.py --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
+        python eta_noise_ablation.py --output_dir "${OUTPUT_DIR}" ${EXPERIMENT_ARGS}
         ;;
 
     "ica")
         # ICA-specific experiments
         python ica.py ${EXPERIMENT_ARGS}
-        ;;
-
-    "gaussian_eta")
-        # Gaussian eta experiment (Option B: eps non-Gaussian, eta Gaussian)
-        python -u gaussian_eta_experiment.py --output_dir "${OUTPUT_DIR}/gaussian_eta" ${EXPERIMENT_ARGS}
         ;;
 
     *)
@@ -108,7 +103,6 @@ case "${EXPERIMENT_TYPE}" in
         echo "  eta_coefficient_ablation - Eta ablation: coefficient ablation"
         echo "  eta_default             - Eta ablation: default mode"
         echo "  ica                     - ICA experiments"
-        echo "  gaussian_eta            - Gaussian eta experiment (Option B)"
         exit 1
         ;;
 esac
