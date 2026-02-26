@@ -538,24 +538,58 @@ def main_multi():
         center=0,
     )
 
-    # Create heatmap data for ICA error only
-    heatmap_data_ica_dim = np.array(
-        [[treatment_effect_ica_dim.get((s, d), np.nan) for d in dimensions] for s in sample_sizes]
-    )
+    # Create heatmap data for ICA error std (m=2 only)
     heatmap_data_ica_dim_std = np.array(
         [[treatment_effect_ica_dim_std.get((s, d), np.nan) for d in dimensions] for s in sample_sizes]
     )
 
-    plot_heatmap(
-        heatmap_data_ica_dim,
-        dimensions,
-        sample_sizes,
-        r"Covariate dimension $d$",
-        r"Sample size $n$",
-        "ICA Rel. Error Mean (Number of Treatments = 2)",
-        "heatmap_ica_multi_dimensions_vs_samples_rel.svg",
-        center=None,
+    # Multi-panel heatmap: ICA relative error, dimensions vs samples, for each treatment count
+    num_treatments_list = sorted(set(results_dict["n_treatments"]))
+    heatmap_panels = {}
+    for n_treatment in num_treatments_list:
+        panel_data = {}
+        for n_samples_val in set(results_dict["sample_sizes"]):
+            for dimension in set(results_dict["n_covariates"]):
+                indices = filter_indices(results_dict, n_samples_val, n_treatment, dimension)
+                if indices:
+                    est_ica = [results_dict["treatment_effects"][i] for i in indices]
+                    true_p = [results_dict["true_params"][i].numpy() for i in indices]
+                    ica_err = calculate_mse(true_p, est_ica, relative_error=True)
+                    panel_data[(n_samples_val, dimension)] = np.nanmean(ica_err)
+        heatmap_panels[n_treatment] = np.array(
+            [[panel_data.get((s, d), np.nan) for d in dimensions] for s in sample_sizes]
+        )
+
+    # Shared robust colorscale (2nd-98th percentile) for comparability across panels
+    all_vals = np.concatenate([p.ravel() for p in heatmap_panels.values()])
+    all_vals = all_vals[~np.isnan(all_vals)]
+    vmin_robust = np.percentile(all_vals, 2)
+    vmax_robust = np.percentile(all_vals, 98)
+    center_robust = np.median(all_vals)
+
+    _, axes = plt.subplots(
+        1, len(num_treatments_list), figsize=(6 * len(num_treatments_list), 8), constrained_layout=True
     )
+    if len(num_treatments_list) == 1:
+        axes = [axes]
+    for ax, n_treatment in zip(axes, num_treatments_list):
+        sns.heatmap(
+            heatmap_panels[n_treatment],
+            xticklabels=dimensions,
+            yticklabels=sample_sizes,
+            cmap="coolwarm",
+            annot=True,
+            fmt=".2f",
+            annot_kws={"size": 10},
+            center=center_robust,
+            vmin=vmin_robust,
+            vmax=vmax_robust,
+            ax=ax,
+        )
+        ax.set_xlabel(r"Covariate dimension $d$")
+        ax.set_ylabel(r"Sample size $n$")
+        ax.set_title(rf"$m = {n_treatment}$")
+    save_figure("heatmap_ica_multi_dimensions_vs_samples_rel.svg")
     plot_heatmap(
         heatmap_data_ica_dim_std,
         dimensions,
