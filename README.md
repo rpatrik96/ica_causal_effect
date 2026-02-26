@@ -1,10 +1,16 @@
-# Introduction
+# Independent Component Analysis for Treatment Effect Estimation
 
 [![CI](https://github.com/rpatrik96/ica_causal_effect/actions/workflows/ci.yml/badge.svg)](https://github.com/rpatrik96/ica_causal_effect/actions/workflows/ci.yml)
 [![Pre-commit](https://github.com/rpatrik96/ica_causal_effect/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/rpatrik96/ica_causal_effect/actions/workflows/pre-commit.yml)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-This repository contains code related to the paper: [Independent Component Analysis for Treatment Effect Estimation](https://arxiv.org/abs/2507.16467).
+This repository contains the code for the paper: [Independent Component Analysis for Treatment Effect Estimation](https://arxiv.org/abs/2507.16467).
+
+## Abstract
+
+Independent Component Analysis (ICA) uses a measure of non-Gaussianity to identify latent sources from data and estimate their mixing coefficients. Meanwhile, higher-order Orthogonal Machine Learning (OML) exploits non-Gaussian treatment noise to provide more accurate estimates of treatment effects in the presence of confounding nuisance effects. Remarkably, we find that the two approaches rely on the same moment conditions for consistent estimation. We then seize upon this connection to show how ICA can be effectively used for treatment effect estimation. Specifically, we prove that linear ICA can consistently estimate multiple treatment effects, even in the presence of Gaussian confounders, and identify regimes in which ICA is provably more sample-efficient than OML for treatment effect estimation. Our synthetic demand estimation experiments confirm this theory and demonstrate that linear ICA can accurately estimate treatment effects even in the presence of nonlinear nuisance.
+
+**Figure 1** (see [paper](https://arxiv.org/abs/2507.16467)): Overview of treatment effect estimation in the partially linear regression (PLR) model. **(Left)** The linear PLR model, where covariates *X* affect both treatment *T* and outcome *Y*; the quantity of interest is the treatment effect *&theta;*. **(Center)** OML estimates *&theta;* in three steps: (1) regressing *T* onto *X* to get the treatment residual, (2) regressing *Y* onto *X* to get the outcome residual, and (3) regressing outcome residual onto treatment residual. **(Right)** ICA inverts the PLR model by maximizing non-Gaussianity of the sources, yielding *&theta;* as a coefficient in the unmixing matrix *W*.
 
 ## Installation
 
