@@ -31,6 +31,43 @@ def generate_ica_data(
     split_eta_eps=False,
     beta_eta=None,
 ):
+    """Generate synthetic data from a partially linear model for ICA-based estimation.
+
+    The data-generating process follows X = f(S) where S are independent sources
+    drawn from a generalized normal distribution, and f encodes the structural
+    equations: covariates are independent, treatments depend on covariates via a
+    sparse coefficient matrix A through a nonlinearity, and the outcome depends
+    on both covariates and treatments.
+
+    Args:
+        n_covariates: Number of covariate dimensions.
+        n_treatments: Number of treatment variables.
+        batch_size: Number of samples to generate.
+        slope: Negative slope for leaky_relu nonlinearity.
+        sparse_prob: Probability of non-zero entries in the covariate-to-treatment
+            coefficient matrix A.
+        beta: Shape parameter of the generalized normal distribution (beta=1 is
+            Laplace, beta=2 is Gaussian).
+        loc: Location parameter of the generalized normal distribution.
+        scale: Scale parameter of the generalized normal distribution.
+        nonlinearity: Activation function applied to covariates before mixing.
+            One of "leaky_relu", "relu", "sigmoid", "tanh".
+        theta_choice: How to generate treatment effects theta. One of "fixed"
+            (deterministic vector), "uniform", or "gaussian".
+        split_noise_dist: If True, covariates are drawn from N(0,1) while
+            treatment and outcome noise share the gennorm(beta) distribution.
+        split_eta_eps: If True, decouple eta (treatment noise) and eps (outcome
+            noise) distributions: X ~ N(0,1), eta ~ gennorm(beta_eta), eps ~
+            gennorm(beta).
+        beta_eta: Shape parameter for the treatment noise distribution when
+            split_eta_eps is True. Defaults to 2.0 (Gaussian).
+
+    Returns:
+        S: Source matrix of shape (batch_size, n_covariates + n_treatments + 1).
+        X: Observed data matrix of shape (batch_size, n_covariates + n_treatments + 1),
+            ordered as [covariates, treatments, outcome].
+        theta: True treatment effect vector of shape (n_treatments,).
+    """
     # Create sparse matrix of shape (n_treatments x n_covariates)
     binary_mask = torch.bernoulli(torch.ones(n_treatments, n_covariates) * sparse_prob)
     random_coeffs = torch.randn(n_treatments, n_covariates)
@@ -105,6 +142,28 @@ def generate_ica_data(
 def ica_treatment_effect_estimation(
     X, S, random_state=0, whiten="unit-variance", check_convergence=True, n_treatments=1, verbose=True, fun="logcosh"
 ):
+    """Estimate treatment effects via FastICA with Munkres permutation matching.
+
+    Fits FastICA to the observed data X, resolves the permutation ambiguity by
+    matching recovered sources to ground-truth sources S using the Hungarian
+    algorithm, then extracts treatment effects from the normalized mixing matrix.
+
+    Args:
+        X: Observed data matrix of shape (n_samples, n_variables).
+        S: Ground-truth source matrix of shape (n_samples, n_variables), used
+            for permutation resolution via MCC.
+        random_state: Base random seed (incremented on convergence retries).
+        whiten: Whitening strategy for FastICA.
+        check_convergence: If True, return NaN when FastICA fails to converge.
+        n_treatments: Number of treatment variables.
+        verbose: Print convergence information.
+        fun: Contrast function for FastICA ("logcosh", "exp", or "cube").
+
+    Returns:
+        treatment_effect_estimate: Estimated theta of shape (n_treatments,),
+            or NaN array if convergence fails.
+        mcc: Permutation disentanglement score, or None on failure.
+    """
     from warnings import catch_warnings  # pylint: disable=import-outside-toplevel
 
     tol = 1e-4  # Initial tolerance
@@ -306,6 +365,11 @@ def directlingam_treatment_effect_estimation(X, n_treatments=1, random_state=0, 
 
 
 def main_multi():
+    """Run multi-treatment ICA experiment.
+
+    Produces heatmaps of relative error across sample sizes, dimensions,
+    and treatment counts.
+    """
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
 
@@ -361,7 +425,7 @@ def main_multi():
                     data = {
                         "Y": Y,
                         **{f"T{k}": T[:, k] for k in range(T.shape[1])},
-                        **{f"X{l}": X_cov[:, l] for l in range(X_cov.shape[1])},
+                        **{f"X{j}": X_cov[:, j] for j in range(X_cov.shape[1])},
                     }
 
                     T_names = [f"T{k}" for k in range(T.shape[1])]
@@ -372,7 +436,7 @@ def main_multi():
                         "Y ~ 1 + "
                         + " + ".join([f"T{k}" for k in range(T.shape[1])])
                         + " + "
-                        + " + ".join([f"X{l}" for l in range(X_cov.shape[1])])
+                        + " + ".join([f"X{j}" for j in range(X_cov.shape[1])])
                     )
 
                     for seed in range(n_seeds):
@@ -619,6 +683,7 @@ def main_multi():
 
 
 def main_nonlinear():
+    """Run nonlinearity ablation: heatmaps of MSE across covariate dimensions and activation functions/slopes."""
     # import matplotlib.pyplot as plt
     # import numpy as np
 
@@ -831,6 +896,7 @@ def main_nonlinear():
 
 
 def main_fun():
+    """Run FastICA contrast function ablation: compare logcosh, exp, and cube objectives."""
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
 
@@ -921,19 +987,23 @@ def main_fun():
 
 
 def setup_plot():
+    """Configure matplotlib with ICML 2022 style and custom typography."""
     plt.rcParams.update(bundles.icml2022(usetex=True))
     plot_typography()
 
 
 def initialize_results_dict(keys):
+    """Create an empty results dictionary with the given keys mapped to empty lists."""
     return {key: [] for key in keys}
 
 
 def save_results(filename, results_dict):
+    """Persist results dictionary to a .npy file."""
     np.save(filename, results_dict)
 
 
 def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, _x_ticks=None):
+    """Plot error bars with log-scale y-axis and save to figures/ica/."""
     plt.figure(figsize=(10, 6))
     bar_positions = np.arange(len(x_values))
     plt.errorbar(bar_positions, means, yerr=std_devs, fmt="o", capsize=5)
@@ -947,6 +1017,7 @@ def plot_error_bars(x_values, means, std_devs, xlabel, ylabel, filename, _x_tick
 
 
 def plot_heatmap(data_matrix, x_labels, y_labels, xlabel, ylabel, filename):
+    """Plot an annotated seaborn heatmap with coolwarm colormap and save to figures/ica/."""
     plt.figure(figsize=(12, 9))
     sns.heatmap(
         data_matrix,
@@ -1310,8 +1381,8 @@ def main_loc_scale():
         for j, scale in enumerate(scale_values):
             indices = [
                 idx
-                for idx, (l, s) in enumerate(zip(results_dict["loc"], results_dict["scale"]))
-                if l == loc and s == scale
+                for idx, (loc_val, s) in enumerate(zip(results_dict["loc"], results_dict["scale"]))
+                if loc_val == loc and s == scale
             ]
             if indices:
                 mse_values = [
@@ -2106,7 +2177,7 @@ def main_n_treatments_comparison():
 
 
 def save_figure(filename):
-
+    """Save the current matplotlib figure to figures/ica/ at 300 DPI and close it."""
     # Ensure the directory exists
     figures_dir = "figures/ica"
     os.makedirs(figures_dir, exist_ok=True)
