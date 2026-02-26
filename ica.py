@@ -588,6 +588,24 @@ def main_multi():
         ax.set_ylabel(r"Sample size $n$")
         ax.set_title(rf"$m = {n_treatment}$")
     save_figure("heatmap_ica_multi_dimensions_vs_samples_rel.svg")
+
+    # Single-panel heatmap for m=2 (main text version)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(
+        heatmap_panels[2],
+        xticklabels=dimensions,
+        yticklabels=sample_sizes,
+        cmap="coolwarm",
+        annot=True,
+        fmt=".2f",
+        annot_kws={"size": 10},
+        vmin=vmin_robust,
+        vmax=vmax_robust,
+    )
+    plt.xlabel(r"Covariate dimension $d$")
+    plt.ylabel(r"Sample size $n$")
+    save_figure("heatmap_ica_multi_dimensions_vs_samples_rel_m2.svg")
+
     plot_heatmap(
         heatmap_data_ica_dim_std,
         dimensions,

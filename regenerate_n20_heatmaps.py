@@ -215,8 +215,9 @@ def plot_diff_heatmap_fixed(
         "Std Diff",
     )
 
-    # Create combined heatmap
-    fig, axes = plt.subplots(1, 3, figsize=(20, 10))
+    # Create combined heatmap with increased spacing to prevent overlap
+    with plt.rc_context({"figure.constrained_layout.use": False}):
+        fig, axes = plt.subplots(1, 3, figsize=(26, 7), gridspec_kw={"wspace": 0.6})
 
     metrics_data = [
         (rmse_diff_heatmap, "RMSE Diff", "RMSE Diff"),
@@ -237,27 +238,25 @@ def plot_diff_heatmap_fixed(
             vmax=vmax,
         )
 
-        # Add value annotations to each cell
-        for i in range(n_outcome_bins):
-            for j in range(n_dists):
-                if not np.isnan(data[i, j]):
-                    text_color = "white" if abs(data[i, j]) > vmax * 0.5 else "black"
-                    ax.text(j, i, f"{data[i, j]:.2f}", ha="center", va="center", color=text_color, fontsize=10)
-
         ax.set_xticks(np.arange(n_dists))
-        x_labels = [f"{dist_data[d]['label']}\n(κ={dist_data[d]['kurtosis']:.2f})" for d in sorted_dists]
-        ax.set_xticklabels(x_labels, rotation=45, ha="right")
+        x_labels = [f"{dist_data[d]['label']}\n(\u03ba={dist_data[d]['kurtosis']:.1f})" for d in sorted_dists]
+        ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=6)
+        ax.set_yticks(np.arange(0, n_outcome_bins, 2))
+        ax.set_yticklabels(
+            [f"{outcome_centers[i]:.2f}" for i in range(0, n_outcome_bins, 2)],
+            fontsize=7,
+        )
+        ax.set_xlabel("Distribution", fontsize=8)
+        ax.set_ylabel(r"Outcome Coeff $b$", fontsize=8)
+        ax.set_title(title, fontsize=9)
 
-        ax.set_yticks(np.arange(n_outcome_bins))
-        ax.set_yticklabels([f"{oc:.2f}" for oc in outcome_centers])
+        cbar = fig.colorbar(im, ax=ax, shrink=0.8, pad=0.08, label=cbar_label)
+        cbar.ax.tick_params(labelsize=6)
 
-        ax.set_xlabel("Distribution")
-        ax.set_ylabel(r"Outcome Coeff $b$")
-        ax.set_title(title)
-
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.15)
-        fig.colorbar(im, cax=cax, label=cbar_label)
+    fig.suptitle(
+        "ICA - OML Differences vs Distribution and Outcome Coef\n(Blue = ICA better, Red = OML better)",
+        fontsize=10,
+    )
     plt.savefig(os.path.join(output_dir, f"heatmap_combined{suffix}.svg"), dpi=300, bbox_inches="tight")
     plt.close()
     print(f"  Saved heatmap_combined{suffix}.svg")
@@ -320,9 +319,8 @@ def process_n20_files():
 
         print(f"  Parameters: tc={treatment_coef_range}, oc={outcome_coef_range}, te={treatment_effect_range}")
         print(f"  Number of configs: {n_configs}")
-        print(
-            f"  Distributions: {[k for k in results if k not in ['treatment_coef_range', 'outcome_coef_range', 'treatment_effect_range']]}"
-        )
+        skip_keys = {"treatment_coef_range", "outcome_coef_range", "treatment_effect_range"}
+        print(f"  Distributions: {[k for k in results if k not in skip_keys]}")
 
         # Regenerate heatmaps
         plot_diff_heatmap_fixed(
