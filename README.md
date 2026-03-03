@@ -5,7 +5,7 @@
 [![Pre-commit](https://github.com/rpatrik96/ica_causal_effect/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/rpatrik96/ica_causal_effect/actions/workflows/pre-commit.yml)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-This repository contains the code for the paper: [Independent Component Analysis for Treatment Effect Estimation](https://arxiv.org/abs/2507.16467).
+Code for the paper: [Estimating Treatment Effects with Independent Component Analysis](https://arxiv.org/abs/2507.16467).
 
 ## Abstract
 
@@ -19,25 +19,11 @@ Independent Component Analysis (ICA) uses a measure of non-Gaussianity to identi
 
 ## Installation
 
-### Requirements
-
-Install the required dependencies:
-
 ```bash
 pip install -r requirements.txt
-```
 
-For development (testing, linting, formatting):
-
-```bash
+# Development (testing, linting, formatting)
 pip install -r requirements-dev.txt
-```
-
-### Pre-commit Hooks
-
-Install pre-commit hooks for automated code quality checks:
-
-```bash
 pre-commit install
 ```
 
@@ -45,140 +31,78 @@ pre-commit install
 
 ### Core Modules
 
-* `main_estimation.py`: Implements second-order orthogonal methods and benchmark first-order orthogonal estimation methods for the partially linear model.
-
-* `ica.py`: Contains functions for generating Independent Component Analysis (ICA) data, estimating treatment effects using ICA, and various main functions for running different ICA-related experiments.
-
-* `mcc.py`: Implements the Munkres algorithm (also known as the Hungarian algorithm) for solving the assignment problem and includes functions for calculating disentanglement metrics such as R2 and MCC.
+* `main_estimation.py`: Second-order orthogonal methods and first-order orthogonal benchmarks for the partially linear model.
+* `ica.py`: ICA data generation, treatment effect estimation, and experiment entry points.
+* `mcc.py`: Munkres (Hungarian) algorithm for solving the assignment problem and disentanglement metrics (R², MCC).
 
 ### Experiment Runners
 
-* `monte_carlo_single_instance.py`: Generates data from the partially linear model DGP, executes second-order orthogonal methods and benchmarks, and saves results.
-
+* `monte_carlo_single_instance.py`: Data generation from the partially linear model DGP, estimation, and result storage.
 * `oml_runner.py`: Runner for orthogonal machine learning experiments.
+* `eta_noise_ablation.py`: Ablation studies (filtered heatmaps, coefficient/variance ablation, ICA variance coefficient constraint).
 
-* `eta_noise_ablation.py`: CLI entry point for ablation studies. Supports:
-  - **Filtered heatmap experiments**: Compare HOML vs ICA RMSE across sample sizes and dimensions/beta values
-  - **ICA variance coefficient constraint**: Automatically compute coefficients to achieve a target ICA variance coefficient
-  - **Coefficient ablation**: Vary treatment/outcome coefficients to study their effect on estimation error
-  - **Variance ablation**: Study how noise variance affects estimation across different distributions
+### Utilities and Plotting
 
-### Utilities
-
-* `plot_utils.py`: Provides utility functions for plotting, including typography settings, estimate histograms, method comparisons, and multi-treatment plots.
-
-* `ica_utils.py`: Utility functions for ICA experiments.
-
-* `oml_utils.py`: Utility functions for OML experiments.
-
-* `oml_plotting.py`: Plotting functions for OML experiments.
-
-* `ablation_utils.py`: Shared utilities for ablation studies.
-
-### Plotting Scripts
-
-* `regenerate_ica_heatmaps.py`: Regenerate ICA-specific heatmap plots from cached results.
-
-* `regenerate_colorblind_plots.py`: Batch regenerate all plots with updated color scheme.
+* `plot_utils.py`, `oml_plotting.py`: Plotting and typography utilities.
+* `ica_utils.py`, `oml_utils.py`, `ablation_utils.py`: Shared experiment utilities.
+* `regenerate_ica_heatmaps.py`, `regenerate_colorblind_plots.py`: Batch figure regeneration scripts.
 
 ### Cluster Scripts
 
-Large-scale experiments run via HTCondor. See `cluster/README.md` for setup, submission files, and monitoring.
+Large-scale experiments run via HTCondor. See [`cluster/README.md`](cluster/README.md) for details.
 
-## Testing
+## Running Experiments
 
-Run all tests:
+### Main Estimation
 
 ```bash
-pytest
+python monte_carlo_single_instance.py \
+  --n_samples 500 \
+  --n_experiments 20 \
+  --sigma_outcome 1.732 \
+  --covariate_pdf gennorm \
+  --output_dir ./figures
 ```
 
-Run with verbose output:
+### Ablation Studies
 
 ```bash
-pytest -v
-```
-
-Run with coverage:
-
-```bash
-pytest --cov=. --cov-report=html
-```
-
-See [TESTING.md](TESTING.md) for detailed testing documentation.
-
-## Code Quality
-
-Format code:
-
-```bash
-black .
-```
-
-Sort imports:
-
-```bash
-isort .
-```
-
-Run linting:
-
-```bash
-pylint *.py
-flake8 .
-```
-
-Run all pre-commit hooks:
-
-```bash
-pre-commit run --all-files
-```
-
-## CI/CD
-
-The repository uses GitHub Actions for continuous integration:
-
-- **CI Workflow**: Runs tests on Python 3.8-3.11, code quality checks, and coverage reporting
-- **Pre-commit Workflow**: Validates code formatting and linting
-- **Quick Test Workflow**: Fast feedback on any branch
-
-See [CI_CD.md](CI_CD.md) for detailed CI/CD documentation.
-
-## Running Ablation Experiments
-
-### Eta Noise Ablation
-
-Run filtered heatmap experiments comparing HOML vs ICA across sample sizes and dimensions:
-
-```bash
-# Basic filtered heatmap (dimension vs sample size)
+# Filtered heatmap: HOML vs ICA RMSE across sample sizes and dimensions
 python eta_noise_ablation.py --filtered_heatmap
 
-# With ICA variance coefficient constraint (automatically computes coefficients)
+# With ICA variance coefficient constraint
 python eta_noise_ablation.py --filtered_heatmap --constrain_ica_var
 
-# Beta vs sample size mode with custom parameters
-python eta_noise_ablation.py --filtered_heatmap \
-  --heatmap_axis_mode beta_vs_n \
-  --ica_var_threshold 2.0 \
-  --n_experiments 50
-```
+# Beta vs sample size mode
+python eta_noise_ablation.py --filtered_heatmap --heatmap_axis_mode beta_vs_n
 
-Run coefficient and variance ablation studies:
-
-```bash
-# Coefficient ablation (varying treatment/outcome coefficients)
+# Coefficient / variance ablation
 python eta_noise_ablation.py --coefficient_ablation
-
-# Variance ablation (noise variance across beta values)
 python eta_noise_ablation.py --variance_ablation
 ```
 
-Key flags:
-- `--constrain_ica_var`: Automatically compute treatment coefficient to achieve `ica_var_coeff = ica_var_threshold`
-- `--ica_var_threshold`: Target ICA variance coefficient (default: 1.5)
-- `--heatmap_axis_mode`: Choose "d_vs_n" (dimension vs sample size) or "beta_vs_n" (beta vs sample size)
+## Testing
 
-## Re-creating the Figures in the Paper
+```bash
+pytest                              # run all tests
+pytest -v                           # verbose
+pytest --cov=. --cov-report=html    # with coverage
+```
 
-To recreate the figures in the paper, execute the following scripts:
+See [TESTING.md](TESTING.md) for details. CI runs via GitHub Actions on Python 3.8–3.11 (see [CI_CD.md](CI_CD.md)).
+
+## Cite us
+
+If you use this code in your research, please cite our paper:
+
+```bibtex
+@misc{reizinger2026estimatingtreatmenteffectsindependent,
+      title={Estimating Treatment Effects with Independent Component Analysis},
+      author={Patrik Reizinger and Lester Mackey and Wieland Brendel and Rahul Krishnan},
+      year={2026},
+      eprint={2507.16467},
+      archivePrefix={arXiv},
+      primaryClass={stat.ML},
+      url={https://arxiv.org/abs/2507.16467},
+}
+```
