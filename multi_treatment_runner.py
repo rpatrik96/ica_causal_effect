@@ -6,9 +6,8 @@ dictionary in the schema consumed by
 ``regenerate_ica_heatmaps.regenerate_main_multi``.
 
 The producer was missing from the repository (the consumer
-``regenerate_main_multi`` already exists). This module is the rebuttal-time
-replacement that *also* injects the new OLS and per-coordinate Higher-Order
-OML baselines required by the NbV6-C2 commitment.
+``regenerate_main_multi`` already exists). This module fills that gap and
+*also* injects the OLS and per-coordinate Higher-Order OML baselines.
 
 Output schema (all keys are flat, parallel lists indexed by a single
 configuration counter; this matches the existing consumer)::
@@ -61,8 +60,8 @@ from baselines import ols_baseline
 from ica import generate_ica_data, ica_treatment_effect_estimation, ica_treatment_effect_estimation_eps_row
 from main_estimation import all_together_cross_fitting
 
-# Mapping from rebuttal-level "eta_distribution" string to the gennorm beta
-# expected by ica.generate_ica_data. The repo treats "discrete" as a
+# Mapping from "eta_distribution" string to the gennorm beta expected
+# by ica.generate_ica_data. The repo treats "discrete" as a
 # light-tailed light-kurtosis source (mirroring oml_runner.gennorm_light),
 # i.e. beta=4. "laplace" uses beta=1, "gauss" uses beta=2.
 ETA_DISTRIBUTION_TO_GENNORM_BETA = {
@@ -97,9 +96,8 @@ def _per_coordinate_homl(
     treatment effect. For ``m >= 2`` we run it ``m`` times, treating each
     column ``j`` of the treatment matrix as the active scalar treatment and
     the remaining ``m - 1`` columns as additional nuisance covariates. This
-    matches the per-coordinate strategy described in Mackey et al. (2018) and
-    is the strategy mandated by Risk R8 of the rebuttal plan: do **not**
-    invent a vector OML.
+    matches the per-coordinate strategy described in Mackey et al. (2018):
+    do **not** invent a vector OML.
 
     Parameters
     ----------
@@ -275,10 +273,9 @@ def run_multi_treatment_experiment(
         Monte Carlo replicates per configuration.
     nonlinearity : str
         Activation passed to :func:`ica.generate_ica_data`. ``"identity"``
-        encodes the linear PLR setting required by the rebuttal commitment.
-        ``ica.generate_ica_data`` does not currently accept ``"identity"``,
-        so we map it to ``"leaky_relu"`` with ``slope=1.0`` (which equals
-        the identity).
+        encodes the linear PLR setting. ``ica.generate_ica_data`` does not
+        currently accept ``"identity"``, so we map it to ``"leaky_relu"``
+        with ``slope=1.0`` (which equals the identity).
     eta_distribution : str
         Treatment-noise family. Translated to a gennorm shape ``beta`` via
         :data:`ETA_DISTRIBUTION_TO_GENNORM_BETA`. ``"discrete"`` → ``beta=4``

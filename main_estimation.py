@@ -188,9 +188,8 @@ def all_together_cross_fitting(
 
     Note:
         ``baselines.ols_baseline`` and ``baselines.matching_baseline`` are
-        the parallel non-OML baselines added in the rebuttal package; they
-        live in ``baselines.py`` rather than here because they do not share
-        the LassoCV/cross-fitting nuisance machinery.
+        parallel non-OML baselines living in ``baselines.py``; they do not
+        share the LassoCV/cross-fitting nuisance machinery used here.
     """
     residual_treatment = np.zeros(covariates.shape[0])
     residual_outcome = np.zeros(covariates.shape[0])

@@ -29,8 +29,8 @@ HOML_IDX = 1  # Robust Ortho ML (Higher-Order ML)
 ROBUST_ORTHO_EST_IDX = 2
 ROBUST_ORTHO_SPLIT_IDX = 3
 ICA_IDX = 4
-OLS_IDX = 5  # NEW (rebuttal)
-MATCHING_IDX = 6  # NEW (rebuttal)
+OLS_IDX = 5
+MATCHING_IDX = 6
 
 # Method names for display
 METHOD_NAMES = ["Ortho ML", "OML", "Robust Ortho Est", "Robust Ortho Split", "ICA", "OLS", "Matching"]
@@ -450,7 +450,7 @@ def run_single_experiment(
         print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
 
     # ---------------------------------------------------------------
-    # OLS and matching baselines (rebuttal additions)
+    # OLS and matching baselines
     # ---------------------------------------------------------------
     # Determine the treatment dimensionality m so that we can return NaN
     # arrays of the right shape under disable_baselines=True.  Treatment is
@@ -556,8 +556,8 @@ def run_parallel_experiments(
 
     Notes
     -----
-    Each tuple now has 10 elements (was 8) following the rebuttal addition
-    of OLS and matching baselines.  ``ica_mcc`` lives at index ``-3``;
+    Each tuple has 10 elements: the original 8 estimator outputs plus the
+    OLS and matching baseline estimates.  ``ica_mcc`` lives at index ``-3``;
     ``ols_estimate`` at ``-2``; ``matching_estimate`` at ``-1``.
     """
     results = [

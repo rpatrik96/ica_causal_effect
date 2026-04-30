@@ -77,7 +77,7 @@ def experiment(
 
     Returns:
         Tuple of estimation results from all methods plus OLS and matching
-        baselines (rebuttal additions) at the end of the tuple:
+        baselines at the end of the tuple:
         ``(ortho_ml, homl, roe, ros, treatment_coef, outcome_coef,
         ica_estimate, ica_mcc, ols_estimate, matching_estimate)``.
     """
@@ -115,10 +115,9 @@ def experiment(
     if verbose:
         print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
 
-    # Rebuttal additions: OLS and matching baselines.  Treatment is
-    # univariate here (np.dot of x[:, support] with a 1-D coef array), so m=1
-    # and matching returns a length-1 array.  We coerce shapes via the
-    # baselines API directly.
+    # OLS and matching baselines.  Treatment is univariate here
+    # (np.dot of x[:, support] with a 1-D coef array), so m=1 and matching
+    # returns a length-1 array.  We coerce shapes via the baselines API.
     treatment_2d = np.atleast_2d(np.asarray(treatment).T).T  # (n, m)
     m = treatment_2d.shape[1]
 

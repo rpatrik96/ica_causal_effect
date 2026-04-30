@@ -9,7 +9,7 @@ if [ $# -lt 1 ]; then
     echo "Usage: $0 <experiment_type> [experiment_args...]" >&2
     echo "Available types: single_instance, single_instance_seed, eta_filtered_heatmap," >&2
     echo "  eta_variance_ablation, eta_coefficient_ablation, eta_default, ica," >&2
-    echo "  bernoulli_experiment, semi_synthetic, multi_treatment_with_baselines" >&2
+    echo "  bernoulli_experiment, multi_treatment_with_baselines" >&2
     exit 1
 fi
 
@@ -95,23 +95,15 @@ case "${EXPERIMENT_TYPE}" in
         ;;
 
     "bernoulli_experiment")
-        # Bernoulli treatment-noise ablation (rebuttal NbV6-W1/C6).
+        # Bernoulli treatment-noise ablation.
         # Defaults to --bernoulli_only mode with rademacher cross-check baseline.
         # Example args: --n_samples 5000 --n_experiments 20 --bernoulli_ps 0.3 0.5 0.7
         python -u eta_noise_ablation.py --bernoulli_only \
           --output_dir "${OUTPUT_DIR}/bernoulli" ${EXPERIMENT_ARGS}
         ;;
 
-    "semi_synthetic")
-        # Semi-synthetic experiment: real X (California Housing) + PLR-imposed theta.
-        # (rebuttal NbV6-C3 / iuAn-W3).
-        # Example args: --n_experiments 20 --eta_distribution discrete --nonlinearity identity
-        python -u semi_synthetic_experiment.py \
-          --output_dir "${OUTPUT_DIR}/semi_synthetic" ${EXPERIMENT_ARGS}
-        ;;
-
     "multi_treatment_with_baselines")
-        # Multi-treatment Fig 4 + OLS/HOML baselines (rebuttal NbV6-C2).
+        # Multi-treatment Fig 4 with OLS / HOML baselines.
         # Example args: --n_experiments 20 --sample_sizes 500 1000 2000 5000 10000
         python -u multi_treatment_runner.py \
           --output_dir "${OUTPUT_DIR}/multi_treatment" \
@@ -128,9 +120,8 @@ case "${EXPERIMENT_TYPE}" in
         echo "  eta_coefficient_ablation        - Eta ablation: coefficient ablation"
         echo "  eta_default                     - Eta ablation: default mode"
         echo "  ica                             - ICA experiments"
-        echo "  bernoulli_experiment            - Bernoulli noise ablation (rebuttal)"
-        echo "  semi_synthetic                  - Real-X PLR experiment (rebuttal)"
-        echo "  multi_treatment_with_baselines  - Fig 4 with OLS+HOML (rebuttal)"
+        echo "  bernoulli_experiment            - Bernoulli noise ablation"
+        echo "  multi_treatment_with_baselines  - Fig 4 with OLS+HOML baselines"
         exit 1
         ;;
 esac
