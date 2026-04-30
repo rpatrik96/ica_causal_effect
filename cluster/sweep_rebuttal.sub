@@ -14,6 +14,11 @@ executable = run_experiment.sh
 # Resource requirements - sized per-section below.
 request_disk = 20GB
 
+# Bid for the Atlas scheduler (must be at or above the minimum documented at
+# https://atlas.is.localnet/confluence/display/IT/Minimum+price+of+computing+units).
+# Adjust if the cluster's minimum bid is raised.
+bid = 25
+
 # Log files
 log_root = /home/preizinger/jobs/doml_rebuttal_$(ClusterId)_$(exp_type)_$(label)
 error = $(log_root).err
