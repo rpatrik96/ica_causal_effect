@@ -39,7 +39,7 @@ class TestLoadRealCovariates:
         np.testing.assert_array_equal(X1, X2)
 
     def test_ihdp_missing_raises(self, tmp_path, monkeypatch):
-        """FileNotFoundError with a clear message when IHDP is absent."""
+        """Raise FileNotFoundError with a clear message when IHDP is absent."""
         import semi_synthetic_data
 
         monkeypatch.setattr(semi_synthetic_data, "_REPO_ROOT", str(tmp_path))

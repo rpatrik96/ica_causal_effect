@@ -17,13 +17,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ablation_utils import (
-    ICA_IDX,
-    MATCHING_IDX,
-    OLS_IDX,
-    extract_treatment_estimates,
-    run_single_experiment,
-)
+from ablation_utils import ICA_IDX, MATCHING_IDX, OLS_IDX, extract_treatment_estimates, run_single_experiment
 
 
 def _make_synthetic_inputs(*, n_samples: int, support_size: int = 5, seed: int = 0):

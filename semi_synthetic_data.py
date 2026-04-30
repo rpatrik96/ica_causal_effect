@@ -52,10 +52,9 @@ def _apply_nonlinearity(x: np.ndarray, name: str) -> np.ndarray:
     """
     if name == "identity":
         return x
-    elif name == "leaky_relu":
+    if name == "leaky_relu":
         return np.where(x >= 0, x, 0.01 * x)
-    else:
-        raise ValueError(f"Unknown nonlinearity '{name}'. Choose 'identity' or 'leaky_relu'.")
+    raise ValueError(f"Unknown nonlinearity '{name}'. Choose 'identity' or 'leaky_relu'.")
 
 
 def _make_eta_sampler(distribution: str, rng: np.random.Generator) -> Callable[[int], np.ndarray]:
@@ -94,33 +93,38 @@ def _make_eta_sampler(distribution: str, rng: np.random.Generator) -> Callable[[
         probs = np.array([0.65, 0.2, 0.1, 0.05])
         mean_d = float(np.dot(discounts, probs))
 
-        def eta_sample(n: int) -> np.ndarray:
-            idx = np.argmax(rng.multinomial(1, probs, n), axis=1)
+        def _eta_sample_discrete(size: int) -> np.ndarray:
+            idx = np.argmax(rng.multinomial(1, probs, size), axis=1)
             return np.array([discounts[i] - mean_d for i in idx])
 
-    elif distribution == "laplace":
+        return _eta_sample_discrete
+
+    if distribution == "laplace":
         laplace_scale = 1.0 / math.sqrt(2)
 
-        def eta_sample(n: int) -> np.ndarray:
-            return rng.laplace(loc=0.0, scale=laplace_scale, size=n)
+        def _eta_sample_laplace(size: int) -> np.ndarray:
+            return rng.laplace(loc=0.0, scale=laplace_scale, size=size)
 
-    elif distribution == "rademacher":
+        return _eta_sample_laplace
 
-        def eta_sample(n: int) -> np.ndarray:
-            return rng.choice(np.array([1.0, -1.0]), size=n, p=np.array([0.5, 0.5]))
+    if distribution == "rademacher":
 
-    elif distribution == "uniform":
+        def _eta_sample_rademacher(size: int) -> np.ndarray:
+            return rng.choice(np.array([1.0, -1.0]), size=size, p=np.array([0.5, 0.5]))
+
+        return _eta_sample_rademacher
+
+    if distribution == "uniform":
         half_width = math.sqrt(3)
 
-        def eta_sample(n: int) -> np.ndarray:
-            return rng.uniform(low=-half_width, high=half_width, size=n)
+        def _eta_sample_uniform(size: int) -> np.ndarray:
+            return rng.uniform(low=-half_width, high=half_width, size=size)
 
-    else:
-        raise ValueError(
-            f"Unknown eta distribution '{distribution}'. " "Supported: 'discrete', 'laplace', 'rademacher', 'uniform'."
-        )
+        return _eta_sample_uniform
 
-    return eta_sample
+    raise ValueError(
+        f"Unknown eta distribution '{distribution}'. Supported: 'discrete', 'laplace', 'rademacher', 'uniform'."
+    )
 
 
 # ---------------------------------------------------------------------------

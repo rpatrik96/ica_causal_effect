@@ -11,11 +11,14 @@ import sys
 import matplotlib
 
 matplotlib.use("Agg")
-import baselines
 import matplotlib.pyplot as plt
 import numpy as np
-from ica import ica_treatment_effect_estimation
 from joblib import Parallel, delayed
+from sklearn.linear_model import Lasso
+from tueplots import bundles
+
+import baselines
+from ica import ica_treatment_effect_estimation
 from main_estimation import all_together_cross_fitting
 from oml_plotting import generate_all_oml_plots, plot_method_comparison_both_errors, save_results_with_metadata
 from oml_runner import setup_covariate_pdf, setup_treatment_noise, setup_treatment_outcome_coefs
@@ -28,8 +31,6 @@ from oml_utils import (
     setup_results_filename,
 )
 from plot_utils import plot_typography
-from sklearn.linear_model import Lasso
-from tueplots import bundles
 
 # Default random seed for reproducibility
 DEFAULT_SEED = 12143

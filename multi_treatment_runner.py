@@ -1,4 +1,4 @@
-"""Producer for the multi-treatment Fig 4 / Fig E.15 results dictionary.
+r"""Producer for the multi-treatment Fig 4 / Fig E.15 results dictionary.
 
 Runs a Monte Carlo grid over ``(sample_size, n_treatments, n_covariates)``
 triples for the linear partially linear model (PLR) and dumps a results
@@ -51,18 +51,14 @@ from __future__ import annotations
 import argparse
 import os
 from itertools import product
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
 from joblib import Parallel, delayed
 
 from baselines import ols_baseline
-from ica import (
-    generate_ica_data,
-    ica_treatment_effect_estimation,
-    ica_treatment_effect_estimation_eps_row,
-)
+from ica import generate_ica_data, ica_treatment_effect_estimation, ica_treatment_effect_estimation_eps_row
 from main_estimation import all_together_cross_fitting
 
 # Mapping from rebuttal-level "eta_distribution" string to the gennorm beta
@@ -119,7 +115,7 @@ def _per_coordinate_homl(
     np.ndarray
         Per-coordinate Higher-Order OML estimates, shape ``(m,)``.
     """
-    n, m = treatment_matrix.shape
+    _, m = treatment_matrix.shape
     estimates = np.full(m, np.nan)
     for j in range(m):
         active = treatment_matrix[:, j]
@@ -248,9 +244,9 @@ def _pad_to(arr: np.ndarray, m_max: int) -> np.ndarray:
 
 
 def run_multi_treatment_experiment(
-    sample_sizes: List[int] = [500, 1000, 2000, 5000, 10000],
-    n_treatments_grid: List[int] = [1, 2, 5],
-    n_covariates_grid: List[int] = [10, 20, 50],
+    sample_sizes: Optional[List[int]] = None,
+    n_treatments_grid: Optional[List[int]] = None,
+    n_covariates_grid: Optional[List[int]] = None,
     n_experiments: int = 20,
     nonlinearity: str = "identity",
     eta_distribution: str = "discrete",
@@ -305,6 +301,14 @@ def run_multi_treatment_experiment(
     dict
         Results dictionary; see module docstring for the schema.
     """
+    # Resolve mutable defaults (avoiding ``def f(x=[])`` Python footgun).
+    if sample_sizes is None:
+        sample_sizes = [500, 1000, 2000, 5000, 10000]
+    if n_treatments_grid is None:
+        n_treatments_grid = [1, 2, 5]
+    if n_covariates_grid is None:
+        n_covariates_grid = [10, 20, 50]
+
     # Map "identity" (linear PLR) to leaky_relu(slope=1) which is exactly the
     # identity. ica.generate_ica_data validates nonlinearity against a fixed
     # set; "identity" is not in that set so we route through leaky_relu.

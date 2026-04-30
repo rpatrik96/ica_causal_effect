@@ -8,6 +8,7 @@ across different parameter configurations for Orthogonal Machine Learning.
 from typing import Callable, Optional, Tuple
 
 import numpy as np
+
 from oml_utils import OMLExperimentConfig
 
 # Default discrete treatment noise distribution parameters
@@ -124,7 +125,7 @@ def setup_treatment_noise(  # pylint: disable=no-else-return
         else:
             p = 0.3  # default: asymmetric, distinct from Rademacher (p=0.5)
 
-        if not (0.0 < p < 1.0):
+        if p <= 0.0 or p >= 1.0:
             raise ValueError(f"Bernoulli p must be in (0, 1), got {p}")
 
         support = np.array([1.0 - p, -p])

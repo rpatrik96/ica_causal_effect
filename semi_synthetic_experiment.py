@@ -1,4 +1,4 @@
-"""Top-level driver for the semi-synthetic treatment-effect experiment.
+r"""Top-level driver for the semi-synthetic treatment-effect experiment.
 
 Loads real covariates (California Housing or IHDP), imposes a partially-linear
 regression (PLR) DGP via :func:`~semi_synthetic_data.generate_semi_synthetic_pl`,
@@ -146,7 +146,7 @@ def _run_one_rep(
     covariates = load_real_covariates(dataset, n_samples=n_samples, seed=rep_seed)
 
     # ---- Generate (X, T, Y, meta) ----
-    _, treatment, outcome, meta = generate_semi_synthetic_pl(
+    _, treatment, outcome, _meta = generate_semi_synthetic_pl(
         covariates,
         treatment_effect=treatment_effect,
         eta_distribution=eta_distribution,
@@ -196,9 +196,7 @@ def _run_one_rep(
 
     # ---- ICA ----
     if "ica" in methods:
-        from ica import (
-            ica_treatment_effect_estimation_eps_row,
-        )
+        from ica import ica_treatment_effect_estimation_eps_row
         from oml_runner import setup_treatment_noise
 
         # Build X_full = [covariates, T, Y] and S_full = [covariates, eta, eps]

@@ -8,13 +8,14 @@ and coefficient ablation experiments.
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
 
-import baselines
 import numpy as np
-from ica import ica_treatment_effect_estimation
 from joblib import Parallel, delayed
+from sklearn.linear_model import Lasso
+
+import baselines
+from ica import ica_treatment_effect_estimation
 from main_estimation import all_together_cross_fitting
 from oml_utils import AsymptoticVarianceCalculator
-from sklearn.linear_model import Lasso
 
 # =============================================================================
 # Constants
@@ -330,7 +331,7 @@ def _matching_per_coordinate(
     or shape ``(n, 1)``) returns a length-1 array.
     """
     treatment = np.atleast_2d(np.asarray(treatment).T).T  # (n, m)
-    n, m = treatment.shape
+    _, m = treatment.shape
     estimates = np.empty(m, dtype=float)
     if m == 1:
         estimates[0] = baselines.matching_baseline(covariates, treatment[:, 0], outcome)
@@ -482,8 +483,6 @@ def run_single_experiment(
         ols_estimate,
         matching_estimate,
     )
-
-
 
 
 def run_parallel_experiments(

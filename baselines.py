@@ -67,7 +67,7 @@ def ols_baseline(
         downstream callers can index it uniformly.
     """
     treatment = np.atleast_2d(treatment.T).T  # (n, 1) if 1-D, else (n, m)
-    n, m = treatment.shape
+    _, m = treatment.shape
 
     X_design = np.concatenate([treatment, covariates], axis=1)  # (n, m + d)
 
@@ -141,8 +141,7 @@ def matching_baseline(
 
     if treatment_kind == "binary":
         return _matching_binary(covariates, treatment, outcome, n_neighbors)
-    else:
-        return _matching_continuous(covariates, treatment, outcome, n_neighbors)
+    return _matching_continuous(covariates, treatment, outcome, n_neighbors)
 
 
 # ---------------------------------------------------------------------------

@@ -10,6 +10,8 @@ from itertools import product
 from typing import List, Tuple
 
 import numpy as np
+from scipy.stats import kurtosis as scipy_kurtosis
+
 from ablation_utils import (
     HOML_IDX,
     ICA_IDX,
@@ -23,7 +25,6 @@ from ablation_utils import (
     run_parallel_experiments,
 )
 from oml_runner import setup_treatment_noise
-from scipy.stats import kurtosis as scipy_kurtosis
 
 # =============================================================================
 # Coefficient Utilities
