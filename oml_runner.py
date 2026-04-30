@@ -114,6 +114,28 @@ def setup_treatment_noise(  # pylint: disable=no-else-return
 
         return discounts, eta_sample, 0.0, probs
 
+    elif distribution == "bernoulli":
+        # Asymmetric Bernoulli on centered support {1-p, -p} with masses {p, 1-p}.
+        # Centering ensures E[eta] = 0.
+        # Var[eta] = p * (1 - p)
+        # Third central moment = (1 - 2p) * p * (1 - p)
+        if gennorm_beta is not None:
+            # gennorm_beta is repurposed here to carry the Bernoulli p parameter
+            p = float(gennorm_beta)
+        else:
+            p = 0.3  # default: asymmetric, distinct from Rademacher (p=0.5)
+
+        if p <= 0.0 or p >= 1.0:
+            raise ValueError(f"Bernoulli p must be in (0, 1), got {p}")
+
+        support = np.array([1.0 - p, -p])
+        probs = np.array([p, 1.0 - p])
+
+        def eta_sample(x, _support=support, _probs=probs):
+            return np.random.choice(_support, size=x, p=_probs)
+
+        return support, eta_sample, 0.0, probs
+
     elif distribution == "gennorm_heavy":
         # Generalized normal with beta=1 (equivalent to Laplace, heavy tails)
         from scipy.stats import gennorm
@@ -160,7 +182,7 @@ def setup_treatment_noise(  # pylint: disable=no-else-return
     else:
         raise ValueError(
             f"Unknown distribution: {distribution}. "
-            "Valid options: discrete, laplace, uniform, rademacher, gennorm_heavy, gennorm_light, gennorm"
+            "Valid options: discrete, laplace, uniform, rademacher, bernoulli, gennorm_heavy, gennorm_light, gennorm"
         )
 
 

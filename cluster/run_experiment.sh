@@ -8,7 +8,8 @@ set -euo pipefail
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <experiment_type> [experiment_args...]" >&2
     echo "Available types: single_instance, single_instance_seed, eta_filtered_heatmap," >&2
-    echo "  eta_variance_ablation, eta_coefficient_ablation, eta_default, ica" >&2
+    echo "  eta_variance_ablation, eta_coefficient_ablation, eta_default, ica," >&2
+    echo "  bernoulli_experiment, multi_treatment_with_baselines" >&2
     exit 1
 fi
 
@@ -93,16 +94,34 @@ case "${EXPERIMENT_TYPE}" in
         python ica.py ${EXPERIMENT_ARGS}
         ;;
 
+    "bernoulli_experiment")
+        # Bernoulli treatment-noise ablation.
+        # Defaults to --bernoulli_only mode with rademacher cross-check baseline.
+        # Example args: --n_samples 5000 --n_experiments 20 --bernoulli_ps 0.3 0.5 0.7
+        python -u eta_noise_ablation.py --bernoulli_only \
+          --output_dir "${OUTPUT_DIR}/bernoulli" ${EXPERIMENT_ARGS}
+        ;;
+
+    "multi_treatment_with_baselines")
+        # Multi-treatment Fig 4 with OLS / HOML baselines.
+        # Example args: --n_experiments 20 --sample_sizes 500 1000 2000 5000 10000
+        python -u multi_treatment_runner.py \
+          --output_dir "${OUTPUT_DIR}/multi_treatment" \
+          --include_baselines ${EXPERIMENT_ARGS}
+        ;;
+
     *)
         echo "Unknown experiment type: ${EXPERIMENT_TYPE}"
         echo "Available types:"
-        echo "  single_instance         - Monte Carlo OML experiments"
-        echo "  single_instance_seed    - Seeded Monte Carlo experiments"
-        echo "  eta_filtered_heatmap    - Eta ablation: filtered heatmap"
-        echo "  eta_variance_ablation   - Eta ablation: variance ablation"
-        echo "  eta_coefficient_ablation - Eta ablation: coefficient ablation"
-        echo "  eta_default             - Eta ablation: default mode"
-        echo "  ica                     - ICA experiments"
+        echo "  single_instance                 - Monte Carlo OML experiments"
+        echo "  single_instance_seed            - Seeded Monte Carlo experiments"
+        echo "  eta_filtered_heatmap            - Eta ablation: filtered heatmap"
+        echo "  eta_variance_ablation           - Eta ablation: variance ablation"
+        echo "  eta_coefficient_ablation        - Eta ablation: coefficient ablation"
+        echo "  eta_default                     - Eta ablation: default mode"
+        echo "  ica                             - ICA experiments"
+        echo "  bernoulli_experiment            - Bernoulli noise ablation"
+        echo "  multi_treatment_with_baselines  - Fig 4 with OLS+HOML baselines"
         exit 1
         ;;
 esac

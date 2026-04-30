@@ -52,8 +52,8 @@ from eta_ablation_plotting import (
 )
 
 
-def main(args=None):
-    """Main function for noise distribution and coefficient ablation study."""
+def build_parser() -> argparse.ArgumentParser:
+    """Build and return the argument parser for this script."""
     parser = argparse.ArgumentParser(
         description="Noise distribution and coefficient ablation study for treatment effect estimation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -72,8 +72,16 @@ Examples:
   python eta_noise_ablation.py --variance_ablation
 
   # Run variance ablation with custom grid
-  python eta_noise_ablation.py --variance_ablation \
+  python eta_noise_ablation.py --variance_ablation \\
     --variance_beta_values 0.5 1.0 1.5 2.5 3.0 --variance_values 0.5 1.0 2.0 4.0
+
+  # Run Bernoulli-only noise ablation (Fig E.5 layout) at p=0.3 and p=0.5
+  python eta_noise_ablation.py --bernoulli_only --bernoulli_ps 0.3 0.5 \\
+    --output_dir figures/bernoulli
+
+  # Bernoulli sweep without the Rademacher cross-check baseline
+  python eta_noise_ablation.py --bernoulli_only --bernoulli_ps 0.3 \\
+    --no_add_rademacher_baseline --output_dir figures/bernoulli
         """,
     )
 
@@ -98,6 +106,13 @@ Examples:
         help="Noise distributions to test",
     )
     parser.add_argument("--gennorm_betas", nargs="+", type=float, default=None, help="Gennorm beta values to add")
+    parser.add_argument(
+        "--bernoulli_ps",
+        nargs="+",
+        type=float,
+        default=None,
+        help="Asymmetric Bernoulli p values to add (e.g. 0.3 0.4 0.7). Each p produces a 'bernoulli:p' spec.",
+    )
     parser.add_argument("--randomize_coeffs", action="store_true", help="Randomize coefficients")
     parser.add_argument("--n_random_configs", type=int, default=20, help="Number of random configs")
     parser.add_argument(
@@ -213,12 +228,135 @@ Examples:
         help="Disable oracle support (both methods receive full x).",
     )
 
-    if args is None:
-        args = sys.argv[1:]
-    opts = parser.parse_args(args)
+    # Bernoulli-only mode arguments
+    parser.add_argument(
+        "--bernoulli_only",
+        action="store_true",
+        default=False,
+        help=(
+            "Run a Bernoulli-only noise-distribution sweep (Fig E.5 layout). "
+            "Distributions are built from --bernoulli_ps; output goes to "
+            "<output_dir>/noise_ablation_results_bernoulli.npy and plots are "
+            "prefixed 'bernoulli_*'. Default output_dir becomes 'figures/bernoulli'. "
+            "Automatically sets --randomize_coeffs and appends 'rademacher' "
+            "unless --no_add_rademacher_baseline is given."
+        ),
+    )
+    parser.add_argument(
+        "--add_rademacher_baseline",
+        dest="add_rademacher_baseline",
+        action="store_true",
+        default=True,
+        help=(
+            "When --bernoulli_only is active, append 'rademacher' to the distribution "
+            "list as a symmetric cross-check baseline. Enabled by default. "
+            "Use --no_add_rademacher_baseline to disable."
+        ),
+    )
+    parser.add_argument(
+        "--no_add_rademacher_baseline",
+        dest="add_rademacher_baseline",
+        action="store_false",
+        help="Disable the automatic Rademacher baseline appended in --bernoulli_only mode.",
+    )
 
+    return parser
+
+
+def run(opts) -> None:
+    """Execute the experiment specified by a parsed Namespace.
+
+    This is the programmatic entry point used by tests and cluster runners.
+    ``opts`` must be the result of ``build_parser().parse_args(...)`` or an
+    equivalent Namespace with the same attributes.
+    """
     # Compute oracle suffix for output directories
     oracle_suffix = "" if opts.oracle_support else "_no_oracle"
+
+    # ------------------------------------------------------------------
+    # Bernoulli-only mode: override distributions and output_dir defaults
+    # ------------------------------------------------------------------
+    if opts.bernoulli_only:
+        if not opts.bernoulli_ps:
+            raise ValueError("--bernoulli_only requires at least one --bernoulli_ps value.")
+
+        # Override output_dir to figures/bernoulli if the user kept the default
+        if opts.output_dir == "figures/noise_ablation":
+            opts.output_dir = "figures/bernoulli"
+
+        # Build distribution list from bernoulli_ps
+        distributions = [f"bernoulli:{p}" for p in opts.bernoulli_ps]
+        if opts.add_rademacher_baseline and "rademacher" not in distributions:
+            distributions.append("rademacher")
+        print(f"[bernoulli_only] distribution list: {distributions}")
+
+        noise_output_dir = opts.output_dir + oracle_suffix if oracle_suffix else opts.output_dir
+        os.makedirs(noise_output_dir, exist_ok=True)
+        results_file = os.path.join(noise_output_dir, f"noise_ablation_results_bernoulli{oracle_suffix}.npy")
+
+        # Honour --randomize_coeffs; if not set explicitly, default to True in bernoulli_only mode
+        randomize_coeffs = opts.randomize_coeffs if opts.randomize_coeffs else True
+        if randomize_coeffs:
+            tc_range = tuple(opts.treatment_coef_range)
+            oc_range = tuple(opts.outcome_coef_range)
+            te_range = tuple(opts.treatment_effect_range)
+        else:
+            tc_range = oc_range = te_range = None  # type: ignore[assignment]
+
+        if os.path.exists(results_file):
+            print(f"Loading existing results from {results_file}")
+            results = np.load(results_file, allow_pickle=True).item()
+        else:
+            results = run_noise_ablation_experiments(
+                noise_distributions=distributions,
+                n_samples=opts.n_samples,
+                n_experiments=opts.n_experiments,
+                support_size=opts.support_size,
+                treatment_effect=opts.treatment_effect,
+                beta=opts.beta,
+                sigma_outcome=opts.sigma_outcome,
+                covariate_pdf=opts.covariate_pdf,
+                check_convergence=opts.check_convergence,
+                verbose=opts.verbose,
+                seed=opts.seed,
+                randomize_coeffs=randomize_coeffs,
+                n_random_configs=opts.n_random_configs,
+                treatment_effect_range=te_range if randomize_coeffs else (0.001, 0.2),
+                treatment_coef_range=tc_range if randomize_coeffs else (-10.0, 10.0),
+                outcome_coef_range=oc_range if randomize_coeffs else (-0.5, 0.5),
+                oracle_support=opts.oracle_support,
+            )
+            np.save(results_file, results)
+            print(f"Results saved to {results_file}")
+
+        if randomize_coeffs and tc_range is not None:
+            plot_noise_ablation_coeff_scatter(
+                results,
+                noise_output_dir,
+                n_configs=opts.n_random_configs,
+                treatment_coef_range=tc_range,
+                outcome_coef_range=oc_range,
+                treatment_effect_range=te_range,
+            )
+            plot_noise_ablation_std_scatter(
+                results,
+                noise_output_dir,
+                n_configs=opts.n_random_configs,
+                treatment_coef_range=tc_range,
+                outcome_coef_range=oc_range,
+                treatment_effect_range=te_range,
+            )
+            plot_diff_heatmaps(
+                results,
+                noise_output_dir,
+                n_configs=opts.n_random_configs,
+                treatment_coef_range=tc_range,
+                outcome_coef_range=oc_range,
+                treatment_effect_range=te_range,
+            )
+
+        print_noise_ablation_summary(results, opts)
+        return
 
     if opts.variance_ablation:
         # Run variance ablation
@@ -438,7 +576,13 @@ Examples:
                 gennorm_spec = f"gennorm:{beta_val}"
                 if gennorm_spec not in distributions:
                     distributions.append(gennorm_spec)
-            print(f"Final distribution list: {distributions}")
+            print(f"Final distribution list after gennorm expansion: {distributions}")
+        if opts.bernoulli_ps is not None:
+            for p_val in opts.bernoulli_ps:
+                bernoulli_spec = f"bernoulli:{p_val}"
+                if bernoulli_spec not in distributions:
+                    distributions.append(bernoulli_spec)
+            print(f"Final distribution list after bernoulli expansion: {distributions}")
 
         # Setup results file path
         # Use subdirectory with oracle suffix for noise ablation too
@@ -513,6 +657,15 @@ Examples:
 
         # Print summary
         print_noise_ablation_summary(results, opts)
+
+
+def main(args=None) -> None:
+    """CLI entry point: parse args then delegate to ``run()``."""
+    parser = build_parser()
+    if args is None:
+        args = sys.argv[1:]
+    opts = parser.parse_args(args)
+    run(opts)
 
 
 if __name__ == "__main__":

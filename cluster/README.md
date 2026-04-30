@@ -65,6 +65,7 @@ The cluster setup covers all 10 experiment configurations:
 |------|-------------|
 | `sweep_all_experiments.sub` | **All 10 configurations** - single instance + all eta ablations |
 | `sweep_eta_ablation.sub` | All 8 eta ablation configurations |
+| `sweep_extended_baselines.sub` | Bernoulli noise + multi-treatment with OLS/HOML baselines (6 jobs) |
 | `cluster.sub` | Basic submit file for single custom experiments |
 | `sweep_single_instance.sub` | Parameter sweep for single instance experiments |
 | `sweep_multi_instance.sub` | Multi-seed experiments for variance estimation |
@@ -86,6 +87,18 @@ This submits 10 jobs covering all experiment types with both oracle configuratio
 ```bash
 condor_submit sweep_eta_ablation.sub
 ```
+
+### Run extended-baseline experiments (6 jobs)
+
+```bash
+condor_submit_bid <bid> sweep_extended_baselines.sub
+```
+
+This submits two experiment families:
+- **Section A** — Bernoulli noise ablation (5 jobs, one per `n_samples`).
+- **Section B** — Multi-treatment Fig 4 with OLS+HOML baselines (1 job, full grid).
+
+OLS and matching baselines are now part of the main dispatcher, so re-submitting `sweep_all_experiments.sub` (or `sweep_eta_ablation.sub`) automatically appends them to every existing ablation. Delete or rename existing `figures/**/*.npy` files before re-submission so the existence-check in `eta_noise_ablation.py` does not short-circuit the re-run.
 
 ### Run a single custom experiment
 

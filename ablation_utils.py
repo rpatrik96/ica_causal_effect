@@ -12,6 +12,7 @@ import numpy as np
 from joblib import Parallel, delayed
 from sklearn.linear_model import Lasso
 
+import baselines
 from ica import ica_treatment_effect_estimation
 from main_estimation import all_together_cross_fitting
 from oml_utils import AsymptoticVarianceCalculator
@@ -20,17 +21,20 @@ from oml_utils import AsymptoticVarianceCalculator
 # Constants
 # =============================================================================
 
-# Method indices in results arrays
-# Order: OrthoML, RobustOrthoML(HOML), RobustOrthoEst, RobustOrthoSplit, ICA
+# Method indices in results arrays.
+# Order is APPEND-ONLY: existing plotting code indexes by integer position, so
+# OLS_IDX and MATCHING_IDX must remain after ICA_IDX.
 ORTHO_ML_IDX = 0
 HOML_IDX = 1  # Robust Ortho ML (Higher-Order ML)
 ROBUST_ORTHO_EST_IDX = 2
 ROBUST_ORTHO_SPLIT_IDX = 3
 ICA_IDX = 4
+OLS_IDX = 5
+MATCHING_IDX = 6
 
 # Method names for display
-METHOD_NAMES = ["Ortho ML", "OML", "Robust Ortho Est", "Robust Ortho Split", "ICA"]
-METHOD_NAMES_SHORT = ["OML", "OML", "ROE", "ROS", "ICA"]
+METHOD_NAMES = ["Ortho ML", "OML", "Robust Ortho Est", "Robust Ortho Split", "ICA", "OLS", "Matching"]
+METHOD_NAMES_SHORT = ["OML", "OML", "ROE", "ROS", "ICA", "OLS", "MAT"]
 
 # Colors for OML and ICA (primary comparison methods)
 OML_COLOR = "#1f77b4"  # Blue
@@ -309,6 +313,36 @@ def calculate_ica_moments(
 # =============================================================================
 
 
+def _matching_per_coordinate(
+    covariates: np.ndarray,
+    treatment: np.ndarray,
+    outcome: np.ndarray,
+) -> np.ndarray:
+    """Apply ``baselines.matching_baseline`` per treatment coordinate.
+
+    For multivariate treatment of shape ``(n, m)``, calls
+    ``baselines.matching_baseline`` once per column ``j``: column ``j`` is
+    treated as the active treatment, and the remaining columns are appended
+    to the covariate matrix as additional confounders.  This keeps the
+    estimator strictly scalar and faithful to the PLR scalar-treatment
+    derivation used elsewhere in the codebase.
+
+    Returns an array of shape ``(m,)``.  For univariate treatment (1-D input
+    or shape ``(n, 1)``) returns a length-1 array.
+    """
+    treatment = np.atleast_2d(np.asarray(treatment).T).T  # (n, m)
+    _, m = treatment.shape
+    estimates = np.empty(m, dtype=float)
+    if m == 1:
+        estimates[0] = baselines.matching_baseline(covariates, treatment[:, 0], outcome)
+        return estimates
+    for j in range(m):
+        other_cols = np.delete(treatment, j, axis=1)  # (n, m-1)
+        augmented_covariates = np.concatenate([covariates, other_cols], axis=1)
+        estimates[j] = baselines.matching_baseline(augmented_covariates, treatment[:, j], outcome)
+    return estimates
+
+
 def run_single_experiment(
     x: np.ndarray,
     eta: np.ndarray,
@@ -324,12 +358,13 @@ def run_single_experiment(
     check_convergence: bool = False,
     verbose: bool = False,
     oracle_support: bool = True,
+    disable_baselines: bool = False,
 ) -> Tuple:
     """Run a single OML experiment with specified noise samples.
 
     Constructs the PLM D = X*a + eta, Y = theta*D + X*b + eps, fits Lasso
     nuisance models, runs cross-fitted OML and ICA estimation, and returns
-    all method estimates.
+    all method estimates including the OLS and matching baselines.
 
     Parameters
     ----------
@@ -363,13 +398,22 @@ def run_single_experiment(
     oracle_support : bool
         If True, both OML and ICA receive ``x[:, support]`` (oracle support).
         If False, both methods receive the full covariate matrix.
+    disable_baselines : bool
+        If True, skip the OLS and matching baseline calls and return NaNs of
+        the appropriate shape so downstream slicing logic is unchanged.
 
     Returns
     -------
     tuple
         ``(ortho_ml, robust_ortho_ml, robust_ortho_est_ml,
         robust_ortho_est_split_ml, first_stage_mse_treatment,
-        first_stage_mse_outcome, ica_estimate, ica_mcc)``
+        first_stage_mse_outcome, ica_estimate, ica_mcc, ols_estimate,
+        matching_estimate)``.
+
+        ``ols_estimate`` and ``matching_estimate`` are arrays of shape
+        ``(m,)`` matching the ICA estimate's leading shape (``m=1`` for
+        univariate treatment).  Matching is run per-coordinate so that
+        scalar-treatment matching extends safely to ``m>=2``.
     """
     # Generate treatment as a function of covariates
     treatment = np.dot(x[:, treatment_support], treatment_coef) + eta
@@ -405,6 +449,25 @@ def run_single_experiment(
     if verbose:
         print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
 
+    # ---------------------------------------------------------------
+    # OLS and matching baselines
+    # ---------------------------------------------------------------
+    # Determine the treatment dimensionality m so that we can return NaN
+    # arrays of the right shape under disable_baselines=True.  Treatment is
+    # univariate here (built via np.dot with a 1-D coef), so m=1.  We still
+    # compute it from the array to remain robust if the construction changes.
+    treatment_2d = np.atleast_2d(np.asarray(treatment).T).T  # (n, m)
+    m = treatment_2d.shape[1]
+
+    if disable_baselines:
+        ols_estimate = np.full(m, np.nan, dtype=float)
+        matching_estimate = np.full(m, np.nan, dtype=float)
+    else:
+        ols_estimate = baselines.ols_baseline(covariates, treatment, outcome)
+        # Matching is run per-coordinate (univariate path here, but
+        # _matching_per_coordinate is multi-treatment safe by design).
+        matching_estimate = _matching_per_coordinate(covariates, treatment, outcome)
+
     return (
         *all_together_cross_fitting(
             covariates,
@@ -417,6 +480,8 @@ def run_single_experiment(
         ),
         ica_treatment_effect_estimate,
         ica_mcc,
+        ols_estimate,
+        matching_estimate,
     )
 
 
@@ -438,6 +503,7 @@ def run_parallel_experiments(
     check_convergence: bool = False,
     verbose: bool = False,
     oracle_support: bool = True,
+    disable_baselines: bool = False,
 ) -> List[Tuple]:
     """Run Monte Carlo experiments in parallel using joblib.
 
@@ -477,12 +543,22 @@ def run_parallel_experiments(
         Pass through to ``run_single_experiment``.
     oracle_support : bool
         If True, pass oracle support to both OML and ICA.
+    disable_baselines : bool
+        If True, the OLS and matching baselines are skipped; per-experiment
+        result tuples still contain entries at indices 5/6 (NaN-filled with
+        the appropriate shape) so downstream slicing logic remains valid.
 
     Returns
     -------
     List[Tuple]
         Experiment result tuples; filtered for ICA convergence when
         ``check_convergence=True``.
+
+    Notes
+    -----
+    Each tuple has 10 elements: the original 8 estimator outputs plus the
+    OLS and matching baseline estimates.  ``ica_mcc`` lives at index ``-3``;
+    ``ols_estimate`` at ``-2``; ``matching_estimate`` at ``-1``.
     """
     results = [
         r
@@ -502,10 +578,13 @@ def run_parallel_experiments(
                 check_convergence,
                 verbose,
                 oracle_support,
+                disable_baselines,
             )
             for _ in range(n_experiments)
         )
-        if (check_convergence is False or r[-1] is not None)
+        # ICA convergence is signalled via ica_mcc at index -3 (was -1 before
+        # the OLS/matching tuple extension); a None there means non-convergence.
+        if (check_convergence is False or r[-3] is not None)
     ]
 
     return results
@@ -516,6 +595,21 @@ def run_parallel_experiments(
 # =============================================================================
 
 
+def _to_list(value) -> list:
+    """Coerce ICA / OLS / matching estimates to a flat Python list.
+
+    Accepts arrays of any shape (typically 1-D) and Python scalars.  This
+    matches the original ``ica_estimate.tolist()`` branch and is reused for
+    OLS (always ``np.ndarray``) and matching (``np.ndarray`` of shape
+    ``(m,)`` after the per-coordinate refactor; falls back to a 1-element
+    list if a legacy scalar slips through).
+    """
+    if hasattr(value, "tolist"):
+        result = value.tolist()
+        return result if isinstance(result, list) else [result]
+    return [value]
+
+
 def extract_treatment_estimates(results: List[Tuple]) -> List[List[float]]:
     """Extract treatment effect estimates from experiment result tuples.
 
@@ -524,17 +618,34 @@ def extract_treatment_estimates(results: List[Tuple]) -> List[List[float]]:
     results : List[Tuple]
         Output of ``run_parallel_experiments``; each tuple has the form
         ``(ortho_ml, robust_ortho_ml, robust_ortho_est_ml,
-        robust_ortho_est_split_ml, ..., ica_estimate, ica_mcc)``.
+        robust_ortho_est_split_ml, ..., ica_estimate, ica_mcc, ols_estimate,
+        matching_estimate)``.
 
     Returns
     -------
     List[List[float]]
-        One list per experiment: ``[ortho_ml, robust_ortho_ml,
-        robust_ortho_est, robust_ortho_split, ica_0, ...]``.
+        One list per experiment, length 5 + m + m + m = 5 + 3m where m is
+        the number of treatments.  For univariate treatment (m=1) the list
+        has length 7 with layout ``[ortho_ml, homl, roe, ros, ica, ols,
+        matching]``, matching the index constants ``ORTHO_ML_IDX..MATCHING_IDX``.
     """
     ortho_rec_tau = [
-        [ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml] + ica_estimate.tolist()
-        for ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_estimate, _ in results
+        [ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml]
+        + _to_list(ica_estimate)
+        + _to_list(ols_estimate)
+        + _to_list(matching_estimate)
+        for (
+            ortho_ml,
+            robust_ortho_ml,
+            robust_ortho_est_ml,
+            robust_ortho_est_split_ml,
+            _,
+            _,
+            ica_estimate,
+            _,
+            ols_estimate,
+            matching_estimate,
+        ) in results
     ]
     return ortho_rec_tau
 
