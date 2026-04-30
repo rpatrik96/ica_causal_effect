@@ -64,5 +64,5 @@ arguments = $(exp_type) --n_experiments $(n_experiments) \
             --sample_sizes 500 1000 2000 5000 10000 \
             --n_treatments 1 2 5 \
             --n_covariates 10 20 50 \
-            --nonlinearity identity --eta_distribution discrete
+            --nonlinearity identity --eta_distribution gennorm_heavy
 queue 1
