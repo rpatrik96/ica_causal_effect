@@ -73,8 +73,8 @@ class TestMainSmoke:
     @needs_california
     def test_output_files_created(self, tmp_path):
         _run_tiny(tmp_path)
-        npy = tmp_path / "semi_synthetic_california_housing_results.npy"
-        md = tmp_path / "semi_synthetic_california_housing_summary.md"
+        npy = tmp_path / "semi_synthetic_california_housing_eta-discrete_nonlin-identity_te-1_results.npy"
+        md = tmp_path / "semi_synthetic_california_housing_eta-discrete_nonlin-identity_te-1_summary.md"
         assert npy.exists(), f".npy file not found at {npy}"
         assert md.exists(), f".md file not found at {md}"
 
@@ -87,7 +87,7 @@ class TestMainSmoke:
     @needs_california
     def test_npy_loadable(self, tmp_path):
         _run_tiny(tmp_path, n_experiments=2)
-        npy = tmp_path / "semi_synthetic_california_housing_results.npy"
+        npy = tmp_path / "semi_synthetic_california_housing_eta-discrete_nonlin-identity_te-1_results.npy"
         loaded = np.load(str(npy), allow_pickle=True)
         assert len(loaded) == 2
         assert isinstance(loaded[0], dict)
@@ -99,7 +99,7 @@ class TestSummaryMdShape:
     @needs_california
     def test_md_has_expected_columns(self, tmp_path):
         _run_tiny(tmp_path)
-        md_path = tmp_path / "semi_synthetic_california_housing_summary.md"
+        md_path = tmp_path / "semi_synthetic_california_housing_eta-discrete_nonlin-identity_te-1_summary.md"
         content = md_path.read_text(encoding="utf-8")
         header_line = content.splitlines()[0]
         for col in ("method", "bias", "std", "rmse", "n_reps"):
@@ -108,7 +108,7 @@ class TestSummaryMdShape:
     @needs_california
     def test_md_has_method_rows(self, tmp_path):
         _run_tiny(tmp_path, methods="ols,matching")
-        md_path = tmp_path / "semi_synthetic_california_housing_summary.md"
+        md_path = tmp_path / "semi_synthetic_california_housing_eta-discrete_nonlin-identity_te-1_summary.md"
         content = md_path.read_text(encoding="utf-8")
         assert "ols" in content
         assert "matching" in content
@@ -116,7 +116,7 @@ class TestSummaryMdShape:
     @needs_california
     def test_md_rows_are_parseable(self, tmp_path):
         _run_tiny(tmp_path, methods="ols")
-        md_path = tmp_path / "semi_synthetic_california_housing_summary.md"
+        md_path = tmp_path / "semi_synthetic_california_housing_eta-discrete_nonlin-identity_te-1_summary.md"
         lines = [ln for ln in md_path.read_text(encoding="utf-8").splitlines() if ln.startswith("|")]
         # header + separator + at least one data row
         assert len(lines) >= 3
@@ -138,10 +138,12 @@ class TestRunnerHandlesPartialMethodSubset:
     @needs_california
     def test_ols_only_npy_schema(self, tmp_path):
         _run_tiny(tmp_path, methods="ols", n_experiments=2)
-        npy = tmp_path / "semi_synthetic_california_housing_results.npy"
+        npy = tmp_path / "semi_synthetic_california_housing_eta-discrete_nonlin-identity_te-1_results.npy"
         loaded = np.load(str(npy), allow_pickle=True)
+        method_keys = {"ols", "ground_truth", "rep_seed"}
+        metadata_keys = {"dataset", "eta_distribution", "nonlinearity", "treatment_effect"}
         for rep in loaded:
-            assert set(rep.keys()) <= {"ols", "ground_truth", "rep_seed"}
+            assert set(rep.keys()) <= method_keys | metadata_keys
 
     @needs_california
     def test_matching_only(self, tmp_path):

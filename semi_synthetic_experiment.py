@@ -7,12 +7,17 @@ Carlo replications.
 
 Outputs
 -------
-``<output_dir>/semi_synthetic_<dataset>_results.npy``
-    List of per-rep result dicts.
-``<output_dir>/semi_synthetic_<dataset>_summary.svg``
+``<output_dir>/semi_synthetic_<dataset>_eta-<eta>_nonlin-<nonlin>_te-<theta>_results.npy``
+    List of per-rep result dicts (each dict has ``dataset``, ``eta_distribution``,
+    ``nonlinearity``, ``treatment_effect`` keys for traceability).
+``<output_dir>/semi_synthetic_<dataset>_eta-<eta>_nonlin-<nonlin>_te-<theta>_summary.svg``
     Bar chart of bias / std / RMSE per method.
-``<output_dir>/semi_synthetic_<dataset>_summary.md``
+``<output_dir>/semi_synthetic_<dataset>_eta-<eta>_nonlin-<nonlin>_te-<theta>_summary.md``
     Markdown table with columns method | bias | std | rmse | n_reps.
+
+The config tag in the filename prevents concurrent jobs (different
+``(eta, nonlinearity, theta)`` combinations writing to the same
+``output_dir``) from clobbering each other.
 
 CLI example
 -----------
@@ -433,8 +438,22 @@ def run(
             for s in seeds
         ]
 
+    # ---- Embed config metadata in each rep ----
+    for rep in results:
+        rep.setdefault("dataset", dataset)
+        rep.setdefault("eta_distribution", eta_distribution)
+        rep.setdefault("nonlinearity", nonlinearity)
+        rep.setdefault("treatment_effect", treatment_effect)
+
+    # ---- Build a config-specific filename suffix so concurrent jobs do not
+    #      clobber each other's outputs.  ":" is replaced with "-" for FS
+    #      portability (e.g., bernoulli:0.3 -> bernoulli-0.3). ----
+    eta_tag = eta_distribution.replace(":", "-")
+    config_tag = f"eta-{eta_tag}_nonlin-{nonlinearity}_te-{treatment_effect:g}"
+    base = f"semi_synthetic_{dataset}_{config_tag}"
+
     # ---- Save raw results ----
-    npy_path = os.path.join(output_dir, f"semi_synthetic_{dataset}_results.npy")
+    npy_path = os.path.join(output_dir, f"{base}_results.npy")
     np.save(npy_path, results, allow_pickle=True)  # type: ignore[arg-type]
     logger.info("Saved results to %s", npy_path)
 
@@ -442,12 +461,12 @@ def run(
     summary = _compute_summary(results, method_list, treatment_effect)
 
     # ---- Write markdown table ----
-    md_path = os.path.join(output_dir, f"semi_synthetic_{dataset}_summary.md")
+    md_path = os.path.join(output_dir, f"{base}_summary.md")
     _write_markdown_table(summary, md_path)
     logger.info("Saved markdown table to %s", md_path)
 
     # ---- Write plot ----
-    svg_path = os.path.join(output_dir, f"semi_synthetic_{dataset}_summary.svg")
+    svg_path = os.path.join(output_dir, f"{base}_summary.svg")
     try:
         _write_summary_plot(summary, svg_path)
         logger.info("Saved plot to %s", svg_path)
