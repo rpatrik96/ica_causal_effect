@@ -82,7 +82,11 @@ def _make_eta_sampler(distribution: str, rng: np.random.Generator) -> Callable[[
     try:
         from oml_runner import setup_treatment_noise
 
-        _, eta_sample, _, _ = setup_treatment_noise(distribution=distribution)
+        if distribution.startswith("bernoulli:"):
+            p = float(distribution.split(":", 1)[1])
+            _, eta_sample, _, _ = setup_treatment_noise(distribution="bernoulli", gennorm_beta=p)
+        else:
+            _, eta_sample, _, _ = setup_treatment_noise(distribution=distribution)
         return eta_sample
     except (ImportError, ValueError):
         pass
