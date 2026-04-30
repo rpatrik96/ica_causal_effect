@@ -11,13 +11,11 @@ import sys
 import matplotlib
 
 matplotlib.use("Agg")
+import baselines
 import matplotlib.pyplot as plt
 import numpy as np
-from joblib import Parallel, delayed
-from sklearn.linear_model import Lasso
-from tueplots import bundles
-
 from ica import ica_treatment_effect_estimation
+from joblib import Parallel, delayed
 from main_estimation import all_together_cross_fitting
 from oml_plotting import generate_all_oml_plots, plot_method_comparison_both_errors, save_results_with_metadata
 from oml_runner import setup_covariate_pdf, setup_treatment_noise, setup_treatment_outcome_coefs
@@ -30,6 +28,8 @@ from oml_utils import (
     setup_results_filename,
 )
 from plot_utils import plot_typography
+from sklearn.linear_model import Lasso
+from tueplots import bundles
 
 # Default random seed for reproducibility
 DEFAULT_SEED = 12143
@@ -50,6 +50,7 @@ def experiment(
     check_convergence=False,
     verbose=False,
     oracle_support=True,
+    disable_baselines=False,
 ):
     """Run a single OML experiment.
 
@@ -69,9 +70,15 @@ def experiment(
         verbose: Enable verbose output
         oracle_support: If True, both OML and ICA receive x[:, support] (oracle knowledge).
             If False, both methods receive full x matrix.
+        disable_baselines: If True, skip OLS and matching baselines and
+            return NaN-filled placeholders so downstream slicing logic is
+            preserved.
 
     Returns:
-        Tuple of estimation results from all methods
+        Tuple of estimation results from all methods plus OLS and matching
+        baselines (rebuttal additions) at the end of the tuple:
+        ``(ortho_ml, homl, roe, ros, treatment_coef, outcome_coef,
+        ica_estimate, ica_mcc, ols_estimate, matching_estimate)``.
     """
     # Generate treatment as a function of covariates
     treatment = np.dot(x[:, treatment_support], treatment_coef) + eta
@@ -107,6 +114,33 @@ def experiment(
     if verbose:
         print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
 
+    # Rebuttal additions: OLS and matching baselines.  Treatment is
+    # univariate here (np.dot of x[:, support] with a 1-D coef array), so m=1
+    # and matching returns a length-1 array.  We coerce shapes via the
+    # baselines API directly.
+    treatment_2d = np.atleast_2d(np.asarray(treatment).T).T  # (n, m)
+    m = treatment_2d.shape[1]
+
+    if disable_baselines:
+        ols_estimate = np.full(m, np.nan, dtype=float)
+        matching_estimate = np.full(m, np.nan, dtype=float)
+    else:
+        ols_estimate = baselines.ols_baseline(covariates, treatment, outcome)
+        if m == 1:
+            matching_estimate = np.array(
+                [baselines.matching_baseline(covariates, treatment, outcome)],
+                dtype=float,
+            )
+        else:
+            # Per-coordinate matching: treat column j as active treatment,
+            # other columns as additional covariates.  Mirrors ablation_utils.
+            estimates = np.empty(m, dtype=float)
+            for j in range(m):
+                other_cols = np.delete(treatment_2d, j, axis=1)
+                augmented = np.concatenate([covariates, other_cols], axis=1)
+                estimates[j] = baselines.matching_baseline(augmented, treatment_2d[:, j], outcome)
+            matching_estimate = estimates
+
     return (
         *all_together_cross_fitting(
             covariates,
@@ -119,6 +153,8 @@ def experiment(
         ),
         ica_treatment_effect_estimate,
         ica_mcc,
+        ols_estimate,
+        matching_estimate,
     )
 
 
@@ -133,6 +169,7 @@ def run_experiments_for_configuration(
     outcome_coefficient: float,
     treatment_coef_array: np.ndarray,
     outcome_coef_array: np.ndarray,
+    disable_baselines: bool = False,
 ) -> dict:
     """Run experiments for a single parameter configuration.
 
@@ -147,6 +184,8 @@ def run_experiments_for_configuration(
         outcome_coefficient: Outcome coefficient
         treatment_coef_array: Treatment coefficient array
         outcome_coef_array: Outcome coefficient array
+        disable_baselines: If True, skip OLS / matching baselines and emit
+            NaN placeholders so per-experiment list length is preserved.
 
     Returns:
         Dictionary with experiment results
@@ -294,10 +333,13 @@ def run_experiments_for_configuration(
                 config.check_convergence,
                 verbose=config.verbose,
                 oracle_support=config.oracle_support,
+                disable_baselines=disable_baselines,
             )
             for _ in range(config.n_experiments)
         )
-        if (config.check_convergence is False or r[-1] is not None)
+        # ica_mcc is at position -3 after the OLS/matching baselines were
+        # appended to the experiment() return tuple.
+        if (config.check_convergence is False or r[-3] is not None)
     ]
 
     print(f"Experiments kept: {len(results)} out of {config.n_experiments} seeds")
@@ -306,11 +348,32 @@ def run_experiments_for_configuration(
         print("Configuration skipped as no runs converged")
         return None
 
-    # Extract results
+    def _to_list_local(value):
+        if hasattr(value, "tolist"):
+            result = value.tolist()
+            return result if isinstance(result, list) else [result]
+        return [value]
+
+    # Extract results.  The per-experiment list grows from 5 to 7 entries
+    # for univariate treatment (5 + 1 + 1 + 1 = 7); for m-variate treatment
+    # it is 4 + m + m + m = 4 + 3m.
     ortho_rec_tau = [
         [ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml]
-        + (ica_estimate.tolist() if hasattr(ica_estimate, "tolist") else [ica_estimate])
-        for ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml, _, _, ica_estimate, _ in results
+        + _to_list_local(ica_estimate)
+        + _to_list_local(ols_estimate)
+        + _to_list_local(matching_estimate)
+        for (
+            ortho_ml,
+            robust_ortho_ml,
+            robust_ortho_est_ml,
+            robust_ortho_est_split_ml,
+            _,
+            _,
+            ica_estimate,
+            _,
+            ols_estimate,
+            matching_estimate,
+        ) in results
     ]
 
     first_stage_mse = [
@@ -320,7 +383,7 @@ def run_experiments_for_configuration(
             np.linalg.norm(ica_estimate - treatment_effect),
             ica_mcc,
         ]
-        for _, _, _, _, coef_treatment, coef_outcome, ica_estimate, ica_mcc in results
+        for _, _, _, _, coef_treatment, coef_outcome, ica_estimate, ica_mcc, _, _ in results
     ]
 
     # Compute method comparison statistics
@@ -524,6 +587,14 @@ def main(args):
         default="all_results_merged.npy",
         help="Output filename for merged results (default: all_results_merged.npy)",
     )
+    parser.add_argument(
+        "--disable_baselines",
+        dest="disable_baselines",
+        action="store_true",
+        default=False,
+        help="Skip OLS and matching baselines for legacy reproducibility. NaN-filled "
+        "placeholders are emitted at indices 5/6 so downstream slicing logic still works.",
+    )
 
     opts = parser.parse_args(args)
 
@@ -662,6 +733,7 @@ def main(args):
                                     outcome_coefficient=outcome_coefficient,
                                     treatment_coef_array=treatment_coef_array,
                                     outcome_coef_array=outcome_coef_array,
+                                    disable_baselines=opts.disable_baselines,
                                 )
 
                                 if result is not None:

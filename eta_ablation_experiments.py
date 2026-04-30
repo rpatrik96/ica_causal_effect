@@ -10,8 +10,6 @@ from itertools import product
 from typing import List, Tuple
 
 import numpy as np
-from scipy.stats import kurtosis as scipy_kurtosis
-
 from ablation_utils import (
     HOML_IDX,
     ICA_IDX,
@@ -25,6 +23,7 @@ from ablation_utils import (
     run_parallel_experiments,
 )
 from oml_runner import setup_treatment_noise
+from scipy.stats import kurtosis as scipy_kurtosis
 
 # =============================================================================
 # Coefficient Utilities
@@ -101,14 +100,20 @@ def parse_distribution_spec(dist_spec: str) -> tuple:
     """Parse distribution specification string.
 
     Supports:
-    - Simple distribution names: "discrete", "uniform", "laplace", etc.
+    - Simple distribution names: "discrete", "uniform", "laplace", "rademacher", "bernoulli", etc.
     - Parameterized gennorm: "gennorm:1.5" (with beta=1.5)
+    - Parameterized bernoulli: "bernoulli:0.4" (with p=0.4); default p=0.3 when no param given.
+
+    The Bernoulli p value is conveyed through the second return element (reusing the
+    ``gennorm_beta`` slot in ``setup_treatment_noise``).
 
     Args:
         dist_spec: Distribution specification string
 
     Returns:
-        Tuple of (distribution_name, beta_value_or_none)
+        Tuple of (distribution_name, param_value_or_none).  For ``bernoulli`` the param
+        is the probability *p*; for ``gennorm`` it is the shape *beta*; for all other
+        distributions it is ``None``.
     """
     if ":" in dist_spec:
         parts = dist_spec.split(":")
@@ -116,7 +121,12 @@ def parse_distribution_spec(dist_spec: str) -> tuple:
         if dist_name == "gennorm":
             beta_val = float(parts[1])
             return "gennorm", beta_val
-        raise ValueError(f"Parameterized format only supported for 'gennorm', got: {dist_name}")
+        if dist_name == "bernoulli":
+            p_val = float(parts[1])
+            return "bernoulli", p_val
+        raise ValueError(f"Parameterized format only supported for 'gennorm' and 'bernoulli', got: {dist_name}")
+    if dist_spec == "bernoulli":
+        return "bernoulli", 0.3  # default asymmetric p
     return dist_spec, None
 
 
@@ -355,7 +365,15 @@ def run_noise_ablation_experiments(
         }
 
         # Print summary
-        method_names = ["Ortho ML", "Robust Ortho ML", "Robust Ortho Est", "Robust Ortho Split", "ICA"]
+        method_names = [
+            "Ortho ML",
+            "Robust Ortho ML",
+            "Robust Ortho Est",
+            "Robust Ortho Split",
+            "ICA",
+            "OLS",
+            "Matching",
+        ]
         print(f"\nResults for {noise_dist_spec}:")
         print(f"  Excess kurtosis: {eta_excess_kurtosis:.4f}")
         print(f"  Third moment: {eta_third_moment:.4f}")

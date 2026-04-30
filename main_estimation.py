@@ -185,6 +185,12 @@ def all_together_cross_fitting(
         robust_ortho_est_split_ml, treatment_coef, outcome_coef)``
         where the last two are the final LassoCV coefficient vectors of
         shape ``(n_features,)``.
+
+    Note:
+        ``baselines.ols_baseline`` and ``baselines.matching_baseline`` are
+        the parallel non-OML baselines added in the rebuttal package; they
+        live in ``baselines.py`` rather than here because they do not share
+        the LassoCV/cross-fitting nuisance machinery.
     """
     residual_treatment = np.zeros(covariates.shape[0])
     residual_outcome = np.zeros(covariates.shape[0])

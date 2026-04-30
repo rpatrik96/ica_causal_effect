@@ -1,0 +1,98 @@
+# HTCondor submit file for UAI 2026 rebuttal experiments
+#
+# Covers the three new experiment types committed in the rebuttal:
+#   1. Bernoulli treatment-noise ablation       (rebuttal NbV6-W1/C6)
+#   2. Semi-synthetic real-X experiment         (rebuttal NbV6-C3, iuAn-W3)
+#   3. Multi-treatment Fig 4 + OLS/HOML         (rebuttal NbV6-C2)
+#
+# OLS + matching baselines are integrated into the main experiment dispatcher
+# (ablation_utils.run_single_experiment) so re-running sweep_all_experiments.sub
+# automatically picks them up at indices 5/6 of every existing ablation.
+
+executable = run_experiment.sh
+
+# Resource requirements - sized per-section below.
+request_disk = 20GB
+
+# Log files
+log_root = /home/preizinger/jobs/doml_rebuttal_$(ClusterId)_$(exp_type)_$(label)
+error = $(log_root).err
+output = $(log_root).out
+log = $(log_root).log
+
+# No file transfer - run from project directory on shared filesystem
+should_transfer_files = NO
+getenv = True
+
+# Common parameters
+n_experiments = 20
+
+# ============================================================================
+# SECTION A: Bernoulli treatment-noise ablation (5 jobs, one per n_samples)
+# ============================================================================
+# Sweeps over Bernoulli p ∈ {0.3, 0.5, 0.7} with Rademacher cross-check, and
+# the (a, b, theta) coefficient grid via --randomize_coeffs (20 configs).
+# Output: figures/bernoulli/noise_ablation_results_bernoulli.npy + plots.
+
+request_cpus = 8
+request_memory = 32GB
++MaxRuntime = 14400
+MaxTime = 14400
+periodic_remove = (JobStatus =?= 2) && ((CurrentTime - JobCurrentStartDate) >= $(MaxTime))
+
+exp_type = bernoulli_experiment
+label = bernoulli_n$(n_samples)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) \
+            --bernoulli_ps 0.3 0.5 0.7 --add_rademacher_baseline \
+            --randomize_coeffs --n_random_configs 20
+queue n_samples in (500, 1000, 2000, 5000, 10000)
+
+# ============================================================================
+# SECTION B: Semi-synthetic experiment (8 jobs, one per (eta, nonlin, theta))
+# ============================================================================
+# California Housing covariates + PLR-imposed treatment effect.
+# Output: figures/semi_synthetic/semi_synthetic_<dataset>_results.npy.
+
+request_cpus = 4
+request_memory = 16GB
++MaxRuntime = 7200
+MaxTime = 7200
+periodic_remove = (JobStatus =?= 2) && ((CurrentTime - JobCurrentStartDate) >= $(MaxTime))
+
+exp_type = semi_synthetic
+label = semisyn_$(eta_dist)_$(nonlin)_te$(theta)
+arguments = $(exp_type) --dataset california_housing \
+            --n_samples 5000 --n_experiments $(n_experiments) \
+            --eta_distribution $(eta_dist) --nonlinearity $(nonlin) \
+            --treatment_effect $(theta) --methods all
+queue eta_dist, nonlin, theta from (
+    discrete,         identity,    1.0
+    laplace,          identity,    1.0
+    rademacher,       identity,    1.0
+    bernoulli:0.3,    identity,    1.0
+    discrete,         leaky_relu,  1.0
+    laplace,          leaky_relu,  1.0
+    discrete,         identity,    0.5
+    discrete,         identity,    2.0
+)
+
+# ============================================================================
+# SECTION C: Multi-treatment Fig 4 + OLS/HOML baselines (1 job, full grid)
+# ============================================================================
+# n × m × d grid: 5 × 3 × 3 = 45 configs × 20 reps.
+# Output: figures/multi_treatment/results_multi_treatment.npy.
+
+request_cpus = 8
+request_memory = 32GB
++MaxRuntime = 21600
+MaxTime = 21600
+periodic_remove = (JobStatus =?= 2) && ((CurrentTime - JobCurrentStartDate) >= $(MaxTime))
+
+exp_type = multi_treatment_with_baselines
+label = multi_treatment_full
+arguments = $(exp_type) --n_experiments $(n_experiments) \
+            --sample_sizes 500 1000 2000 5000 10000 \
+            --n_treatments 1 2 5 \
+            --n_covariates 10 20 50 \
+            --nonlinearity identity --eta_distribution discrete
+queue 1

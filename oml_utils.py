@@ -166,7 +166,7 @@ def compute_distribution_moments(
     ----------
     distribution : str
         Noise distribution type: "discrete", "laplace", "uniform", "rademacher",
-        "gennorm_heavy", "gennorm_light", or "gennorm".
+        "bernoulli", "gennorm_heavy", "gennorm_light", or "gennorm".
     params : np.ndarray, optional
         For "discrete": discount values. For "gennorm": [beta, loc, scale].
     probs : np.ndarray, optional
@@ -266,6 +266,18 @@ def compute_distribution_moments(
         second_moment = scale**2
         third_moment = 0.0  # Symmetric
         fourth_moment = (gn_fourth / gn_var**2) * scale**4
+
+    elif distribution == "bernoulli":
+        # Asymmetric Bernoulli on pre-centered support {1-p, -p} with masses {p, 1-p}.
+        # The support passed via ``params`` is already zero-mean, so the discrete
+        # moment formula applies directly (no re-centering needed).
+        if params is None or probs is None:
+            raise ValueError("params (support) and probs required for bernoulli distribution")
+        support = params
+        # Support is already centered: mean = p*(1-p) + (1-p)*(-p) = 0
+        second_moment = np.dot(support**2, probs)
+        third_moment = np.dot(support**3, probs)
+        fourth_moment = np.dot(support**4, probs)
 
     else:
         raise ValueError(f"Unknown distribution: {distribution}")
