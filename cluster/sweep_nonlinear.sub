@@ -1,0 +1,115 @@
+# HTCondor submit file for the nonlinear-confounding partially linear model.
+#
+# Reviewer concern addressed: prior experiments used linear confounding so OLS
+# was trivially consistent. This sweep uses nonlinear m(X) and g(X) (sums of
+# sin terms + pairwise interactions + quadratic terms) so that OLS regressing
+# Y on [T, X] linearly is biased. The orthogonal methods and ICA, given a
+# flexible first-stage nuisance, remain consistent.
+#
+# Four difficulty axes are individually toggleable:
+#   1. nonlinear_confounding  -- sin/interaction/quadratic m and g  [breaks OLS]
+#   2. heavy_tail_eta         -- Laplace (gennorm beta=1) treatment noise  [helps ICA]
+#   3. high_dim               -- dense d=50 signal  [stresses Lasso nuisance]
+#   4. heteroscedastic_eps    -- Var[eps|X] depends on X  [violates PLR homoscedasticity]
+#
+# Submit:
+#   condor_submit_bid <bid> sweep_nonlinear.sub
+#
+# Output: ${PROJECT_DIR}/figures/nonlinear/nonlinear_results_*.npy
+
+executable = run_experiment.sh
+
+request_disk = 20GB
+
+# Log files
+log_root = /home/preizinger/jobs/doml_nonlinear_$(ClusterId)_$(label)
+error = $(log_root).err
+output = $(log_root).out
+log = $(log_root).log
+
+# No file transfer - run from project directory on shared filesystem
+should_transfer_files = NO
+getenv = True
+
+# Common parameters
+n_experiments = 100
+
+request_cpus = 8
+request_memory = 32GB
++MaxRuntime = 21600
+MaxTime = 21600
+periodic_remove = (JobStatus =?= 2) && ((CurrentTime - JobCurrentStartDate) >= $(MaxTime))
+
+exp_type = nonlinear
+
+# ============================================================================
+# SECTION A: Sample-size sweep, nonlinear + heavy-tail, LINEAR nuisance
+# ============================================================================
+# Shows OLS breaking and OML (with linear Lasso) also biased -- both suffer
+# without a flexible first stage. Baseline for the nuisance comparison.
+
+label = nl_linear_n$(n_samples)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) \
+            --n_covariates 10 --support_size 5 \
+            --treatment_effect 1.5 --sigma_eta 1.0 --sigma_outcome 1.0 \
+            --nonlinear_confounding --heavy_tail_eta --eta_beta 1.0 \
+            --nuisance linear --base_seed 13337
+queue n_samples in (500, 1000, 2000, 5000, 10000)
+
+# ============================================================================
+# SECTION B: Sample-size sweep, nonlinear + heavy-tail, GBM nuisance
+# ============================================================================
+# Same DGP as Section A but with GradientBoosting first stage. OML/HOML
+# should recover theta; ICA is unchanged (nuisance-free). The contrast with
+# Section A isolates the effect of a flexible vs linear nuisance.
+
+label = nl_gbm_n$(n_samples)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) \
+            --n_covariates 10 --support_size 5 \
+            --treatment_effect 1.5 --sigma_eta 1.0 --sigma_outcome 1.0 \
+            --nonlinear_confounding --heavy_tail_eta --eta_beta 1.0 \
+            --nuisance gbm --base_seed 13337
+queue n_samples in (500, 1000, 2000, 5000, 10000)
+
+# ============================================================================
+# SECTION C: Difficulty-axis sweep (n=2000, GBM nuisance)
+# ============================================================================
+# Each job activates a different subset of the four difficulty axes so we
+# can isolate which axis hurts which estimator. The "hard" preset activates
+# all four; jobs below activate them one at a time for attribution.
+#
+# Axes legend: nl=nonlinear, ht=heavy-tail, hd=high-dim, he=heteroscedastic
+
+label = axis_$(axis_tag)
+queue axis_tag, axis_args from (
+    nl_only,    --nonlinear_confounding
+    ht_only,    --heavy_tail_eta --eta_beta 1.0
+    hd_only,    --high_dim --high_dim_d 50
+    he_only,    --heteroscedastic_eps
+    nl_ht,      --nonlinear_confounding --heavy_tail_eta --eta_beta 1.0
+    nl_he,      --nonlinear_confounding --heteroscedastic_eps
+    nl_ht_he,   --nonlinear_confounding --heavy_tail_eta --eta_beta 1.0 --heteroscedastic_eps
+    all_axes,   --nonlinear_confounding --heavy_tail_eta --eta_beta 1.0 --high_dim --high_dim_d 50 --heteroscedastic_eps
+)
+
+# This section shares the same base arguments; the axis_args variable appends
+# the per-job difficulty flags.
+arguments = $(exp_type) --n_samples 2000 --n_experiments $(n_experiments) \
+            --n_covariates 10 --support_size 5 \
+            --treatment_effect 1.5 --sigma_eta 1.0 --sigma_outcome 1.0 \
+            --nuisance gbm --base_seed 13337 \
+            $(axis_args)
+
+# ============================================================================
+# SECTION D: Covariate-dimension sweep (nonlinear + heavy-tail, GBM nuisance)
+# ============================================================================
+# Tests convergence rate in higher ambient dimensions. support_size stays at 5
+# so the signal is constant; only the number of irrelevant covariates grows.
+
+label = nl_gbm_d$(d_covariates)
+arguments = $(exp_type) --n_samples 2000 --n_experiments $(n_experiments) \
+            --n_covariates $(d_covariates) --support_size 5 \
+            --treatment_effect 1.5 --sigma_eta 1.0 --sigma_outcome 1.0 \
+            --nonlinear_confounding --heavy_tail_eta --eta_beta 1.0 \
+            --nuisance gbm --base_seed 13337
+queue d_covariates in (10, 20, 50, 100)

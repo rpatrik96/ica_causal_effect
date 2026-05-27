@@ -281,6 +281,6 @@ def all_together_cross_fitting(
         robust_ortho_ml,
         robust_ortho_est_ml,
         robust_ortho_est_split_ml,
-        model_treatment.coef_,
-        model_outcome.coef_,
+        getattr(model_treatment, "coef_", np.array([])),
+        getattr(model_outcome, "coef_", np.array([])),
     )
