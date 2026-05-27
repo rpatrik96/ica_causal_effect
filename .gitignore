@@ -94,3 +94,9 @@ uv.lock
 
 # Pre-commit
 .pre-commit-config.yaml.bak
+
+# Downloaded benchmark data (re-fetched on demand by realdata_loaders.py)
+data/
+
+# Cached experiment-result arrays from the explorations memos
+explorations/**/*.npy
