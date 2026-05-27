@@ -9,7 +9,8 @@ if [ $# -lt 1 ]; then
     echo "Usage: $0 <experiment_type> [experiment_args...]" >&2
     echo "Available types: single_instance, single_instance_seed, eta_filtered_heatmap," >&2
     echo "  eta_variance_ablation, eta_coefficient_ablation, eta_default, ica," >&2
-    echo "  bernoulli_experiment, multi_treatment_with_baselines" >&2
+    echo "  bernoulli_experiment, multi_treatment_with_baselines, binary_treatment," >&2
+    echo "  nonlinear" >&2
     exit 1
 fi
 
@@ -110,6 +111,27 @@ case "${EXPERIMENT_TYPE}" in
           --include_baselines ${EXPERIMENT_ARGS}
         ;;
 
+    "binary_treatment")
+        # Binary-treatment partially linear model: T ~ Bernoulli(sigma(alpha^T X)).
+        # Reviewer-requested: T is genuinely binary (not just Bernoulli noise).
+        # Output: ${OUTPUT_DIR}/binary_treatment/binary_treatment_results.npy.
+        # Example args: --n_samples 2000 --n_experiments 50 --propensity_strength 0.7
+        python -u binary_treatment_runner.py \
+          --output_dir "${OUTPUT_DIR}/binary_treatment" ${EXPERIMENT_ARGS}
+        ;;
+
+    "nonlinear")
+        # Nonlinear-confounding partially linear model.
+        # Reviewer-requested: shows OLS breaking down under nonlinear g(X)/m(X).
+        # Four independently-toggleable difficulty axes:
+        #   --nonlinear_confounding, --heavy_tail_eta, --high_dim, --heteroscedastic_eps
+        # Nuisance: --nuisance linear|gbm|poly
+        # Output: ${OUTPUT_DIR}/nonlinear/nonlinear_results_*.npy
+        # Example args: --n_samples 2000 --n_experiments 50 --nonlinear_confounding --nuisance gbm
+        python -u nonlinear_runner.py \
+          --output_dir "${OUTPUT_DIR}/nonlinear" ${EXPERIMENT_ARGS}
+        ;;
+
     *)
         echo "Unknown experiment type: ${EXPERIMENT_TYPE}"
         echo "Available types:"
@@ -122,6 +144,8 @@ case "${EXPERIMENT_TYPE}" in
         echo "  ica                             - ICA experiments"
         echo "  bernoulli_experiment            - Bernoulli noise ablation"
         echo "  multi_treatment_with_baselines  - Fig 4 with OLS+HOML baselines"
+        echo "  binary_treatment                - Binary T ~ Bernoulli(sigma(alpha^T X))"
+        echo "  nonlinear                       - Nonlinear confounding (breaks OLS)"
         exit 1
         ;;
 esac
