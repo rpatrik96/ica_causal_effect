@@ -96,18 +96,37 @@ class TestLoadIHDP:
             load_ihdp(replication=999, data_dir=str(tmp_path), use_fixture_on_failure=False)
 
     def test_real_data_if_cached(self):
-        """If the real IHDP file is cached, verify it loads correctly."""
-        from realdata_loaders import _ihdp_csv_path
+        """If any real IHDP source is cached, verify it loads correctly.
 
-        path = _ihdp_csv_path(1)
-        if not os.path.exists(path):
-            pytest.skip("Real IHDP replication 1 not cached; skipping real-data test.")
+        ``load_ihdp`` prefers the NPZ-100 benchmark (672 samples) and falls
+        back to the per-rep CSV mirror (747 samples); accept either.
+        """
+        from realdata_loaders import ihdp_replication_is_real
+
+        if not ihdp_replication_is_real(1):
+            pytest.skip("No real IHDP replication 1 cached; skipping real-data test.")
         X, T, Y, att = load_ihdp(replication=1, use_fixture_on_failure=False)
-        assert X.shape == (747, 25)
-        assert T.shape == (747,)
+        n_expected = 672 if X.shape[0] == 672 else 747  # NPZ vs CSV source
+        assert X.shape == (n_expected, 25)
+        assert T.shape == (n_expected,)
         assert set(np.unique(T)).issubset({0.0, 1.0})
-        # ATT for real IHDP rep 1 should be in a sane range
-        assert 0.0 < att < 1.0, f"Unexpected ATT={att} for real IHDP rep 1"
+        assert np.isfinite(att) and att > 0.0, f"Unexpected ATT={att} for real IHDP rep 1"
+
+    def test_npz_benchmark_if_cached(self):
+        """The NPZ-100 benchmark, when present, yields 100 real replications."""
+        from realdata_loaders import _ihdp_npz_path, _load_ihdp_npz_replication
+
+        if not os.path.exists(_ihdp_npz_path()):
+            pytest.skip("IHDP NPZ benchmark not cached; skipping.")
+        for rep in (1, 50, 100):
+            res = _load_ihdp_npz_replication(rep)
+            assert res is not None, f"NPZ replication {rep} should load"
+            X, T, Y, att = res
+            assert X.shape == (672, 25)
+            assert set(np.unique(T)).issubset({0.0, 1.0})
+            assert np.isfinite(att)
+        # Replication beyond the benchmark range is unavailable.
+        assert _load_ihdp_npz_replication(101) is None
 
 
 # ---------------------------------------------------------------------------

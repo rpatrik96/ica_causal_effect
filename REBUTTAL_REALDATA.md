@@ -4,20 +4,23 @@
 
 ### IHDP (Infant Health and Development Program)
 
-Semi-synthetic benchmark from Hill (2011). The 747 observations come from the
-real IHDP study (139 treated, 608 control). Outcomes are simulated from the
-nonlinear "setting B" surface: $\mu_0(X)$ and $\mu_1(X)$ are fixed functions of
-the real covariates, so the true ATT and ATE are *known* per replication. The
-CEVAE NPCI files provide the same fixed potential-outcome surface across
-replications; outcome variation across runs comes from the additive noise on
-$y_{\text{factual}}$.
+Semi-synthetic benchmark from Hill (2011). The 672 observations per replication
+come from the real IHDP study. Outcomes are simulated from the nonlinear
+"setting B" response surface, with the true potential-outcome means
+$\mu_0(X), \mu_1(X)$ known per replication, so the per-replication ATT/ATE is
+exact. We use the **canonical IHDP-100 NPZ benchmark** (the same file used by
+CEVAE/CFRNet), which provides 100 genuinely distinct simulated surfaces — unlike
+the CEVAE CSV mirror, which only ships 10 replications and is unsuitable for
+tight confidence intervals.
 
-- **Source**: AMLab-Amsterdam/CEVAE repository, files `ihdp_npci_{1..100}.csv`
-  (URL: `https://raw.githubusercontent.com/AMLab-Amsterdam/CEVAE/master/datasets/IHDP/csv/`)
-- **Data status**: **REAL DATA downloaded** (100 files cached under `data/`)
-- **Covariates**: 25 (10 continuous, standardised; 15 binary)
-- **True ATT**: 0.2158 (constant across replications — same fixed surface)
-- **True ATE**: 0.0295
+- **Source**: `ihdp_npci_1-100.train.npz` from `https://www.fredjo.com/files/`
+  (672 samples × 25 covariates × 100 replications)
+- **Data status**: **REAL DATA downloaded** and cached under `data/`
+- **Covariates**: 25 (6 continuous + 19 binary)
+- **Treatment**: binary, ~19% treated
+- **True ATT**: heterogeneous across replications, mean $\approx 3.9$ (the
+  effect varies by replication; bias/RMSE are computed against each
+  replication's own true ATT)
 
 ### Jobs (LaLonde / Dehejia–Wahba NSW experiment)
 
@@ -54,37 +57,39 @@ Cross-fitting uses 2-fold KFold throughout.
 
 ---
 
-## IHDP results (real data, 10 replications)
+## IHDP results (real data, 100 replications)
 
-True ATT = 0.2158 (same across all replications; ATE = 0.0295).
-Bias/sigma/RMSE computed relative to per-replication true ATT.
-95% CIs computed via the delta method on per-replication squared errors.
+Bias/sigma/RMSE computed relative to each replication's own true ATT (mean
+$\approx 3.9$). 95% CIs via the delta method on per-replication squared errors.
 
 ### Linear (Lasso) nuisance
 
 | Method | bias | sigma | **RMSE** | SE(RMSE) | 95% CI |
 |---|---|---|---|---|---|
-| Ortho ML | −0.3669 | 0.0312 | **0.3682** | 0.0097 | [0.349, 0.387] |
-| Robust Ortho ML | −0.5402 | 0.1482 | **0.5602** | 0.0441 | [0.474, 0.647] |
-| Robust Ortho Est | −0.2848 | 1.0921 | **1.1286** | 0.2909 | [0.558, 1.699] |
-| Robust Ortho Split | −0.8658 | 0.8152 | **1.1892** | 0.3803 | [0.444, 1.935] |
-| **ICA** | **−0.2169** | **0.0097** | **0.2172** | **0.0030** | **[0.211, 0.223]** |
-| OLS | −0.2456 | 0.0292 | **0.2473** | 0.0098 | [0.228, 0.267] |
-| Matching | −0.2367 | 0.0313 | **0.2387** | 0.0082 | [0.223, 0.255] |
+| **Ortho ML** | −0.153 | 0.543 | **0.564** | 0.079 | [0.410, 0.719] |
+| Robust Ortho ML | +0.267 | 2.834 | **2.847** | 0.448 | [1.968, 3.725] |
+| Robust Ortho Est | +0.350 | 3.364 | **3.383** | 0.555 | [2.294, 4.471] |
+| Robust Ortho Split | +0.476 | 4.295 | **4.322** | 0.771 | [2.812, 5.832] |
+| ICA | +1.784 | 3.564 | **3.985** | 0.538 | [2.932, 5.039] |
+| **OLS** | −0.043 | 0.596 | **0.597** | 0.108 | [0.386, 0.808] |
+| Matching | +0.170 | 1.024 | **1.038** | 0.185 | [0.676, 1.401] |
 
 ### GBM nuisance
 
 | Method | bias | sigma | **RMSE** | SE(RMSE) | 95% CI |
 |---|---|---|---|---|---|
-| Ortho ML | −0.3147 | 0.2896 | **0.4277** | 0.0718 | [0.287, 0.568] |
-| Robust Ortho ML | +0.2100 | 0.8826 | **0.9073** | 0.3291 | [0.262, 1.552] |
-| Robust Ortho Est | −0.3431 | 0.3336 | **0.4786** | 0.0831 | [0.316, 0.642] |
-| Robust Ortho Split | −0.2238 | 0.1783 | **0.2861** | 0.0330 | [0.222, 0.351] |
-| **ICA** | **−0.2169** | **0.0097** | **0.2172** | **0.0030** | **[0.211, 0.223]** |
-| OLS | −0.2456 | 0.0292 | **0.2473** | 0.0098 | [0.228, 0.267] |
-| Matching | −0.2367 | 0.0313 | **0.2387** | 0.0082 | [0.223, 0.255] |
+| Ortho ML | −0.310 | 0.878 | **0.931** | 0.139 | [0.659, 1.203] |
+| Robust Ortho ML | −0.264 | 1.716 | **1.736** | 0.273 | [1.201, 2.271] |
+| Robust Ortho Est | −0.288 | 1.152 | **1.188** | 0.179 | [0.837, 1.538] |
+| Robust Ortho Split | +0.045 | 5.217 | **5.217** | 1.015 | [3.228, 7.206] |
+| ICA | +1.784 | 3.564 | **3.985** | 0.538 | [2.932, 5.039] |
+| **OLS** | −0.043 | 0.596 | **0.597** | 0.108 | [0.386, 0.808] |
+| Matching | +0.170 | 1.024 | **1.038** | 0.185 | [0.676, 1.401] |
 
-*(100-replication results will replace the 10-rep numbers above once the run completes.)*
+ICA's row is identical across nuisance columns because it does not use the OML
+residualisation. The earlier 10-replication smoke run (CEVAE CSV mirror, a
+different low-effect surface) reported ICA as best; that does **not** survive on
+the canonical 100-replication benchmark — see take-aways.
 
 ---
 
@@ -166,30 +171,31 @@ careful overlap trimming.
 
 ### IHDP
 
-1. **All methods show systematic negative bias on IHDP.** The true ATT is
-   0.216 but all estimators return estimates well below it under both nuisance
-   specifications. This is a well-known property of IHDP "setting B": the
-   nonlinear outcome surface creates strong confounding that the partially linear
-   model does not capture by design. The bias reflects DGP misspecification, not
-   estimator failure per se.
+1. **First-order OML and OLS win; ICA does not.** On the canonical
+   100-replication benchmark, OLS (RMSE 0.597) and first-order Ortho ML (0.564,
+   linear nuisance) are the clear best; Matching follows (1.038). **ICA is poor
+   (RMSE 3.99, bias +1.78)** — it systematically overshoots the true effect
+   (e.g. replication 100: ICA = 7.14 vs. true ATT 3.90).
 
-2. **ICA achieves the best RMSE under both Lasso and GBM nuisance.**
-   With Lasso: RMSE 0.217 (95% CI [0.211, 0.223]) vs. OML 0.368, Matching 0.239.
-   With GBM: RMSE 0.217 vs. OML 0.428, Robust Ortho Split 0.286.
-   ICA's RMSE is essentially identical across nuisance specifications because
-   the ICA estimator does not depend on the OML residualisation — it uses the
-   full (X, T, Y) stack directly.
+2. **This is the expected outcome, not a failure — IHDP has binary treatment.**
+   The ICA estimator models the treatment noise $\eta$ as a continuous
+   non-Gaussian source mixed linearly into $(T, Y)$; binary $T$ violates that
+   assumption. This matches the binary-treatment experiments and the Pareto
+   analysis, both of which find ICA misspecified for binary $T$. IHDP and Jobs
+   are therefore OML/OLS territory, not ICA territory — the honest message is
+   that ICA's domain is *continuous, heavy-tailed* treatment noise, not binary
+   interventions.
 
-3. **GBM nuisance does not rescue OML/HOML on IHDP.** Switching from Lasso to
-   GBM reduces bias for OML from −0.37 to −0.31 (modest improvement), but
-   increases variance substantially. RMSE actually worsens for OML (0.368 →
-   0.428) due to first-stage overfitting on n=747. The HOML variants deteriorate
-   further with GBM. Robust Ortho Split improves (0.286 vs. 1.189 with Lasso)
-   because nested splitting guards against GBM overfitting, but still cannot
-   match ICA (0.217).
+3. **GBM nuisance hurts OML here.** Switching Lasso → GBM raises OML RMSE from
+   0.564 to 0.931: with only $n=672$ and a heterogeneous effect, the flexible
+   first stage overfits rather than helping. The HOML variants are high-variance
+   under both nuisances (RMSE 1.2–5.2), driven by the unstable score denominator
+   on binary $T$ — the same instability documented in the Pareto analysis.
 
-4. **OLS and Matching are competitive with OML on IHDP** (RMSE ~0.247 and
-   0.239 respectively), consistent with the binary-treatment results.
+4. **An earlier 10-replication smoke run reported ICA as best (RMSE 0.22).**
+   That used the CEVAE CSV mirror, a different low-effect response surface, with
+   too few replications for a stable estimate; it does not reproduce on the
+   100-replication benchmark and should not be cited.
 
 ### Jobs (experimental NSW)
 
@@ -228,15 +234,13 @@ careful overlap trimming.
 |------|------|
 | `realdata_loaders.py` | `load_ihdp()`, `load_jobs()`, `load_jobs_observational()` — download (NBER .dta), cache, and fixture fallback |
 | `realdata_runner.py` | Argparse runner; `run_ihdp()`, `run_jobs()`, `run_jobs_observational()`, `_run_single_replication()`, `_make_nuisance_models()` |
-| `tests/test_realdata.py` | 36 tests (loader shapes, schema, CI keys, nuisance factory, smoke tests) — all pass |
+| `tests/test_realdata.py` | 37 tests (loader shapes, schema, NPZ benchmark, CI keys, nuisance factory, smoke tests) — all pass |
+| `data/ihdp_npci_1-100.train.npz` | Real IHDP-100 benchmark (672×25×100, from fredjo.com) |
 | `data/lalonde_nsw_dw.csv` | Real NSW data (from NBER nsw_dw.dta, n=445) |
 | `data/cps_controls.csv` | CPS-1 comparison sample (n=15,992) |
 | `data/psid_controls.csv` | PSID-1 comparison sample (n=2,490) |
-| `data/ihdp_npci_{1..100}.csv` | Real IHDP replications (downloaded) |
-| `figures/realdata/ihdp_results_n10_linear.npy` | IHDP Lasso results (10 reps) |
-| `figures/realdata/ihdp_results_n10_gbm.npy` | IHDP GBM results (10 reps) |
-| `figures/realdata/ihdp_results_n100_linear.npy` | IHDP Lasso results (100 reps, pending) |
-| `figures/realdata/ihdp_results_n100_gbm.npy` | IHDP GBM results (100 reps, pending) |
+| `figures/realdata/ihdp_results_n100_linear.npy` | IHDP Lasso results (100 real reps) |
+| `figures/realdata/ihdp_results_n100_gbm.npy` | IHDP GBM results (100 real reps) |
 | `figures/realdata/jobs_results_linear.npy` | Jobs NSW experimental results (Lasso) |
 | `figures/realdata/jobs_results_gbm.npy` | Jobs NSW experimental results (GBM) |
 | `figures/realdata/jobs_cps_obs_results_linear.npy` | Jobs CPS observational results |

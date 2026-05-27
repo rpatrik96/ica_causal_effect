@@ -126,6 +126,91 @@ def _parse_ihdp_array(arr: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarr
     return x, t, y_factual, ate, att
 
 
+# ---------------------------------------------------------------------------
+# Multi-replication NPZ benchmark (the canonical IHDP-100, Johansson/fredjo).
+# The CEVAE CSV mirror only ships 10 replications; for tight CIs we use the
+# standard ``ihdp_npci_1-100`` NPZ (672 samples x 25 covariates x 100 reps),
+# the same file used by CEVAE/CFRNet. Preferred over the per-rep CSVs.
+# ---------------------------------------------------------------------------
+
+_IHDP_NPZ_URL = "https://www.fredjo.com/files/ihdp_npci_1-100.train.npz"
+_IHDP_NPZ_NAME = "ihdp_npci_1-100.train.npz"
+_IHDP_NPZ_CACHE: dict = {}
+
+
+def _ihdp_npz_path(data_dir: Optional[str] = None) -> str:
+    return os.path.join(data_dir or DATA_DIR, _IHDP_NPZ_NAME)
+
+
+def _download_ihdp_npz(dest: Optional[str] = None) -> bool:
+    """Download the IHDP-100 NPZ benchmark. Returns True on success/exists."""
+    dest = dest or _ihdp_npz_path()
+    if os.path.exists(dest):
+        return True
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.urlopen(_IHDP_NPZ_URL, context=ctx, timeout=60)
+        with open(dest, "wb") as fh:
+            fh.write(req.read())
+        return True
+    except Exception:  # pylint: disable=broad-exception-caught
+        if os.path.exists(dest):
+            os.remove(dest)
+        return False
+
+
+def _ihdp_npz_data(data_dir: Optional[str] = None):
+    """Return the memmapped NPZ archive, downloading + caching on first use."""
+    path = _ihdp_npz_path(data_dir)
+    if path in _IHDP_NPZ_CACHE:
+        return _IHDP_NPZ_CACHE[path]
+    if not os.path.exists(path):
+        # Only auto-download into the default cache dir; never fetch into a
+        # caller-supplied directory (keeps tests using tmp_path network-free).
+        if data_dir not in (None, DATA_DIR) or not _download_ihdp_npz(path):
+            return None
+    data = np.load(path)
+    _IHDP_NPZ_CACHE[path] = data
+    return data
+
+
+def _load_ihdp_npz_replication(
+    replication: int, data_dir: Optional[str] = None
+) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, float]]:
+    """Load one 1-indexed replication from the NPZ benchmark.
+
+    Returns ``(X, T, Y_factual, att)`` where ``att`` is the per-replication
+    true ATT computed from the noiseless potential-outcome means
+    ``mu1 - mu0`` over the treated units (matching the CSV-path convention).
+    Returns ``None`` if the NPZ is unavailable or the replication is out of
+    range.
+    """
+    data = _ihdp_npz_data(data_dir)
+    if data is None:
+        return None
+    n_reps = data["t"].shape[1]
+    r = replication - 1
+    if r < 0 or r >= n_reps:
+        return None
+    x = np.ascontiguousarray(data["x"][:, :, r], dtype=float)  # (672, 25)
+    t = data["t"][:, r].astype(float)  # (672,)
+    y = data["yf"][:, r].astype(float)  # observed (factual) outcome
+    mu0 = data["mu0"][:, r]
+    mu1 = data["mu1"][:, r]
+    att = float(np.mean((mu1 - mu0)[t == 1]))
+    return x, t, y, att
+
+
+def ihdp_replication_is_real(replication: int, data_dir: Optional[str] = None) -> bool:
+    """True if replication ``replication`` resolves to real data (NPZ or CSV)."""
+    data = _ihdp_npz_data(data_dir)
+    if data is not None and 1 <= replication <= data["t"].shape[1]:
+        return True
+    return os.path.exists(os.path.join(data_dir or DATA_DIR, f"ihdp_npci_{replication}.csv"))
+
+
 def _ihdp_synthetic_fixture(
     n_samples: int = 747,
     n_covariates: int = 25,
@@ -209,7 +294,13 @@ def load_ihdp(
         cache = DATA_DIR
 
     if replication is not None:
-        # Single replication
+        # Preferred path: the canonical IHDP-100 NPZ benchmark (100 real reps).
+        npz_res = _load_ihdp_npz_replication(replication, data_dir=cache)
+        if npz_res is not None:
+            x, t, y, att = npz_res
+            return x, t, y, att
+
+        # Fallback: per-replication CSV from the CEVAE mirror (only 10 reps).
         dest = os.path.join(cache, f"ihdp_npci_{replication}.csv")
         if not os.path.exists(dest):
             ok = _download_ihdp(replication, dest=dest)

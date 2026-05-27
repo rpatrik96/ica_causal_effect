@@ -199,9 +199,9 @@ def run_ihdp(
     for rep in range(1, n_replications + 1):
         X, T, Y, true_att = load_ihdp(replication=rep, use_fixture_on_failure=True)
 
-        from realdata_loaders import _ihdp_csv_path  # pylint: disable=import-outside-toplevel
+        from realdata_loaders import ihdp_replication_is_real  # pylint: disable=import-outside-toplevel
 
-        is_real_flags.append(os.path.exists(_ihdp_csv_path(rep)))
+        is_real_flags.append(ihdp_replication_is_real(rep))
 
         est = _run_single_replication(X, T, Y, nuisance=nuisance)
         estimates_list.append(est)
