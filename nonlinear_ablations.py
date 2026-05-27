@@ -24,6 +24,9 @@ All sweeps use small n_experiments (default 30) and n_jobs=4 to be polite to
 concurrent agents.
 """
 
+# kwargs-style config dicts (dict(...)) are intentional for readability here.
+# pylint: disable=use-dict-literal
+
 from __future__ import annotations
 
 import argparse

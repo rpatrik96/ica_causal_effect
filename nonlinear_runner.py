@@ -1,4 +1,4 @@
-"""Monte Carlo runner for the nonlinear-confounding partially linear model.
+r"""Monte Carlo runner for the nonlinear-confounding partially linear model.
 
 Companion to :mod:`nonlinear_dgp`. Runs all seven estimators
 (Ortho ML, HOML known, HOML est, HOML split, ICA-eps-row, OLS, matching)
@@ -64,12 +64,7 @@ from sklearn.preprocessing import PolynomialFeatures
 
 from baselines import matching_baseline, ols_baseline
 from main_estimation import DEFAULT_LASSO_ALPHAS, all_together_cross_fitting
-from nonlinear_dgp import (
-    NonlinearDGPConfig,
-    empirical_eta_moments,
-    eta_moments_from_config,
-    generate_nonlinear_data,
-)
+from nonlinear_dgp import NonlinearDGPConfig, empirical_eta_moments, eta_moments_from_config, generate_nonlinear_data
 
 METHOD_NAMES: Tuple[str, ...] = (
     "Ortho ML",

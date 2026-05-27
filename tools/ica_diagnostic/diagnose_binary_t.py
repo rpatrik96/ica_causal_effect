@@ -21,10 +21,7 @@ if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
 from binary_treatment_dgp import BinaryTreatmentDGPConfig, generate_binary_treatment_data
-from ica import (
-    ica_treatment_effect_estimation,
-    ica_treatment_effect_estimation_eps_row,
-)
+from ica import ica_treatment_effect_estimation, ica_treatment_effect_estimation_eps_row
 
 
 def banner(msg: str) -> None:

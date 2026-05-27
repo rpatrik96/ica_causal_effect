@@ -102,8 +102,7 @@ def _download_ihdp(replication: int, dest: Optional[str] = None) -> bool:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     try:
-        req = urllib.request.urlopen(url, context=ctx, timeout=20)
-        with open(dest, "wb") as fh:
+        with urllib.request.urlopen(url, context=ctx, timeout=20) as req, open(dest, "wb") as fh:
             fh.write(req.read())
         return True
     except Exception:  # pylint: disable=broad-exception-caught
@@ -151,8 +150,7 @@ def _download_ihdp_npz(dest: Optional[str] = None) -> bool:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     try:
-        req = urllib.request.urlopen(_IHDP_NPZ_URL, context=ctx, timeout=60)
-        with open(dest, "wb") as fh:
+        with urllib.request.urlopen(_IHDP_NPZ_URL, context=ctx, timeout=60) as req, open(dest, "wb") as fh:
             fh.write(req.read())
         return True
     except Exception:  # pylint: disable=broad-exception-caught
@@ -213,7 +211,6 @@ def ihdp_replication_is_real(replication: int, data_dir: Optional[str] = None) -
 
 def _ihdp_synthetic_fixture(
     n_samples: int = 747,
-    n_covariates: int = 25,
     seed: int = 0,
 ) -> np.ndarray:
     """Return a synthetic IHDP-shaped array (n_samples, 30) for offline testing.
@@ -307,13 +304,13 @@ def load_ihdp(
             if not ok:
                 if use_fixture_on_failure:
                     arr = _ihdp_synthetic_fixture(seed=replication)
-                    x, t, y, ate, att = _parse_ihdp_array(arr)
+                    x, t, y, _, att = _parse_ihdp_array(arr)
                     return x, t, y, att
                 raise FileNotFoundError(
-                    f"Could not download IHDP replication {replication} and " f"use_fixture_on_failure=False."
+                    f"Could not download IHDP replication {replication} and use_fixture_on_failure=False."
                 )
         arr = np.loadtxt(dest, delimiter=",")
-        x, t, y, ate, att = _parse_ihdp_array(arr)
+        x, t, y, _, att = _parse_ihdp_array(arr)
         return x, t, y, att
 
     # Multiple replications stacked
@@ -420,10 +417,8 @@ def _download_nber_dta(url: str, dest: str) -> bool:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     try:
-        req = urllib.request.urlopen(url, context=ctx, timeout=30)
-        raw = req.read()
-        with open(dest, "wb") as fh:
-            fh.write(raw)
+        with urllib.request.urlopen(url, context=ctx, timeout=30) as req, open(dest, "wb") as fh:
+            fh.write(req.read())
         return True
     except Exception:  # pylint: disable=broad-exception-caught
         return False
@@ -554,7 +549,7 @@ def load_jobs(
 
     if not use_fixture_on_failure:
         raise FileNotFoundError(
-            "Could not download or parse the LaLonde Jobs dataset and " "use_fixture_on_failure=False."
+            "Could not download or parse the LaLonde Jobs dataset and use_fixture_on_failure=False."
         )
 
     X, T, Y = _jobs_synthetic_fixture()

@@ -1,4 +1,4 @@
-"""Runner for real-data causal-inference benchmarks: IHDP and Jobs (LaLonde).
+r"""Runner for real-data causal-inference benchmarks: IHDP and Jobs (LaLonde).
 
 Runs all seven estimators on IHDP (semi-synthetic, known ground-truth ATE/ATT)
 and on the LaLonde/NSW Jobs dataset (binary treatment, ATT vs. experimental

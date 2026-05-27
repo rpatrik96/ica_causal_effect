@@ -15,15 +15,8 @@ Coverage:
 import numpy as np
 import pytest
 
-from binary_treatment_dgp import (
-    BinaryTreatmentDGPConfig,
-    empirical_eta_moments,
-    generate_binary_treatment_data,
-)
-from binary_treatment_runner import (
-    METHOD_NAMES,
-    run_binary_treatment_experiments,
-)
+from binary_treatment_dgp import BinaryTreatmentDGPConfig, empirical_eta_moments, generate_binary_treatment_data
+from binary_treatment_runner import METHOD_NAMES, run_binary_treatment_experiments
 
 # ---------------------------------------------------------------------------
 # DGP shape & marginal sanity
@@ -60,7 +53,7 @@ class TestBinaryTreatmentDGP:
         assert p.max() <= 1.0 / (1.0 + np.exp(-4.0)) + 1e-9
 
     def test_alpha_beta_support_pattern(self):
-        """alpha and beta are zero outside the first ``support_size`` indices."""
+        """Alpha and beta are zero outside the first ``support_size`` indices."""
         cfg = BinaryTreatmentDGPConfig(n_samples=100, n_covariates=10, support_size=3, seed=3)
         _, _, _, _, _, alpha, beta = generate_binary_treatment_data(cfg)
         assert np.all(alpha[3:] == 0.0)
@@ -71,7 +64,7 @@ class TestBinaryTreatmentDGP:
         assert np.any(beta[:3] != 0.0)
 
     def test_eta_zero_mean_conditionally(self):
-        """eta = T - p(X) has near-zero empirical mean for large n."""
+        """Eta = T - p(X) has near-zero empirical mean for large n."""
         cfg = BinaryTreatmentDGPConfig(n_samples=20000, seed=4)
         _, _, _, _, eta, _, _ = generate_binary_treatment_data(cfg)
         assert abs(eta.mean()) < 0.02, f"E[eta] should be ~0, got {eta.mean():.4f}"

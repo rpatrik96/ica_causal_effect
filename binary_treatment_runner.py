@@ -37,11 +37,7 @@ import numpy as np
 from joblib import Parallel, delayed
 
 from baselines import matching_baseline, ols_baseline
-from binary_treatment_dgp import (
-    BinaryTreatmentDGPConfig,
-    empirical_eta_moments,
-    generate_binary_treatment_data,
-)
+from binary_treatment_dgp import BinaryTreatmentDGPConfig, empirical_eta_moments, generate_binary_treatment_data
 from main_estimation import all_together_cross_fitting
 
 METHOD_NAMES: Tuple[str, ...] = (
@@ -76,7 +72,7 @@ def _single_binary_run(
         logit_clip=config.logit_clip,
         seed=seed,
     )
-    X, T, Y, propensity, eta_oracle, _, _ = generate_binary_treatment_data(cfg)
+    X, T, Y, _, eta_oracle, _, _ = generate_binary_treatment_data(cfg)
 
     # Pick the eta moments fed to HOML (known path):
     # - oracle: use the *true* eta = T - p(X) sample moments
