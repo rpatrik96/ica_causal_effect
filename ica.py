@@ -259,14 +259,27 @@ def ica_treatment_effect_estimation_eps_row(
     n_treatments: int = 1,
     verbose: bool = True,
     fun: str = "logcosh",
+    eps_identification: str = "y_loading",
 ) -> tuple:
-    """Estimate treatment effects by identifying the eps component via non-Gaussianity.
+    """Estimate treatment effects by identifying the eps component from W.
 
     Unlike ``ica_treatment_effect_estimation``, this does not rely on Munkres
-    matching. It identifies the outcome noise eps as the component with the
-    highest absolute excess kurtosis, then reads theta from the corresponding
-    row of the unmixing matrix W. This is valid even when eta is Gaussian,
-    since theta is encoded in the eps row of W.
+    matching. It identifies the outcome noise eps via a structural property
+    of the unmixing matrix W and reads theta from that row. The
+    ``eps_identification`` argument controls the picker:
+
+    - ``"y_loading"`` (default, recommended): pick ``argmax |W[:, -1]|``, the
+      component with the largest absolute loading on Y. By construction in
+      the PLR Y = theta*T + b'X + eps, the eps source is the *only* source
+      that enters Y with coefficient 1, so its row of W has the largest
+      Y-loading regardless of T's distribution. Robust for both continuous
+      and binary T.
+    - ``"kurtosis"`` (legacy): pick ``argmax |excess kurtosis|`` of the
+      recovered components. Works when eps is more non-Gaussian than every
+      other source. Fails for *binary* T because eta = T - p(X) is highly
+      platykurtic (Bernoulli excess kurtosis ~= -2 for p ~= 0.5), so the
+      picker selects the eta-driven row whose Y-loading can be near zero,
+      blowing up the normalised theta by 1-3 orders of magnitude.
 
     Parameters
     ----------
@@ -288,6 +301,9 @@ def ica_treatment_effect_estimation_eps_row(
         Print convergence and component identification information.
     fun : str
         Contrast function for FastICA ("logcosh", "exp", or "cube").
+    eps_identification : str
+        Strategy used to locate the eps row of W. One of ``"y_loading"`` or
+        ``"kurtosis"``. See discussion above.
 
     Returns
     -------
@@ -297,6 +313,8 @@ def ica_treatment_effect_estimation_eps_row(
         Permutation disentanglement score, or None if S is not provided or
         convergence fails.
     """
+    if eps_identification not in ("y_loading", "kurtosis"):
+        raise ValueError(f"eps_identification must be 'y_loading' or 'kurtosis', got '{eps_identification}'")
     from warnings import catch_warnings  # pylint: disable=import-outside-toplevel
 
     from scipy.stats import kurtosis  # pylint: disable=import-outside-toplevel
@@ -327,21 +345,22 @@ def ica_treatment_effect_estimation_eps_row(
                 print(f"success at {attempt=}")
             break
 
-    # Identify the eps component: the most non-Gaussian component that loads
-    # heavily on Y (the last observed variable).
-    # The unmixing matrix W satisfies S_hat = W @ X, so W = ica.components_
-    # The mixing matrix A = ica.mixing_ satisfies X = A @ S_hat
-    # The eps row of W is the row whose projection extracts eps from observations.
-    # We identify it by: (1) restrict to components with nonzero loading on Y,
-    # (2) pick the one with highest absolute excess kurtosis.
-    n_components = S_hat.shape[1]
-    abs_kurtosis = np.array([np.abs(kurtosis(S_hat[:, j])) for j in range(n_components)])
-
-    # Among components, find the one with max |kurtosis| — this is eps
-    eps_idx = int(np.argmax(abs_kurtosis))
-
-    if verbose:
-        print(f"Identified eps component: {eps_idx} (|kurtosis|={abs_kurtosis[eps_idx]:.3f})")
+    # Identify the eps row of W. See the docstring for the difference between
+    # the two strategies. Y-loading is robust for binary T; kurtosis is the
+    # legacy continuous-T heuristic.
+    if eps_identification == "y_loading":
+        # eps is the unique source entering Y with coefficient 1, so its row
+        # of W has the largest |W[k, -1]| (the Y column).
+        y_loading = np.abs(ica.components_[:, -1])
+        eps_idx = int(np.argmax(y_loading))
+        if verbose:
+            print(f"Identified eps component: {eps_idx} " f"(|W[:, -1]|={y_loading[eps_idx]:.3f}; max-y-loading)")
+    else:
+        n_components = S_hat.shape[1]
+        abs_kurtosis = np.array([np.abs(kurtosis(S_hat[:, j])) for j in range(n_components)])
+        eps_idx = int(np.argmax(abs_kurtosis))
+        if verbose:
+            print(f"Identified eps component: {eps_idx} " f"(|kurtosis|={abs_kurtosis[eps_idx]:.3f}; max-|kurt|)")
 
     # The eps row of the unmixing matrix W
     # W = ica.components_ has shape (n_components, n_features)

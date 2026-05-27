@@ -1,0 +1,80 @@
+# HTCondor submit file for the binary-treatment partially linear model.
+#
+# Reviewer concern addressed: prior "Bernoulli" experiments only made the
+# additive treatment noise eta binary, but T = m(X) + eta stayed continuous.
+# This sweep uses a *genuinely* binary T sampled from Bernoulli(sigma(alpha^T X)),
+# the canonical causal-inference setting (RCT / observational binary intervention).
+#
+# Submit:
+#   condor_submit_bid <bid> sweep_binary_treatment.sub
+#
+# Output: ${PROJECT_DIR}/figures/binary_treatment/binary_treatment_results_*.npy
+
+executable = run_experiment.sh
+
+request_disk = 20GB
+
+# Log files
+log_root = /home/preizinger/jobs/doml_binary_treatment_$(ClusterId)_$(label)
+error = $(log_root).err
+output = $(log_root).out
+log = $(log_root).log
+
+# No file transfer - run from project directory on shared filesystem
+should_transfer_files = NO
+getenv = True
+
+# Common parameters
+n_experiments = 100
+
+request_cpus = 8
+request_memory = 32GB
++MaxRuntime = 14400
+MaxTime = 14400
+periodic_remove = (JobStatus =?= 2) && ((CurrentTime - JobCurrentStartDate) >= $(MaxTime))
+
+exp_type = binary_treatment
+
+# ============================================================================
+# SECTION A: Sample-size sweep (5 jobs, default propensity_strength=0.7)
+# ============================================================================
+# Tests the convergence rate of every estimator on binary T as n grows.
+# Output filename pattern: binary_treatment_results_n${n_samples}.npy
+
+label = binary_n$(n_samples)
+arguments = $(exp_type) --n_samples $(n_samples) --n_experiments $(n_experiments) \
+            --n_covariates 10 --support_size 5 \
+            --treatment_effect 1.5 --propensity_strength 0.7 \
+            --outcome_coef_scale 0.5 --sigma_outcome 0.5 \
+            --base_seed 12143
+queue n_samples in (500, 1000, 2000, 5000, 10000)
+
+# ============================================================================
+# SECTION B: Propensity-strength sweep (4 jobs, n=2000 fixed)
+# ============================================================================
+# Stress-tests positivity / overlap as confounding strength grows. Larger
+# propensity_strength concentrates p(X) near {0, 1} -> propensity-score
+# matching and HOML(known) start to struggle.
+
+label = binary_prop$(prop_strength)
+arguments = $(exp_type) --n_samples 2000 --n_experiments $(n_experiments) \
+            --n_covariates 10 --support_size 5 \
+            --treatment_effect 1.5 --propensity_strength $(prop_strength) \
+            --outcome_coef_scale 0.5 --sigma_outcome 0.5 \
+            --base_seed 12143
+queue prop_strength in (0.3, 0.7, 1.5, 3.0)
+
+# ============================================================================
+# SECTION C: Covariate-dimension sweep (4 jobs, n=2000 fixed)
+# ============================================================================
+# Tests the high-dimensional regime where Lasso nuisance estimation is
+# stressed. Keep support_size = 5 across all jobs so the signal stays
+# constant; only the ambient dimension grows.
+
+label = binary_d$(d_covariates)
+arguments = $(exp_type) --n_samples 2000 --n_experiments $(n_experiments) \
+            --n_covariates $(d_covariates) --support_size 5 \
+            --treatment_effect 1.5 --propensity_strength 0.7 \
+            --outcome_coef_scale 0.5 --sigma_outcome 0.5 \
+            --base_seed 12143
+queue d_covariates in (10, 20, 50, 100)
