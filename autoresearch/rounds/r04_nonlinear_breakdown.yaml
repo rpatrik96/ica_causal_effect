@@ -1,0 +1,44 @@
+# WS1 round r04_nonlinear_breakdown — the misspecification route to criterion (b).
+#
+# r02/r03 showed OLS never breaks down in the linear model (invariant even to 40
+# nuisance covariates) and ICA is the fragile estimator. So "OLS breaks down
+# when..." must come from OLS being STRUCTURALLY wrong, not merely
+# higher-variance. This round uses the nonlinear-confounding DGP
+# (nonlinear_runner.py / nonlinear_dgp.py, purpose-built for this reviewer ask):
+# with nonlinear g(X), m(X), linear OLS cannot represent the conditional means
+# and is biased; OML/HOML survive ONLY with a flexible first-stage nuisance.
+#
+# Design: 2x2x3 = 12 jobs, a clean difference-in-differences:
+#   * confounding {linear (control, OLS should be fine), nonlinear (OLS should break)}
+#   * nuisance    {linear=LassoCV (weak -> OML also breaks under nonlinearity),
+#                  gbm=gradient boosting (flexible -> OML/HOML should survive)}
+#   * n           {500, 2000, 10000}
+# eta is heavy-tailed non-Gaussian throughout (--heavy_tail_eta --eta_beta 1.0),
+# ICA's favorable regime; low nominal dim (n_covariates=10 default, support_size=5)
+# to isolate nonlinearity from the dimensionality effect r03 found. Oracle moments
+# ON (default). --n_jobs 4 pins parallelism (matches request_cpus; also keeps the
+# login-node sanity run lean alongside sweep_runner's local cap).
+#
+# Hypotheses:
+#   H1 (control): confounding=linear -> OLS competitive at all n (like r02/r03).
+#   H2 (breakdown): confounding=nonlinear + nuisance=linear -> OLS AND OML biased
+#       (RMSE plateaus, does not ->0 with n) = the first evidenced OLS breakdown.
+#   H3 (rescue): confounding=nonlinear + nuisance=gbm -> OML/HOML recover (flexible
+#       first stage), isolating misspecification as the cause.
+#   H4 (ICA): does ICA -- which identifies via eta's non-Gaussianity, not a correct
+#       conditional mean -- degrade gracefully under nonlinear confounding, or does
+#       its low-dim fragility still dominate? Either answer is a scope statement.
+round: r04_nonlinear_breakdown
+script: nonlinear_runner.py
+base_args: "--n_experiments 25 --heavy_tail_eta --eta_beta 1.0 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  nonlinear_confounding: [false, true]
+  nuisance: [linear, gbm]
+  n_samples: [500, 2000, 10000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 7200

@@ -3,6 +3,24 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 04 (2026-07-02) — r04_nonlinear_breakdown: the evidenced OLS breakdown (criterion b)
+Status: complete. Outcome: **confirmed** (WS1 criterion b met) + **negative for ICA**. 12/12 jobs
+DONE, 0 failed, 25/25 experiments finite. 2×2×3 diff-in-diff: confounding {linear, nonlinear} ×
+nuisance {linear=LassoCV weak, gbm=flexible} × n {500,2000,10000}, η heavy-tailed, low-dim, via
+`nonlinear_runner.py`. **OLS breakdown evidenced:** under nonlinear confounding OLS RMSE is pinned
+at ≈0.42 at ALL n (0.408→0.418→0.418; ~28% rel. bias at θ=1.5) = asymptotic misspecification bias,
+vs →0 in the linear control. OML with the weak linear nuisance breaks down identically (≈0.42) —
+orthogonality doesn't save a first stage that can't fit g(X). **Rescue is nuisance-specific:** only
+nonlinear+gbm OML *decreases* with n (0.217→0.175→0.132, 3.2× better than linear-nuisance OML at
+n=10k) — the double-orthogonal value REQUIRES a flexible first stage (the ML-nuisance story
+reviewers asked for). **ICA does not benefit** — worst estimator under nonlinear confounding
+(~0.55, flat in n): its linear-mixing identification is violated and it has no flexible-nuisance
+lever. Secondary: gbm nuisance HURTS under linear confounding (OML 0.060 vs 0.0082 at n=10k) — match
+nuisance flexibility to the DGP. Infra: added `autoresearch/analyze_nonlinear_round.py` (nonlinear
+payload schema differs — precomputed rmse array). Findings: `autoresearch/rounds/findings_round04.md`.
+WS1 criteria (a)+(b) now both evidenced (r02+r04). Next: **r05_nonlinear_eta_regime** (nonlinear+gbm
+across r02's η shapes — is the rescue/ICA-failure η-robust?), then pivot to WS2 semi-synthetic.
+
 ## Round 03 (2026-07-02) — r03_oracle_nuisance: does removing the oracle break OLS or favour ICA?
 Status: complete. Outcome: **negative** (hypothesis refuted; informative). Crossed oracle {ON,OFF}
 × η {gennorm_heavy, discrete} × n, at true support d=10 within D=50 covariates. 20/20 configs,
