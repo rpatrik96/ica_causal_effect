@@ -103,3 +103,11 @@ data/
 
 # Cached experiment-result arrays from the explorations memos
 explorations/**/*.npy
+
+# Autoresearch: transient per-round job artifacts (aggregate *.tsv are committed;
+# raw all_results_*.npy already ignored above).
+autoresearch/results/**/job_*/
+autoresearch/results/**/condor/
+autoresearch/results/**/pending.txt
+autoresearch/results/**/sweep.sub
+autoresearch/results/**/*.log
