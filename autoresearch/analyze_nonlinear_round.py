@@ -40,6 +40,7 @@ def per_config_metrics(d: dict) -> dict:
     sigmas = np.asarray(d["sigmas"], dtype=float)
     finite = np.asarray(d.get("finite_per_method", []), dtype=float)
     row = {
+        "dataset": str(d.get("dataset", "")),
         "n_samples": int(d["n_samples"]),
         "n_covariates": int(d.get("n_covariates", -1)),
         "support_size": int(d.get("support_size", -1)),

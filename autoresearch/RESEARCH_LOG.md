@@ -3,6 +3,24 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 07 (WS2, 2026-07-02) — r07_ws2_semisynth: ICA's non-Gaussianity story holds on real covariates
+Status: complete. Outcome: **confirmed** — first WS2 semi-synthetic benchmark, on 2 real covariate
+datasets. Synthetic-on-real-X PLR recast: real covariates → PRE-DISENTANGLE (PCA dense / TruncatedSVD
+sparse) → impose T=m(X)+η, Y=θT+g(X)+ε, θ exact, η~gennorm(β). Datasets: **housing** (California
+Housing 20640×8 dense, |corr|≤0.93, PCA) and **news20** (20 Newsgroups TF-IDF 2365×2000 sparse, SVD).
+16/16 jobs DONE, 25/25 finite. Key result (H2): **ICA's non-Gaussianity advantage reproduces on real
+X** — ICA/OLS ratio 1.3–1.6× at β=0.5 (super-heavy, ICA's ideal), degrading to **22.6× (housing) /
+21.3× (news20) at the β=2 Gaussian null** where ICA collapses (non-identifiable), recovering at β=4.
+Same U-shape-around-β=2 as synthetic r02, on BOTH dense and sparse real covariates. **Validates the
+pre-disentangle fix**: raw features → ICA strawman failure (settled); PCA/SVD-whitened → ICA
+competitive (1.3–2.5× OLS) whenever η non-Gaussian. H1: OLS/OML strong/stable (well-specified linear
+PLR). H3: HOML degenerate at β=2 (symmetric → zero skewness), as in r02. Infra: new
+`semisynth_loaders.py` (predisentangle + impose_plr + cached housing/news20 loaders, fixture
+fallback) + `semisynth_runner.py` (reuses the estimator stack, nonlinear-schema payload); caches on
+shared lustre (gitignored). Findings: `autoresearch/rounds/findings_round07.md`. WS2 ≥2-dataset table
+met. Next: add binary failure-mode row (cite settled IHDP) + optional ACIC-2016 recast; nonlinear-g(X)
+recast to carry r04 onto real X.
+
 ## Round 05 (2026-07-02) — r05_nonlinear_eta_regime: is the nonlinear-regime story η-robust?
 Status: complete. Outcome: **confirmed**. 16/16 jobs DONE, 0 failed, 25/25 finite. Swept
 eta_beta {0.5,1,2(Gaussian null),4} × nuisance {linear,gbm} × n {2000,10000} under nonlinear

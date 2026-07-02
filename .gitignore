@@ -111,3 +111,6 @@ autoresearch/results/**/condor/
 autoresearch/results/**/pending.txt
 autoresearch/results/**/sweep.sub
 autoresearch/results/**/*.log
+
+# WS2 cached real-covariate matrices (regenerable via semisynth_loaders.py; large)
+semisynth_data/
