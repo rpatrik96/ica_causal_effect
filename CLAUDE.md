@@ -234,6 +234,10 @@ cluster.
 - **Reviewer context**: `docs/reviews/`.
 - **Job submission**: `cluster/sweep_runner.py` (never heavy compute on the
   login node); bootstrap in `docs/CLUSTER_BOOTSTRAP.md`.
+- **Login-node OOM**: launch the orchestrator via `claude-guard` in tmux (not
+  plain `claude`); the login node's per-user RAM cap + exhausted swap means fat
+  processes get SIGKILLed (137 / `-9`). `sweep_runner.py --mode local` caps
+  joblib fan-out to survive sanity runs. See `docs/CLUSTER_BOOTSTRAP.md` §6.
 - **Branch**: campaign commits go to `autoresearch/cluster-rounds`.
 
 ## Testing and Code Quality

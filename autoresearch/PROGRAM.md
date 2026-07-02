@@ -149,6 +149,7 @@ evidence); WS4 only starts once WS1–WS3 stopping criteria are met or blocked.
 - Namespace result dirs per round; delete or rename stale `.npy` before re-running an existing config.
 - `MaxTime` and `+MaxRuntime` must match in every submit file.
 - No heavy compute on the login node — everything goes through condor; cap concurrent jobs at ~200; default bid 43.
+- **Login-node OOM survival.** The login node caps per-user RAM against exhausted swap, so a fat process is SIGKILLed (exit 137 / `-9`) by the global OOM killer. Launch the orchestrator under `claude-guard` in tmux (not plain `claude`), run only one heavy claude at a time, and skip 1M-context for the loop. Keep the local sanity run (protocol step 3) to `--limit 1`; `sweep_runner.py --mode local` already caps joblib fan-out (`SWEEP_LOCAL_MAX_JOBS`, default 2) so it can't OOM the session. Full rationale + knobs in `docs/CLUSTER_BOOTSTRAP.md` §6.
 - Never force-push; never rewrite history on `autoresearch/cluster-rounds`.
 - Report failures faithfully: a round whose jobs all died is a finding, not an embarrassment to hide.
 
