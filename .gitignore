@@ -85,9 +85,12 @@ cluster/jobs/
 cluster/jobs_v2/
 
 # Claude Code / OMC
-.claude/
+.claude/*
+!.claude/settings.json
 .omc/
-cluster/CLAUDE.md
+# claude-mem auto-generated context stubs (root CLAUDE.md stays tracked)
+**/CLAUDE.md
+!/CLAUDE.md
 
 # uv
 uv.lock
