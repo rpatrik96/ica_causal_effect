@@ -1,4 +1,4 @@
-# HTCondor Cluster Setup for double_orthogonal_ml
+# HTCondor Cluster Setup for ica_causal_effect
 
 This directory contains configuration files for running experiments on an HTCondor cluster.
 
@@ -6,10 +6,12 @@ This directory contains configuration files for running experiments on an HTCond
 
 ### 1. Clone the repository on the cluster
 
+Recommended cluster location: `/is/cluster/fast/preizinger/ica_causal_effect`.
+
 ```bash
-cd ~
-git clone https://github.com/rpatrik96/double_orthogonal_ml.git
-cd double_orthogonal_ml
+cd /is/cluster/fast/preizinger
+git clone https://github.com/rpatrik96/ica_causal_effect.git
+cd ica_causal_effect
 ```
 
 ### 2. Create and configure the virtual environment
@@ -18,7 +20,7 @@ cd double_orthogonal_ml
 python -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements.txt "numpy<2"
 ```
 
 ### 3. Create jobs output directory
@@ -71,12 +73,21 @@ The cluster setup covers all 10 experiment configurations:
 | `sweep_multi_instance.sub` | Multi-seed experiments for variance estimation |
 | `sweep_full.sub` | Full parameter sweep from file |
 
+## Autoresearch sweeps
+
+Round-based campaign sweeps go through `cluster/sweep_runner.py` (YAML grid
+spec → condor_submit_bid → condor_wait → aggregated TSV); see
+`autoresearch/PROGRAM.md` for the schema and `docs/CLUSTER_BOOTSTRAP.md`
+for the session setup. The `sweep_*.sub` files below remain for manual
+one-off submissions. On the MPI-IS cluster always submit with
+`condor_submit_bid <bid>` (default bid 43).
+
 ## Running Experiments
 
 ### Run all 10 configurations (recommended)
 
 ```bash
-cd ~/double_orthogonal_ml/cluster
+cd /is/cluster/fast/preizinger/ica_causal_effect/cluster
 condor_submit sweep_all_experiments.sub
 ```
 
@@ -128,16 +139,16 @@ condor_submit cluster.sub \
 
 ## Output Location
 
-All results are saved to the **project directory**: `~/double_orthogonal_ml/figures/`
+All results are saved to the **project directory**: `/is/cluster/fast/preizinger/ica_causal_effect/figures/`
 
 This ensures results are automatically available when you pull the repo locally:
 
 ```bash
 # On local machine - sync results from cluster
-rsync -avz cluster:~/double_orthogonal_ml/figures/ ./figures/
+rsync -avz cluster:/is/cluster/fast/preizinger/ica_causal_effect/figures/ ./figures/
 
 # Or use git if figures are tracked
-ssh cluster "cd ~/double_orthogonal_ml && git add figures/ && git commit -m 'Add cluster results' && git push"
+ssh cluster "cd /is/cluster/fast/preizinger/ica_causal_effect && git add figures/ && git commit -m 'Add cluster results' && git push"
 git pull
 ```
 

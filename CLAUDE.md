@@ -220,6 +220,22 @@ figures/
     variance_ablation_results.npy
 ```
 
+## Autoresearch campaign (cluster)
+
+This repo hosts an autonomous experiment campaign for the TMLR resubmission
+of arXiv:2507.16467, run by a Claude Code instance on the MPI-IS HTCondor
+cluster.
+
+- **Program & protocol**: `autoresearch/PROGRAM.md` — re-read every round.
+- **Log & findings**: `autoresearch/RESEARCH_LOG.md`, `autoresearch/rounds/`.
+- **Settled findings**: `docs/research-memory/` — read before designing
+  experiments (binary-treatment IHDP/Jobs and raw-feature housing are
+  settled; do not re-run).
+- **Reviewer context**: `docs/reviews/`.
+- **Job submission**: `cluster/sweep_runner.py` (never heavy compute on the
+  login node); bootstrap in `docs/CLUSTER_BOOTSTRAP.md`.
+- **Branch**: campaign commits go to `autoresearch/cluster-rounds`.
+
 ## Testing and Code Quality
 
 ### Running Tests
