@@ -3,6 +3,24 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 05 (2026-07-02) — r05_nonlinear_eta_regime: is the nonlinear-regime story η-robust?
+Status: complete. Outcome: **confirmed**. 16/16 jobs DONE, 0 failed, 25/25 finite. Swept
+eta_beta {0.5,1,2(Gaussian null),4} × nuisance {linear,gbm} × n {2000,10000} under nonlinear
+confounding, to test η-robustness of r04. All three r04 findings hold across η: **(H1) gbm-OML
+rescue is η-robust** — decreases with n at every β (→~0.13 at n=10k, uniformly, 3.2× better than
+OLS); **(H2) OLS/weak-OML breakdown is η-robust** — OLS flat 0.411–0.418 across the whole grid,
+linear-nuisance OML flat ~0.42; **(H3) ICA fails at every β** (~0.55, flat, n-insensitive) —
+INCLUDING β=0.5 (its most-favorable heavy tail). Key insight: the sub-prediction "ICA worst at
+β=2 Gaussian" is refuted — ICA is *flat* across β (β=2 marginally best), i.e. **under nonlinear
+confounding the η non-Gaussianity axis is INERT for ICA**: nonlinear mixing breaks ICA's
+identification so thoroughly that non-Gaussianity (its lever in the linear model, r02) carries no
+signal. Clean scope boundary: η non-Gaussianity is ICA's lever ONLY when mixing is linear. Aside:
+HOML erratic under nonlinear confounding (HOML+gbm 0.106→0.872 across β, sometimes worse than OLS);
+first-order OML is the reliable one. Findings: `autoresearch/rounds/findings_round05.md`.
+WS1 now well-evidenced end-to-end. Next: **pivot to WS2** (semi-synthetic loaders from
+docs/dataset-research/DATASETS.md + pre-disentangle, benchmark ≥2 datasets); optional WS1 capstone
+r06 (nonlinear + true d≳n).
+
 ## Round 04 (2026-07-02) — r04_nonlinear_breakdown: the evidenced OLS breakdown (criterion b)
 Status: complete. Outcome: **confirmed** (WS1 criterion b met) + **negative for ICA**. 12/12 jobs
 DONE, 0 failed, 25/25 experiments finite. 2×2×3 diff-in-diff: confounding {linear, nonlinear} ×

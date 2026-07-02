@@ -1,0 +1,45 @@
+# WS1 round r05_nonlinear_eta_regime — is r04's story η-robust?
+#
+# r04 (at eta_beta=1, Laplace) showed, under NONLINEAR confounding: OLS and
+# weak-nuisance OML break down (RMSE flat in n ~0.42); only nonlinear+gbm OML
+# recovers (decreasing in n); ICA is worst and flat (~0.55). This round sweeps
+# the treatment-noise non-Gaussianity to test whether that story holds across η.
+#
+# The nonlinear DGP draws eta ~ gennorm(beta=eta_beta) (nonlinear_dgp.py):
+# beta=1 Laplace (heavy), beta<2 heavy-tailed, beta=2 GAUSSIAN (ICA
+# non-identifiable), beta>2 sub-Gaussian light. So eta_beta is the continuous
+# non-Gaussianity axis (r02's gennorm endpoints: heavy~beta1, light~beta4), and
+# beta=2 is the Gaussian null where ICA *should* be worst. NOTE scope: this DGP
+# has no discrete/rademacher/uniform eta (r02's other shapes) -- those would need
+# a nonlinear_dgp extension; r05 covers the gennorm-beta axis only.
+#
+# Design: nonlinear confounding ON (fixed), sweep
+#   eta_beta {0.5 (super-heavy), 1.0 (Laplace), 2.0 (Gaussian null), 4.0 (light)}
+#   x nuisance {linear (weak, breakdown reference), gbm (flexible, the rescue)}
+#   x n {2000, 10000}   (two points -> read the n-trend: rescue decreases, breakdown flat)
+# = 4 x 2 x 2 = 16 jobs. Heavy-tailed eta active throughout; low-dim; oracle
+# moments ON; --n_jobs 4. Linear-confounding control is r04.
+#
+# Hypotheses:
+#   H1 (rescue η-robust): gbm-OML RMSE decreases with n at EVERY eta_beta
+#       (OML is orthogonal-moment-based, η-agnostic) -> the rescue is not an
+#       artifact of the Laplace choice.
+#   H2 (breakdown η-robust): OLS and linear-nuisance OML stay flat/high at every
+#       eta_beta -> misspecification bias does not depend on η.
+#   H3 (ICA never recovers): under nonlinear confounding ICA is high/flat at all
+#       eta_beta, worst at beta=2 (Gaussian). If ICA fails even at beta=0.5 (its
+#       most favorable η), nonlinear confounding -- not η -- is the killer.
+round: r05_nonlinear_eta_regime
+script: nonlinear_runner.py
+base_args: "--n_experiments 25 --nonlinear_confounding --heavy_tail_eta --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  eta_beta: [0.5, 1.0, 2.0, 4.0]
+  nuisance: [linear, gbm]
+  n_samples: [2000, 10000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 7200
