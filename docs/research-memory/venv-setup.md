@@ -1,7 +1,7 @@
 ---
 name: venv-setup
 description: "How to set up/run the Python env for ica_causal_effect (empty .venv, numpy<2 pin for torch)"
-metadata: 
+metadata:
   node_type: memory
   type: project
   originSessionId: b9ac3c8b-3119-4949-94c8-ffa98ebb1654

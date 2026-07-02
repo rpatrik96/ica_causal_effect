@@ -1,7 +1,7 @@
 ---
 name: housing-semisynthetic-deferred
 description: "California Housing semi-synthetic experiment was run for the UAI 2026 rebuttal, found to be a method-misuse strawman, and deliberately deferred to camera-ready — no numbers committed"
-metadata: 
+metadata:
   node_type: memory
   type: project
   originSessionId: bee41409-6da1-42d3-9e38-9ea3b877bbb5

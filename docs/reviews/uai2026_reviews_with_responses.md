@@ -15,7 +15,7 @@ We address two recurring points up front, including two factual misunderstanding
 
 **Summary of changes for the revised manuscript**
 
-- Reframed Sec. 1 / Abstract around the headline claim: *surprisingly, FastICA works out-of-the-box for treatment-effect estimation in PLR; we explain why through the ICA↔OML connection and prove sample-efficiency over higher-order OML.* 
+- Reframed Sec. 1 / Abstract around the headline claim: *surprisingly, FastICA works out-of-the-box for treatment-effect estimation in PLR; we explain why through the ICA↔OML connection and prove sample-efficiency over higher-order OML.*
 - Clarified that **binary (and any) treatment is already supported** — the non-Gaussianity assumption is on the noise η, not on the treatment T; added an explicit statement to Sec. 2 and a binary-treatment ablation. The new ablation (Supplementary Response §A) shows ICA strictly dominates higher-order OML on Bernoulli (p ∈ {0.3, 0.5, 0.7}) and Rademacher noise — including the symmetric cases where higher-order OML's asymptotic variance diverges.
 - Sharpened the scope of Sec. 3.5 (nonlinear PLR): explicit additive-PLR mechanism (Defn. 3.3, Eqs. 5–6), failure modes (additivity violations), and cross-references to the existing Appx. E.6 ablations (Figs. E.10–E.14).
 - Added a sensitivity discussion for the independence and non-Gaussianity assumptions, with empirical-testability notes and citations to the empirical success of (conditional-)independence-based nonlinear ICA across applied domains: robotics (Locatello et al., 2020; Lippe et al., 2023), dynamical systems (Lippe et al., 2022; Rajendran et al., 2023), neuroimaging (Himberg et al., 2004; Hyvärinen & Morioka, 2016), neuroscience (Zhou & Wei, 2020; Schneider et al., 2023), genomics (Morioka & Hyvärinen, 2023), structural biology (Klindt et al., 2024), collective behaviour (Dingling et al., 2024), and climate science (Yao et al., 2024).
@@ -37,7 +37,7 @@ Please also refer to our global response above.
 
 > W1: No identifiability proof for linear FastICA on nonlinearly generated PLR.
 
-There is both empirical and theoretical evidence that this is not necessarily a simulation artefact — it potentially follows from the **additive structure of the PLR model**. 
+There is both empirical and theoretical evidence that this is not necessarily a simulation artefact — it potentially follows from the **additive structure of the PLR model**.
 This is consistent with — and conceptually parallel to — the **score-matching causal-discovery literature**, which exploits exactly the same additive-noise structure to identify nonlinear causal graphs from observational data using methods that do *not* themselves model the nonlinearity directly, and **which we already discussed in Appx. A.**. See Rolland et al. (2022); **Montagna et al. (2023a, arXiv:2304.03265; 2023b, arXiv:2304.03382; 2024, arXiv:2407.18755 — "Score matching through the roof: linear, nonlinear, and latent variables causal discovery")** — these works show that the Jacobian of the score function reveals the causal DAG in additive-noise SEMs across linear, nonlinear, and latent-variable settings. The same structural reason (additive noise) is what lets a linear unmixing succeed under nonlinear PLR; we discuss this connection explicitly in **Appx. A**.
 
 We support this empirically with extensive ablations in **Appx. E.6 (Figs. E.10–E.14)** spanning four nonlinearities (leaky ReLU, ReLU, sigmoid, tanh) × covariate dimensions d ∈ {2, 5, 10, 20, 50}, location–scale shifts (Fig. E.10), distribution-shape parameter β (Fig. E.11), leaky-ReLU slopes (Fig. E.12), and Gaussian covariates (Fig. E.14). The effect is robust across all of these — i.e., not artefactual.
@@ -307,4 +307,3 @@ A principled real-data benchmark requires either (a) pre-disentangling X (PCA wh
 In the interim, Section A's Bernoulli ablation already addresses one half of NbV6-C3's concern — the empirical-distribution-matching part — by using realistic discrete noise distributions across asymmetric and symmetric regimes.
 
 ---
-

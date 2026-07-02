@@ -1,7 +1,7 @@
 ---
 name: ihdp-ica-binary-finding
 description: "On real IHDP-100, ICA is poor (binary treatment); OLS/OML win — the 10-rep \"ICA best\" was an artifact"
-metadata: 
+metadata:
   node_type: memory
   type: project
   originSessionId: b9ac3c8b-3119-4949-94c8-ffa98ebb1654
