@@ -3,6 +3,26 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 03 (2026-07-02) — r03_oracle_nuisance: does removing the oracle break OLS or favour ICA?
+Status: complete. Outcome: **negative** (hypothesis refuted; informative). Crossed oracle {ON,OFF}
+× η {gennorm_heavy, discrete} × n, at true support d=10 within D=50 covariates. 20/20 configs,
+25/25 experiments kept; oracle-ON configs reproduce r02 exactly (determinism check). Hypothesis
+was that oracle-OFF (40 nuisance covariates) would break OLS/OML and favour ICA. **The opposite
+happened:** OLS and OML are essentially **invariant** to the oracle (RMSE ratio OFF/ON ≈ 1.0 at
+every n — the √(logD/n) regularization absorbs the nuisances), while **ICA breaks down** under the
+extra covariates, worst at small n (ICA RMSE ×5.1 at n=500, ×9.1 at n=1000 for gennorm_heavy;
+×2.9 discrete n=500), recovering to parity only by n≈5000. Matching also degrades (×1.5–4) and its
+penalty persists to n=10k (curse of dim in 50-d matching); HOML is oracle-insensitive. Takeaway:
+ICA's viable region is **low nominal dimension / known support**; adding nuisances hurts ICA
+(and matching) far more than the regularized OML/OLS — relevant caveat for WS3. Criterion (b) "OLS
+breaks down when…" is NOT on the oracle/linear-nuisance axis; next candidates are nonlinear g(X)
+misspecification and true d≳n. Infra this round: added `oracle_support` to the result payload +
+`oracle`/`D` columns to `analyze_round.py` (the flag was unrecorded); tolerated 2–3 transient node
+evictions per submit on the loaded pool by re-submitting missing indices (failing set changed
+between runs → transient, verified by local repro). Findings: `autoresearch/rounds/findings_round03.md`.
+Next: **r04_nonlinear_breakdown** — nonlinear DGP, oracle ON, to test the misspecification route to
+criterion (b).
+
 ## Round 02 (2026-07-02) — r02_eta_regime: first real WS1 regime panel (η shape × n)
 Status: complete. Outcome: **suggestive**. 25/25 jobs DONE, 0 failed/held, 25/25 experiments
 kept per config (no FastICA drops). At the fixed operating point (oracle support ON, d=10,

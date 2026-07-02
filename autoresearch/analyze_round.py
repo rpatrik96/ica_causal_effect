@@ -54,6 +54,8 @@ def per_config_metrics(d: dict) -> dict:
         "beta": float(d["beta"]),
         "treatment_effect": true,
         "eta_noise_dist": d.get("eta_noise_dist", "discrete"),
+        "cov_dim_max": int(d.get("cov_dim_max", d["support_size"])),
+        "oracle": ("oracle" if d.get("oracle_support", True) else "no_oracle"),
         "sigma_outcome": float(np.asarray(d["sigma_outcome"])),
         "n_exp_kept": n_exp,
         "n_methods": width,
@@ -119,16 +121,16 @@ def print_headline(rows: list[dict]) -> None:
     if not data:
         print("(no metric rows)")
         return
-    data.sort(key=lambda r: (r["eta_noise_dist"], r["beta"], r["support_size"], r["n_samples"], r["treatment_effect"]))
-    hdr = ["eta", "beta", "d", "n", "te", "kept"] + [f"{m}.rmse" for m in HEADLINE]
+    data.sort(key=lambda r: (r["eta_noise_dist"], r.get("oracle", ""), r["beta"], r["support_size"], r["n_samples"], r["treatment_effect"]))
+    hdr = ["eta", "oracle", "d", "D", "n", "kept"] + [f"{m}.rmse" for m in HEADLINE]
     print("  ".join(f"{h:>10s}" for h in hdr))
     for r in data:
         cells = [
             f"{r['eta_noise_dist']:>10s}",
-            f"{r['beta']:>10g}",
+            f"{r.get('oracle', '?'):>10s}",
             f"{r['support_size']:>10d}",
+            f"{r.get('cov_dim_max', r['support_size']):>10d}",
             f"{r['n_samples']:>10d}",
-            f"{r['treatment_effect']:>10g}",
             f"{r['n_exp_kept']:>10d}",
         ]
         for m in HEADLINE:
