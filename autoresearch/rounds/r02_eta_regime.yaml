@@ -1,0 +1,37 @@
+# WS1 round r02_eta_regime — first real regime-map panel: eta shape x n.
+#
+# Varies the axis that drives the ICA identifiability story -- the treatment-noise
+# distribution eta -- against sample size n, at a fixed operating point.
+# --single_config pins the rest (covariate gennorm beta=4, d=10, theta=1,
+# treatment_coef=1.56, outcome_coef=-1.45, oracle support ON), so each job is
+# 1 config x 25 experiments -> fast. eta is set per-job by --eta_noise_dist
+# (single_config does NOT touch eta).
+#
+# eta shapes span skewed-heavy / symmetric-heavy / two-point / symmetric-light:
+#   gennorm_heavy  gennorm beta=1 (Laplace-tailed), symmetric, excess kurt ~+2.6
+#   discrete       two-point skewed (E[eta^3] != 0), excess kurt ~+5.3
+#   rademacher     +/-scale two-point, symmetric, excess kurt ~-2.0
+#   uniform        bounded, symmetric, excess kurt ~-1.2
+#   gennorm_light  gennorm beta=4, symmetric sub-Gaussian, excess kurt ~-0.8
+#
+# Asymptotic-variance predictions (autoresearch analysis, fixed tc/oc/theta):
+#   * HOML avar is FINITE only for discrete eta; INF for every symmetric eta
+#     (HOML exploits skewness E[eta^3], which is 0 under symmetry) -> HOML should
+#     be high-variance/degenerate on all symmetric eta here.
+#   * ICA avar finite for all, ordered discrete < rademacher < heavy < uniform
+#     < gennorm_light -> ICA finite-sample RMSE should approach this ordering as n grows.
+# Round 01 already showed ICA is very noisy on discrete eta at small n despite its
+# low *asymptotic* variance -> this panel maps the finite-sample-vs-asymptotic gap.
+round: r02_eta_regime
+script: monte_carlo_single_instance.py
+base_args: "--n_experiments 25 --single_config --no_plot --covariate_pdf gennorm"
+output_flag: "--output_dir"
+grid:
+  eta_noise_dist: [gennorm_heavy, discrete, rademacher, uniform, gennorm_light]
+  n_samples: [500, 1000, 2000, 5000, 10000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600
