@@ -3,6 +3,23 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 15 (WS4 closure, 2026-07-03) — ICA d-gate marginal; learned tree recovers the hand-set rule
+Status: complete → **WS4 complete**. Pure analysis on pooled r13+r14 cells (58 cells, no new compute;
+`autoresearch/learn_selector_tree.py`). (1) **ICA d-gate NOT adopted**: helps only within noise
+(regret 0.0125→0.0109, +1/58) and BREAKS a genuine linear-high-d ICA win (d=200 linear ε=0.5: oracle
+ICA 0.011 vs OLS 0.018). The 5 disagreement cells are all d=200/n=5000 — ICA wins there when linear,
+loses when nonlinear, but the cheap nonlinearity feature can't detect nonlinearity at d=200, so a
+blanket d-gate can't separate them. Limiting factor is nonlinearity DETECTION at high d, not a missing
+d-gate; rule unchanged (d-gate kept as optional `rule_dgate` variant). (2) **Learned depth-3 tree
+RECOVERS the hand-set structure**: splits at d/n≈0.55 (hand-set 0.5→OML_lin), nonlinearity≈0.03–0.10
+(hand-set 0.05), ICA at high ε-kurtosis — from data alone → boundaries are intrinsic. But tree does
+NOT beat hand-set: pooled regret hand-set +0.0125 vs tree-LOO +0.0381 vs best-fixed(OML_lin) +0.0354
+vs always-ICA +31.7. Tree at depth 3 can't encode the n-gate + overfits ε threshold. The interpretable
+mechanism-grounded rule is ~3× better than tree/best-fixed and generalizes → the validated final
+artifact (calibration r14 and tree-learning r15 both validate but don't replace it). Figure:
+ws4_closure.{png,pdf}. Findings: `autoresearch/rounds/findings_round15.md`. Next: WS3 sensitivity sweeps,
+or assemble paper figures.
+
 ## Round 14 (WS4, 2026-07-03) — r14: calibrating thresholds overfits; mechanism-grounded ones generalise
 Status: complete. Outcome: **confirmed** + methodological lesson. Four splits (selector_multi_runner
 records per-cell features + 4 candidate RMSEs + oracle): r14_calib (synthetic_hd, seed1000, 16 cells),
