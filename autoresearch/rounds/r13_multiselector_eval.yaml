@@ -1,0 +1,37 @@
+# WS4 round r13_multiselector_eval — the multi-feature selector across the whole map.
+#
+# selector_multi.py chooses among OLS / OML(linear) / OML(gbm) / ICA from a feature
+# vector (nonlinearity score, d/n, eps-kurtosis) via an interpretable rule tree
+# grounded in the campaign:
+#   nonlinearity high -> OML_gbm (r04/r08)  | d/n high -> OML_gbm, avoid ICA (r06)
+#   eps-kurtosis high -> ICA (r09-r12)       | else -> OLS (r02/r07)
+# This round evaluates it where each branch should fire, measuring regret vs the
+# oracle-of-four.
+#
+# synthetic_hd covariates (30000x400) so the high-d cells reach d >= n. Grid spans
+# the four regime axes:
+#   nonlinear   {false, true}      -> misspecification branch
+#   eps_beta    {0.5, 2.0}         -> heavy vs Gaussian outcome noise (ICA branch)
+#   n_components {5, 300}          -> low-d vs high-d
+#   n_samples   {200, 20000}       -> d/n from ~0.0002 (d5,n20k) to 1.5 (d300,n200)
+# = 2x2x2x2 = 16 jobs. eta_beta=1, 15 experiments/cell, --n_jobs 4.
+#
+# Expected oracle per corner: linear+heavy-eps+low-d+large-n -> ICA;
+# linear+Gaussian-eps -> OLS; nonlinear -> OML_gbm; high-d (d>=n) -> OML_gbm (ICA
+# catastrophic). Success = selector matches the oracle (regret ~0) in every corner,
+# i.e. one rule spans WS1+WS2.
+round: r13_multiselector_eval
+script: selector_multi_runner.py
+base_args: "--dataset synthetic_hd --eta_beta 1.0 --n_experiments 15 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  nonlinear: [false, true]
+  eps_beta: [0.5, 2.0]
+  n_components: [5, 300]
+  n_samples: [200, 20000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 10800

@@ -3,6 +3,22 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 13 (WS4, 2026-07-03) — r13_multiselector_eval: one rule spans the whole regime map
+Status: complete (12/16; 4 d=300/n=20000 cells timed out — OML(gbm) intractable in 3h at high-d
+large-n, documented). Outcome: **confirmed** with an n-gate refinement the eval motivated. Multi-feature
+selector (selector_multi.py) chooses among OLS/OML(lin)/OML(gbm)/ICA from {nonlinearity score, d/n,
+ε-kurtosis, n} via an interpretable rule tree. Eval on synthetic_hd (30000×400) across
+nonlinear{F,T}×eps{0.5,2}×d{5,300}×n{200,20000}. **v1 (naive) failed: 5/12 match, regret +0.031, beaten
+by always-OML(lin)** — it overused OML(gbm) at small n (n=200) where GBM overfits (the r08 lesson;
+worst corner regret +0.087). **v2 (n-gated: use gbm only when nonlinear/high-d AND n≥1000, else fall
+back to OLS low-d / OML(lin) high-d) matches the oracle: 11/12, regret +0.0007** (RMS 0.079 vs oracle
+0.078), dominating all fixed strategies (always-ICA 15.2 = 190× worse, always-OML(lin) 0.091). One
+interpretable rule spans WS1+WS2, no learned weights. Validated post-hoc on recorded per-cell candidate
+RMSEs (r13 saves all 4). Figure: multiselector.{png,pdf}. Findings: `autoresearch/rounds/findings_round13.md`.
+Infra: selector_multi.py + selector_multi_runner.py; load_synthetic_hd_covariates (30000×400).
+Next: calibrate n_gate/thresholds on held-out + real X; cheaper high-d nuisance for the timed-out cells;
+optionally learn the tree to confirm the boundaries are intrinsic.
+
 ## Round 12 (WS4, 2026-07-03) — r12_selector_eval: an ε-kurtosis selector matches the oracle
 Status: complete. Outcome: **confirmed** — WS4 success criterion met. Selector (selector.py): fit
 first-stage residuals, compute est. excess kurtosis of the outcome noise ε̂, pick ICA if >τ else OML.

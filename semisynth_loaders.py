@@ -119,10 +119,27 @@ def load_synthetic_covariates(data_dir=None, use_fixture_on_failure=True,
     return X
 
 
+def load_synthetic_hd_covariates(data_dir=None, use_fixture_on_failure=True,
+                                 n_rows=30000, d=400) -> np.ndarray:
+    """High-dimensional iid-Gaussian covariates (30000, 400), cached. Lets the
+    multi-feature selector eval reach the d >= n regime (predisentangle to up to
+    ~300 components, subsample down to n=200 -> d/n up to ~1.5)."""
+    base = Path(data_dir) if data_dir else DATA_DIR
+    cache = base / "synthetic_hd_X.npy"
+    if cache.exists():
+        return np.load(cache)
+    rng = np.random.default_rng(20260704)
+    X = rng.standard_normal((n_rows, d)).astype(np.float64)
+    base.mkdir(parents=True, exist_ok=True)
+    np.save(cache, X)
+    return X
+
+
 LOADERS = {
     "housing": load_housing_covariates,
     "news20": load_news20_covariates,
     "synthetic": load_synthetic_covariates,
+    "synthetic_hd": load_synthetic_hd_covariates,
 }
 
 

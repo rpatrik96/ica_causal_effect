@@ -34,7 +34,7 @@ from nonlinear_runner import METHOD_NAMES, _make_nuisance_models
 import semisynth_loaders as ssl
 
 _DEFAULT_METHOD = "svd"  # for sparse text; overridden per-dataset below
-DENSE_DATASETS = {"housing", "synthetic"}
+DENSE_DATASETS = {"housing", "synthetic", "synthetic_hd"}
 
 
 def _one_experiment(seed, Zfull, n_samples, theta, coefs, sigma_eps,
