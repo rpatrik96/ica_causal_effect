@@ -3,6 +3,20 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 10 (WS2, 2026-07-03) — r10_ica_win_frontier: the ICA-win frontier is driven by ε, not η
+Status: complete. Outcome: **confirmed** + charted. 5×5 sweep eta_beta × eps_beta {0.5,1,1.5,2,3} at
+fixed n=50000, housing, d'=5, linear PLR. 25/25 DONE. **The ICA-win region is NOT a symmetric corner —
+it's a vertical band at heavy ε.** ICA beats OLS down almost the entire ε=0.5 column (across η incl.
+Gaussian η=2 → 0.54), and loses as ε→Gaussian (ε≥1.5 all losses). η non-Gaussianity is neither
+necessary (Gaussian η=2 + heavy ε wins) nor sufficient (heavy η=0.5 + Gaussian ε loses 2.02×).
+Both-Gaussian corner (η=2,ε=2) = **99.8× OLS** (two Gaussian sources unseparable). **Mechanism**: the
+eps-row ICA estimator reads θ from the ε-source row, sharpened by ε's non-Gaussianity → ε's tail (not
+η's) sets the efficiency edge (method-specific; an η-row identifier would transpose it). Refines r09:
+the controlling variable is OUTCOME-noise non-Gaussianity, not the treatment-noise non-Gaussianity the
+ICA story usually emphasizes. Figure: `autoresearch/results/r10_ica_win_frontier/ica_win_frontier.{png,pdf}`
+(diverging heatmap, blue=win band, red Gaussian cross). Findings: `autoresearch/rounds/findings_round10.md`.
+Next: reproduce the ε-band on news20 + synthetic X; feeds a WS4 selector on estimated ε-kurtosis.
+
 ## Round 09 (WS2, 2026-07-03) — r09_ica_edge_nlarged: ICA gets a large-n edge, but only with non-Gaussian ε
 Status: complete. Outcome: **confirmed (positive)** — resolves the campaign-long "ICA competitive but
 never best" puzzle. housing, d'=5, η β=0.5 (super-heavy), linear nuisance, bootstrap; axes
