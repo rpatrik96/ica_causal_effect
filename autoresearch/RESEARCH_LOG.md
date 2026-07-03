@@ -3,6 +3,20 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 16 (WS3, 2026-07-03) — sensitivity sweeps: η-Gaussianisation & η–ε dependence
+Status: complete. Outcome: **confirmed** — the two assumptions have OPPOSITE robustness profiles
+(the reviewer "graceful vs abrupt" ask). synthetic X, d'=5, n=10000, linear PLR. **Sweep 1 (Gaussianise
+η, eta_beta 0.5→2.0 × eps {heavy,Gaussian}, 14 cells):** OLS/OML/matching FLAT (robust, η-agnostic);
+**ICA graceful iff ε non-Gaussian** (heavy ε: flat ~0.008 even at Gaussian η; Gaussian ε: climbs
+0.019→0.530, the ICA non-identifiability wall as both noises →Gaussian); **HOML detonates at Gaussian η**
+(22–41× at β=2 — its moment estimator degenerates). So η non-Gaussianity is a SOFT, estimator-specific
+assumption. **Sweep 2 (inject ρ=Corr(η,ε) 0→0.8, 8 cells):** EVERY estimator biases by exactly ρ
+(RMSE≈ρ, all 5 collapse on the RMSE=ρ line) — η–ε dependence breaks identification (θ̂→θ+ρ), no PLM
+method escapes. HARD, universal assumption. Infra: added `eta_eps_corr` to impose_plr + semisynth_runner
+(verified: measured Corr matches set ρ to ±0.003). Figures: ws3_gauss_eta.{png,pdf},
+ws3_eta_eps_dep.{png,pdf}. Findings: `autoresearch/rounds/findings_round16.md`. WS3 headline sweeps done.
+Next: optional heteroscedastic-ε / real-X repeats; else assemble paper figures.
+
 ## Round 15 (WS4 closure, 2026-07-03) — ICA d-gate marginal; learned tree recovers the hand-set rule
 Status: complete → **WS4 complete**. Pure analysis on pooled r13+r14 cells (58 cells, no new compute;
 `autoresearch/learn_selector_tree.py`). (1) **ICA d-gate NOT adopted**: helps only within noise

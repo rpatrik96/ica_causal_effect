@@ -201,6 +201,7 @@ def _plr_mean(X, coef, quad_coef, nonlinear):
 def impose_plr(
     X, theta, treatment_coef, outcome_coef, sigma_eps=1.0, eta_beta=1.0, seed=0,
     nonlinear=False, treatment_quad=None, outcome_quad=None, eps_beta=None,
+    eta_eps_corr=0.0,
 ):
     """Impose ``T = m(X) + η``, ``Y = θT + g(X) + ε`` on pre-disentangled ``X``.
 
@@ -208,16 +209,23 @@ def impose_plr(
     ``ε ~ N(0, sigma_eps²)`` by default, or ``sigma_eps·gennorm(eps_beta)`` when
     ``eps_beta`` is set (heavy-tailed outcome noise — a second non-Gaussian source
     for the ICA-edge probe). ``nonlinear=True`` makes m(X), g(X) nonlinear
-    (carries the r04/r06 misspecification onto real X). Returns
-    ``(T, Y, theta, eta_second_moment, eta_third_cumulant)``; the two η moments
-    are what the HOML/robust estimators consume as "known" moments.
+    (carries the r04/r06 misspecification onto real X).
+
+    ``eta_eps_corr`` (WS3 assumption-violation knob): the PLM/ICA assume η ⊥ ε.
+    Setting ρ = eta_eps_corr ∈ (0,1) makes ε = sigma_eps·(ρ·η + √(1−ρ²)·z) so that
+    Corr(η, ε) ≈ ρ (ε keeps unit variance), gradually violating independence.
+
+    Returns ``(T, Y, theta, eta_second_moment, eta_third_cumulant)``; the two η
+    moments are what the HOML/robust estimators consume as "known" moments.
     """
     rng = np.random.default_rng(seed)
     eta = _gennorm_eta(eta_beta, X.shape[0], rng)
-    if eps_beta is None:
-        eps = rng.normal(0.0, sigma_eps, size=X.shape[0])
-    else:
-        eps = sigma_eps * _gennorm_eta(eps_beta, X.shape[0], rng)
+    base_eps = (rng.normal(0.0, 1.0, size=X.shape[0]) if eps_beta is None
+                else _gennorm_eta(eps_beta, X.shape[0], rng))
+    if eta_eps_corr:
+        rho = float(eta_eps_corr)
+        base_eps = rho * eta + np.sqrt(max(0.0, 1.0 - rho * rho)) * base_eps
+    eps = sigma_eps * base_eps
     T = _plr_mean(X, treatment_coef, treatment_quad, nonlinear) + eta
     Y = theta * T + _plr_mean(X, outcome_coef, outcome_quad, nonlinear) + eps
     eta_second_moment = float(np.mean(eta**2))

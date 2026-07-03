@@ -38,7 +38,7 @@ DENSE_DATASETS = {"housing", "synthetic", "synthetic_hd"}
 
 
 def _one_experiment(seed, Zfull, n_samples, theta, coefs, sigma_eps,
-                    eta_beta, nuisance, nonlinear, eps_beta, bootstrap):
+                    eta_beta, nuisance, nonlinear, eps_beta, bootstrap, eta_eps_corr):
     """Return the 7 per-method estimates for one MC replication."""
     m_coef, g_coef, m_quad, g_quad = coefs
     rng = np.random.default_rng(seed)
@@ -52,6 +52,7 @@ def _one_experiment(seed, Zfull, n_samples, theta, coefs, sigma_eps,
     T, Y, _theta, m2, m3 = ssl.impose_plr(
         Z, theta, m_coef, g_coef, sigma_eps=sigma_eps, eta_beta=eta_beta, seed=seed,
         nonlinear=nonlinear, treatment_quad=m_quad, outcome_quad=g_quad, eps_beta=eps_beta,
+        eta_eps_corr=eta_eps_corr,
     )
     mt, mo = _make_nuisance_models(nuisance)
     ortho_ml, robust_ml, robust_est, robust_split, _tc, _oc = all_together_cross_fitting(
@@ -76,7 +77,7 @@ def _one_experiment(seed, Zfull, n_samples, theta, coefs, sigma_eps,
 
 def run(dataset, n_components, eta_beta, theta, sigma_eps, nuisance,
         n_samples, n_experiments, coef_scale, base_seed, n_jobs,
-        nonlinear=False, eps_beta=None, bootstrap=False):
+        nonlinear=False, eps_beta=None, bootstrap=False, eta_eps_corr=0.0):
     method = "pca" if dataset in DENSE_DATASETS else "svd"
     Xreal = ssl.load_covariates(dataset)
     Zfull = ssl.predisentangle(Xreal, n_components=n_components, method=method)
@@ -88,7 +89,7 @@ def run(dataset, n_components, eta_beta, theta, sigma_eps, nuisance,
     seeds = [base_seed + 1 + i for i in range(n_experiments)]
     results = Parallel(n_jobs=n_jobs, verbose=0)(
         delayed(_one_experiment)(s, Zfull, n_samples, theta, coefs, sigma_eps,
-                                 eta_beta, nuisance, nonlinear, eps_beta, bootstrap)
+                                 eta_beta, nuisance, nonlinear, eps_beta, bootstrap, eta_eps_corr)
         for s in seeds
     )
     estimates = np.asarray(results, dtype=float)  # (n_exp, 7)
@@ -134,6 +135,7 @@ def run(dataset, n_components, eta_beta, theta, sigma_eps, nuisance,
         "n_components": int(n_components),
         "eps_beta": (float(eps_beta) if eps_beta is not None else None),
         "bootstrap": bool(bootstrap),
+        "eta_eps_corr": float(eta_eps_corr),
     }
 
 
@@ -153,6 +155,7 @@ def main() -> None:
     p.add_argument("--nonlinear", action="store_true", help="nonlinear m(X)/g(X) recast")
     p.add_argument("--eps_beta", type=float, default=None, help="heavy-tailed eps gennorm beta")
     p.add_argument("--bootstrap", action="store_true", help="resample rows w/ replacement (n>dataset)")
+    p.add_argument("--eta_eps_corr", type=float, default=0.0, help="WS3: Corr(eta,eps) violation rho")
     p.add_argument("--output_dir", default="figures/semisynth")
     p.add_argument("--results_file", default=None)
     opts = p.parse_args()
@@ -164,11 +167,12 @@ def main() -> None:
         n_samples=opts.n_samples, n_experiments=opts.n_experiments,
         coef_scale=opts.coef_scale, base_seed=opts.base_seed, n_jobs=opts.n_jobs,
         nonlinear=opts.nonlinear, eps_beta=opts.eps_beta, bootstrap=opts.bootstrap,
+        eta_eps_corr=opts.eta_eps_corr,
     )
     nl = "nl" if opts.nonlinear else "lin"
     fname = opts.results_file or (
         f"semisynth_{opts.dataset}_{nl}_d{opts.n_components}_ht{opts.eta_beta}_"
-        f"{opts.nuisance}_n{opts.n_samples}.npy"
+        f"{opts.nuisance}_n{opts.n_samples}_rho{opts.eta_eps_corr}.npy"
     )
     out = os.path.join(opts.output_dir, fname)
     np.save(out, results)
