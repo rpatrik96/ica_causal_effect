@@ -48,6 +48,8 @@ def per_config_metrics(d: dict) -> dict:
         "nonlinear": bool(d.get("nonlinear_confounding", False)),
         "heavy_tail_eta": bool(d.get("heavy_tail_eta", False)),
         "eta_beta": float(d.get("eta_beta", np.nan)),
+        "eps_beta": (float(d["eps_beta"]) if d.get("eps_beta") is not None else np.nan),
+        "bootstrap": bool(d.get("bootstrap", False)),
         "hetero_eps": bool(d.get("heteroscedastic_eps", False)),
         "treatment_effect": float(d["treatment_effect"]),
         "n_exp_kept": int(d.get("n_experiments", -1)),

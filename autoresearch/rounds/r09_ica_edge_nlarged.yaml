@@ -1,0 +1,43 @@
+# WS2 round r09_ica_edge_nlarged — does ICA get an EDGE when n >> d?
+#
+# Across the campaign ICA has been competitive but never *best* in the linear PLR
+# (r02, r07): at every n it trailed OLS/OML. Theory (r02 asymptotic-variance
+# analysis) says ICA exploits eta's non-Gaussianity via higher moments, so its
+# advantage should be an ASYMPTOTIC/large-n effect -- possibly only visible when
+# n >> d and eta is strongly non-Gaussian. This round pushes into that corner on
+# real covariates to test whether ICA ever wins (ICA RMSE < min(OLS, OML)).
+#
+# Setup favouring ICA maximally, LINEAR PLR (ICA's home -- linear mixing):
+#   dataset housing (20640 rows), d'=5 pre-disentangled components (small d),
+#   eta_beta=0.5 (super-heavy treatment noise, max non-Gaussianity / kurtosis),
+#   linear (well-specified) nuisance, --bootstrap so n can exceed 20640.
+# Axes:
+#   n_samples {2000, 10000, 50000}   -> n/d' from 400 to 10000 (deep n>>d)
+#   eps_beta  {2.0, 0.5}             -> Gaussian vs heavy-tailed OUTCOME noise
+#       (gennorm beta=2 == Gaussian; 0.5 == super-heavy). Tests whether a second
+#       non-Gaussian source (eps) is what ICA needs to gain an edge.
+# = 3 x 2 = 6 jobs. theta=1, --n_jobs 4.
+#
+# Preliminary 6-exp probe at n=40000 showed ICA ~1.5x OLS (still no edge). The full
+# 25-exp sweep with the eps axis settles it.
+#
+# Hypotheses:
+#   H-edge: at the largest n and strongest non-Gaussianity, ICA RMSE dips below
+#       OLS/OML -> ICA has a large-n efficiency edge (positive for the paper).
+#   H-null: ICA stays >= OLS at every n -> ICA is competitive but not superior in
+#       the linear PLR; its value is robustness, not efficiency (honest negative,
+#       consistent with r02/r07). The eps_beta=0.5 column checks whether a
+#       non-Gaussian outcome noise is the missing ingredient.
+round: r09_ica_edge_nlarged
+script: semisynth_runner.py
+base_args: "--n_experiments 25 --dataset housing --n_components 5 --eta_beta 0.5 --nuisance linear --bootstrap --treatment_effect 1.0 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  eps_beta: [2.0, 0.5]
+  n_samples: [2000, 10000, 50000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 7200

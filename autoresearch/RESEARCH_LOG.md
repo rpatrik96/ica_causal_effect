@@ -3,6 +3,32 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 09 (WS2, 2026-07-03) — r09_ica_edge_nlarged: ICA gets a large-n edge, but only with non-Gaussian ε
+Status: complete. Outcome: **confirmed (positive)** — resolves the campaign-long "ICA competitive but
+never best" puzzle. housing, d'=5, η β=0.5 (super-heavy), linear nuisance, bootstrap; axes
+eps_beta {2.0 Gaussian, 0.5 heavy} × n {2000,10000,50000}. 6/6 DONE. **ICA WINS at every n with
+heavy-tailed ε** (ICA best of all estimators), and the **edge GROWS with n**: ICA/OLS = 0.69→0.64→
+**0.53** at n=50k (≈2× lower RMSE than OLS) — an asymptotic efficiency gain. With **Gaussian ε: no
+edge**, and it worsens with n (ICA/OLS 1.09→1.32→2.02). Mechanism: ICA reads θ from the ε-source row;
+a Gaussian ε is the one source it can't sharpen on, so it forfeits efficiency — which is exactly why
+r02/r07 (Gaussian ε) never showed an ICA win. Make BOTH PLR noises non-Gaussian and ICA's
+higher-moment identification beats the second-moment OLS/OML, increasingly with n. First explicit
+"ICA wins" cell of the campaign. Findings: `autoresearch/rounds/findings_round09.md`.
+Next: chart the η-kurtosis × ε-kurtosis win frontier; confirm on news20; verify on synthetic X.
+
+## Round 08 (WS2, 2026-07-03) — r08_nonlinear_realX: nonlinear OLS breakdown on real covariates
+Status: complete. Outcome: **confirmed** (with a dataset-dependent nuance). Carried the r04 nonlinear
+recast (impose_plr nonlinear=True: m/g = sin(πX)+0.5X²) onto real X. dataset {housing,news20} ×
+nuisance {linear,gbm} × n {2000,10000}, η β=1, bootstrap. 8/8 DONE. **H1 OLS breakdown transfers to
+real X** — OLS biased, n-flat (housing 0.31→0.42; news20 ~0.083); magnitude covariate-dependent
+(harsher on housing's dense PCA comps). **H2 gbm-OML rescue is DATASET-DEPENDENT**: rescues cleanly on
+news20 (gbm-OML 0.065→**0.023**, 3.6× better than OLS at n=10k) but FAILS on housing (gbm-OML 0.51 >
+OLS 0.42) — sin(πX) on 8 dense PCA comps is too oscillatory for GBM to learn at n≤10k, so residual
+confounding persists + CF variance. Honest nuance: the rescue needs the nuisance to actually fit g(X).
+**H3 ICA fails** under nonlinear confounding on both (0.36–0.86), n-insensitive, as r04/r05. Findings:
+`autoresearch/rounds/findings_round08.md`. Pairs with r09: ICA loses under nonlinear confounding (r08),
+wins under fully-non-Gaussian linear PLR at n≫d (r09) — bounds ICA's domain on real covariates.
+
 ## Round 07 (WS2, 2026-07-02) — r07_ws2_semisynth: ICA's non-Gaussianity story holds on real covariates
 Status: complete. Outcome: **confirmed** — first WS2 semi-synthetic benchmark, on 2 real covariate
 datasets. Synthetic-on-real-X PLR recast: real covariates → PRE-DISENTANGLE (PCA dense / TruncatedSVD
@@ -20,6 +46,21 @@ fallback) + `semisynth_runner.py` (reuses the estimator stack, nonlinear-schema 
 shared lustre (gitignored). Findings: `autoresearch/rounds/findings_round07.md`. WS2 ≥2-dataset table
 met. Next: add binary failure-mode row (cite settled IHDP) + optional ACIC-2016 recast; nonlinear-g(X)
 recast to carry r04 onto real X.
+
+## Round 06 (WS1 capstone, 2026-07-02) — r06_nonlinear_highdim: does the gbm-OML rescue survive d≳n?
+Status: complete (9/12 jobs; 3 d=500 casualties documented). Outcome: **confirmed**. Swept
+n_covariates(d) {50,200,500} × nuisance {linear,gbm} × n {200,1000} under nonlinear confounding;
+d/n spans 0.05–2.5. **gbm-OML rescue is dimension-robust** — best estimator at every completed d/n
+incl. d/n=1.0 (0.361 vs OLS 1.125) and d/n=2.5 (0.419). **OLS shows textbook DOUBLE DESCENT** —
+RMSE 0.41 (d/n≤0.2) → **1.125 peak at d/n=1.0 (interpolation threshold)** → 0.356 (d/n=2.5, ridgeless
+min-norm recovers); worst exactly at d≈n. **ICA catastrophic at d≳n** — 7.42 (d/n=1.0), 3.16
+(d/n=2.5), 1–2 orders worse than anything else (FastICA can't unmix a (d+2)-dim system with n≤d);
+the extreme of r03's fragility. Matching stable ~0.4–0.5. Casualties: the two d=500 LINEAR-nuisance
+jobs hit the 2h max_time thrashing in non-converging LassoCV (computational finding: linear nuisance
+intractable at d≫n), + one d=500 gbm removed at max_time — all d=500, decisive d/n=1.0 & 2.5 points
+captured via d=200/gbm jobs. Findings: `autoresearch/rounds/findings_round06.md`. WS1 fully mapped
+(r02 η, r04 breakdown, r05 η-robust, r06 dimension). Next: nonlinear-g(X) recast on real X (carry
+r04/r06 into WS2), or paper figure generation from the metrics.tsv tables.
 
 ## Round 05 (2026-07-02) — r05_nonlinear_eta_regime: is the nonlinear-regime story η-robust?
 Status: complete. Outcome: **confirmed**. 16/16 jobs DONE, 0 failed, 25/25 finite. Swept
