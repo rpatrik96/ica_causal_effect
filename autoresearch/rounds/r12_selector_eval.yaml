@@ -1,0 +1,32 @@
+# WS4 round r12_selector_eval — does the ε-kurtosis selector track the oracle?
+#
+# The selector (selector.py) estimates the outcome-noise excess kurtosis from
+# first-stage residuals and picks ICA if it exceeds tau, else OML. r10 showed the
+# ideal boundary is heavy-eps; the smoke test showed the ESTIMATED eps-kurtosis
+# tracks eps_beta cleanly (17.8 / 3.3 / 0.0 for eps_beta 0.5/1/2), so the feature
+# is informative. This round evaluates the selector across the frontier and
+# calibrates tau by comparing two thresholds.
+#
+# script=selector_runner.py reports per config: selector_rmse, oracle_fixed
+# (=min(ICA,OML) rmse), regret=selector-oracle (WS4 target ~0), ICA pick-rate,
+# mean estimated eps/eta kurtosis.
+#
+# Grid: eta_beta {0.5,1,2} x eps_beta {0.5,1,1.5,2} x tau {3.0, 8.0} = 24 jobs.
+# synthetic X (clean, large n), d'=5, n=20000, linear PLR, theta=1, --n_jobs 4.
+# tau=3 vs tau=8 brackets the Laplace border (eps_beta=1, est. kurt ~3): tau=3
+# tends to pick ICA at eps=1; tau=8 tends to pick OML there -> whichever gives
+# lower total regret across the grid is the calibrated threshold.
+round: r12_selector_eval
+script: selector_runner.py
+base_args: "--dataset synthetic --n_components 5 --n_samples 20000 --nuisance linear --treatment_effect 1.0 --n_experiments 25 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  eta_beta: [0.5, 1.0, 2.0]
+  eps_beta: [0.5, 1.0, 1.5, 2.0]
+  tau: [3.0, 8.0]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 7200

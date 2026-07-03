@@ -3,6 +3,20 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 12 (WS4, 2026-07-03) — r12_selector_eval: an ε-kurtosis selector matches the oracle
+Status: complete. Outcome: **confirmed** — WS4 success criterion met. Selector (selector.py): fit
+first-stage residuals, compute est. excess kurtosis of the outcome noise ε̂, pick ICA if >τ else OML.
+Eval on synthetic X, n=20k, eta×eps {0.5,1,1.5,2} × tau {3,8}, 24/24 DONE. RMS RMSE over the grid:
+**Selector 0.0065 vs per-cell oracle 0.0064 (regret ≈0.0001)**; always-OML 0.0068; **always-ICA 0.145
+= 24× worse** (ICA detonates at Gaussian-ε cells, selector routes those to OML). Selector also beats
+always-OML by capturing the heavy-ε ICA wins. **Robust threshold** — τ=3 and τ=8 identical, no
+wrong-pick cells, because est. ε-kurtosis has a clean gap (ε=0.5→~23, ε≥1→≤3); tuning-free, consistent
+with r11's intrinsic frontier. The estimated feature faithfully recovers the true regime (22.8/3.0/0.8/
+0.0 for eps_β 0.5/1/1.5/2). Turns "when does ICA win" into a deployable rule (the Rahul/TMLR selection
+ask). Infra: selector.py + selector_runner.py; figure selector_regret.{png,pdf} via
+plot_selector_regret.py. Findings: `autoresearch/rounds/findings_round12.md`. Next: confirm selector on
+real X + full 5×5; extend to a multi-feature selector spanning the whole WS1+WS2 regime map.
+
 ## Round 11 (WS2, 2026-07-03) — r11_frontier_{synthetic,news20}: the ICA-win frontier is estimator-intrinsic
 Status: complete. Outcome: **confirmed**. Reproduced r10's 3×3 mini-frontier (eta×eps {0.5,1,2}) on
 synthetic Gaussian X (n=50k, clean large-n control) and news20 sparse text X (n=2k). **synthetic ≈
