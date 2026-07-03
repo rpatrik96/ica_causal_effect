@@ -37,15 +37,21 @@ _DEFAULT_METHOD = "svd"  # for sparse text; overridden per-dataset below
 DENSE_DATASETS = {"housing"}
 
 
-def _one_experiment(seed, Zfull, n_samples, theta, m_coef, g_coef, sigma_eps,
-                    eta_beta, nuisance):
+def _one_experiment(seed, Zfull, n_samples, theta, coefs, sigma_eps,
+                    eta_beta, nuisance, nonlinear, eps_beta, bootstrap):
     """Return the 7 per-method estimates for one MC replication."""
+    m_coef, g_coef, m_quad, g_quad = coefs
     rng = np.random.default_rng(seed)
-    n = min(n_samples, Zfull.shape[0])
-    idx = rng.choice(Zfull.shape[0], size=n, replace=False)
+    # Without bootstrap, n is capped at the dataset size (subsample w/o replacement).
+    # With bootstrap, n may exceed it (resample with replacement) — needed for the
+    # n>>d probe on datasets smaller than the target n.
+    replace = bool(bootstrap) or n_samples > Zfull.shape[0]
+    n = n_samples if replace else min(n_samples, Zfull.shape[0])
+    idx = rng.choice(Zfull.shape[0], size=n, replace=replace)
     Z = Zfull[idx]
     T, Y, _theta, m2, m3 = ssl.impose_plr(
-        Z, theta, m_coef, g_coef, sigma_eps=sigma_eps, eta_beta=eta_beta, seed=seed
+        Z, theta, m_coef, g_coef, sigma_eps=sigma_eps, eta_beta=eta_beta, seed=seed,
+        nonlinear=nonlinear, treatment_quad=m_quad, outcome_quad=g_quad, eps_beta=eps_beta,
     )
     mt, mo = _make_nuisance_models(nuisance)
     ortho_ml, robust_ml, robust_est, robust_split, _tc, _oc = all_together_cross_fitting(
@@ -69,17 +75,20 @@ def _one_experiment(seed, Zfull, n_samples, theta, m_coef, g_coef, sigma_eps,
 
 
 def run(dataset, n_components, eta_beta, theta, sigma_eps, nuisance,
-        n_samples, n_experiments, coef_scale, base_seed, n_jobs):
+        n_samples, n_experiments, coef_scale, base_seed, n_jobs,
+        nonlinear=False, eps_beta=None, bootstrap=False):
     method = "pca" if dataset in DENSE_DATASETS else "svd"
     Xreal = ssl.load_covariates(dataset)
     Zfull = ssl.predisentangle(Xreal, n_components=n_components, method=method)
     d = Zfull.shape[1]
-    m_coef, g_coef = ssl.make_coefficients(d, seed=base_seed, scale=coef_scale)
+    coefs = ssl.make_coefficients(d, seed=base_seed, scale=coef_scale)
+    # actual per-experiment sample size (bootstrap allows n > dataset rows)
+    actual_n = n_samples if (bootstrap or n_samples > Zfull.shape[0]) else min(n_samples, Zfull.shape[0])
 
     seeds = [base_seed + 1 + i for i in range(n_experiments)]
     results = Parallel(n_jobs=n_jobs, verbose=0)(
-        delayed(_one_experiment)(s, Zfull, n_samples, theta, m_coef, g_coef,
-                                 sigma_eps, eta_beta, nuisance)
+        delayed(_one_experiment)(s, Zfull, n_samples, theta, coefs, sigma_eps,
+                                 eta_beta, nuisance, nonlinear, eps_beta, bootstrap)
         for s in seeds
     )
     estimates = np.asarray(results, dtype=float)  # (n_exp, 7)
@@ -91,7 +100,7 @@ def run(dataset, n_components, eta_beta, theta, sigma_eps, nuisance,
         biases = np.nanmean(err, axis=0)
         sigmas = np.nanstd(estimates, axis=0)
     finite_per_col = np.isfinite(estimates).sum(axis=0)
-    print(f"dataset={dataset} d'={d} n={min(n_samples, Zfull.shape[0])} "
+    print(f"dataset={dataset} d'={d} n={actual_n} bootstrap={bootstrap} nonlinear={nonlinear} "
           f"eta_beta={eta_beta} nuisance={nuisance} theta={theta}")
     print(f"{'method':<22}{'bias':>10}{'sigma':>10}{'rmse':>10}")
     for name, b, s, r in zip(METHOD_NAMES, biases, sigmas, rmse):
@@ -107,12 +116,12 @@ def run(dataset, n_components, eta_beta, theta, sigma_eps, nuisance,
         "finite_per_method": finite_per_col,
         "n_attempted": len(seeds),
         "treatment_effect": float(theta),
-        "n_samples": int(min(n_samples, Zfull.shape[0])),
+        "n_samples": int(actual_n),
         "n_covariates": int(d),
         "support_size": int(d),
         "nuisance": nuisance,
         # reuse the nonlinear schema fields the analyzer reads:
-        "nonlinear_confounding": False,
+        "nonlinear_confounding": bool(nonlinear),
         "heavy_tail_eta": True,
         "eta_beta": float(eta_beta),
         "high_dim": False,
@@ -123,6 +132,8 @@ def run(dataset, n_components, eta_beta, theta, sigma_eps, nuisance,
         "dataset": dataset,
         "predisentangle_method": method,
         "n_components": int(n_components),
+        "eps_beta": (float(eps_beta) if eps_beta is not None else None),
+        "bootstrap": bool(bootstrap),
     }
 
 
@@ -139,6 +150,9 @@ def main() -> None:
     p.add_argument("--coef_scale", type=float, default=1.0)
     p.add_argument("--base_seed", type=int, default=13337)
     p.add_argument("--n_jobs", type=int, default=-1)
+    p.add_argument("--nonlinear", action="store_true", help="nonlinear m(X)/g(X) recast")
+    p.add_argument("--eps_beta", type=float, default=None, help="heavy-tailed eps gennorm beta")
+    p.add_argument("--bootstrap", action="store_true", help="resample rows w/ replacement (n>dataset)")
     p.add_argument("--output_dir", default="figures/semisynth")
     p.add_argument("--results_file", default=None)
     opts = p.parse_args()
@@ -149,9 +163,11 @@ def main() -> None:
         theta=opts.treatment_effect, sigma_eps=opts.sigma_outcome, nuisance=opts.nuisance,
         n_samples=opts.n_samples, n_experiments=opts.n_experiments,
         coef_scale=opts.coef_scale, base_seed=opts.base_seed, n_jobs=opts.n_jobs,
+        nonlinear=opts.nonlinear, eps_beta=opts.eps_beta, bootstrap=opts.bootstrap,
     )
+    nl = "nl" if opts.nonlinear else "lin"
     fname = opts.results_file or (
-        f"semisynth_{opts.dataset}_d{opts.n_components}_ht{opts.eta_beta}_"
+        f"semisynth_{opts.dataset}_{nl}_d{opts.n_components}_ht{opts.eta_beta}_"
         f"{opts.nuisance}_n{opts.n_samples}.npy"
     )
     out = os.path.join(opts.output_dir, fname)

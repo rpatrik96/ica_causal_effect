@@ -147,34 +147,58 @@ def _gennorm_eta(beta, size, rng) -> np.ndarray:
     return eta - eta.mean()
 
 
-def impose_plr(
-    X, theta, treatment_coef, outcome_coef, sigma_eps=1.0, eta_beta=1.0, seed=0
-):
-    """Impose ``T = X@m + η``, ``Y = θT + X@g + ε`` on pre-disentangled ``X``.
+def _plr_mean(X, coef, quad_coef, nonlinear):
+    """Conditional mean m(X)/g(X). Linear ``X@coef``, or (nonlinear) a
+    sin + quadratic map mirroring ``nonlinear_dgp``'s
+    ``g(X)=Σ sin(π X_j)·coef + 0.5·Σ X_j²·quad`` — a form linear OLS/OML with a
+    linear first stage cannot represent."""
+    if not nonlinear:
+        return X @ coef
+    out = np.sin(np.pi * X) @ coef
+    if quad_coef is not None:
+        out = out + 0.5 * (X**2) @ quad_coef
+    return out
 
-    ``θ`` is exact by construction. ``η ~ gennorm(eta_beta)`` (unit variance),
-    ``ε ~ N(0, sigma_eps²)``. Returns ``(T, Y, theta, eta_second_moment,
-    eta_third_cumulant)`` — the two η moments are what the HOML/robust estimators
-    consume as "known" moments (both computed from the realized draw).
+
+def impose_plr(
+    X, theta, treatment_coef, outcome_coef, sigma_eps=1.0, eta_beta=1.0, seed=0,
+    nonlinear=False, treatment_quad=None, outcome_quad=None, eps_beta=None,
+):
+    """Impose ``T = m(X) + η``, ``Y = θT + g(X) + ε`` on pre-disentangled ``X``.
+
+    ``θ`` is exact by construction. ``η ~ gennorm(eta_beta)`` (unit variance).
+    ``ε ~ N(0, sigma_eps²)`` by default, or ``sigma_eps·gennorm(eps_beta)`` when
+    ``eps_beta`` is set (heavy-tailed outcome noise — a second non-Gaussian source
+    for the ICA-edge probe). ``nonlinear=True`` makes m(X), g(X) nonlinear
+    (carries the r04/r06 misspecification onto real X). Returns
+    ``(T, Y, theta, eta_second_moment, eta_third_cumulant)``; the two η moments
+    are what the HOML/robust estimators consume as "known" moments.
     """
     rng = np.random.default_rng(seed)
     eta = _gennorm_eta(eta_beta, X.shape[0], rng)
-    eps = rng.normal(0.0, sigma_eps, size=X.shape[0])
-    T = X @ treatment_coef + eta
-    Y = theta * T + X @ outcome_coef + eps
+    if eps_beta is None:
+        eps = rng.normal(0.0, sigma_eps, size=X.shape[0])
+    else:
+        eps = sigma_eps * _gennorm_eta(eps_beta, X.shape[0], rng)
+    T = _plr_mean(X, treatment_coef, treatment_quad, nonlinear) + eta
+    Y = theta * T + _plr_mean(X, outcome_coef, outcome_quad, nonlinear) + eps
     eta_second_moment = float(np.mean(eta**2))
     eta_third_cumulant = float(np.mean(eta**3))  # ~0 for symmetric gennorm
     return T, Y, float(theta), eta_second_moment, eta_third_cumulant
 
 
 def make_coefficients(d, seed=0, scale=1.0):
-    """Fixed (dataset-level) PLR coefficient vectors m (treatment) and g (outcome)
-    on the ``d`` pre-disentangled components. Drawn once so only the noise varies
-    across Monte-Carlo experiments."""
+    """Fixed (dataset-level) PLR coefficients on the ``d`` pre-disentangled
+    components, drawn once so only the noise varies across MC experiments. Returns
+    ``(m, g, m_quad, g_quad)``: linear treatment/outcome vectors plus the quadratic
+    coefficients used only in the nonlinear recast."""
     rng = np.random.default_rng(seed)
     m = scale * rng.standard_normal(d) / np.sqrt(d)
     g = scale * rng.standard_normal(d) / np.sqrt(d)
-    return m.astype(np.float64), g.astype(np.float64)
+    m_quad = scale * rng.standard_normal(d) / np.sqrt(d)
+    g_quad = scale * rng.standard_normal(d) / np.sqrt(d)
+    return (m.astype(np.float64), g.astype(np.float64),
+            m_quad.astype(np.float64), g_quad.astype(np.float64))
 
 
 if __name__ == "__main__":  # smoke: cache both datasets, print shapes
@@ -182,7 +206,7 @@ if __name__ == "__main__":  # smoke: cache both datasets, print shapes
         X = load_covariates(name)
         method = "svd" if name == "news20" else "pca"
         Z = predisentangle(X, n_components=10, method=method)
-        m, g = make_coefficients(Z.shape[1], seed=0)
+        m, g, mq, gq = make_coefficients(Z.shape[1], seed=0)
         T, Y, th, m2, m3 = impose_plr(Z[:500], 1.0, m, g, eta_beta=1.0, seed=0)
         print(f"{name}: X{X.shape} -> Z{Z.shape}  T{T.shape} Y{Y.shape} theta={th} "
               f"eta_var={m2:.3f} eta_m3={m3:.3f}")
