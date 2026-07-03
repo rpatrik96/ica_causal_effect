@@ -102,7 +102,28 @@ def load_news20_covariates(
         return _correlated_fixture(1800, 2000, seed=2)
 
 
-LOADERS = {"housing": load_housing_covariates, "news20": load_news20_covariates}
+def load_synthetic_covariates(data_dir=None, use_fixture_on_failure=True,
+                              n_rows=60000, d=10) -> np.ndarray:
+    """Large iid-Gaussian covariate matrix (n_rows, d), cached. The synthetic
+    control for frontier-robustness checks: confirms an effect is intrinsic to the
+    estimators, not a real-covariate artifact, and supplies unlimited real (non-
+    bootstrapped) rows for the n>>d regime."""
+    base = Path(data_dir) if data_dir else DATA_DIR
+    cache = base / "synthetic_X.npy"
+    if cache.exists():
+        return np.load(cache)
+    rng = np.random.default_rng(20260703)
+    X = rng.standard_normal((n_rows, d)).astype(np.float64)
+    base.mkdir(parents=True, exist_ok=True)
+    np.save(cache, X)
+    return X
+
+
+LOADERS = {
+    "housing": load_housing_covariates,
+    "news20": load_news20_covariates,
+    "synthetic": load_synthetic_covariates,
+}
 
 
 def load_covariates(dataset: str, **kw) -> np.ndarray:

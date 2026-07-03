@@ -3,6 +3,18 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 11 (WS2, 2026-07-03) — r11_frontier_{synthetic,news20}: the ICA-win frontier is estimator-intrinsic
+Status: complete. Outcome: **confirmed**. Reproduced r10's 3×3 mini-frontier (eta×eps {0.5,1,2}) on
+synthetic Gaussian X (n=50k, clean large-n control) and news20 sparse text X (n=2k). **synthetic ≈
+housing almost cell-for-cell** — ε=0.5 win column (0.53/0.87/0.47), both-Gaussian (2,2)=112.6× vs
+housing 99.8× → the frontier is a property of the PLR + eps-row estimator, NOT real covariance
+structure. **news20 confirms the law on sparse text X** (ε=0.5 col wins 0.67/0.52/0.78; (2,2)=26.9×);
+its smaller n softens the boundary (milder catastrophe, slight η-sensitivity at ε=1) — consistent with
+the edge being asymptotic. ε non-Gaussianity is the controlling variable on all three covariate
+structures. Findings: `autoresearch/rounds/findings_round11.md`. Confirms the ICA-wins claim is an
+estimator-level law → the selector (r12) can key on estimated ε-kurtosis without dataset tuning.
+Infra: added `load_synthetic_covariates` (cached Gaussian X) to semisynth_loaders.
+
 ## Round 10 (WS2, 2026-07-03) — r10_ica_win_frontier: the ICA-win frontier is driven by ε, not η
 Status: complete. Outcome: **confirmed** + charted. 5×5 sweep eta_beta × eps_beta {0.5,1,1.5,2,3} at
 fixed n=50000, housing, d'=5, linear PLR. 25/25 DONE. **The ICA-win region is NOT a symmetric corner —
