@@ -3,6 +3,22 @@
 One entry per round, newest first. Format:
 `## Round NN (date) — <one-line hypothesis>` then Status / Outcome / Link to findings doc.
 
+## Round 14 (WS4, 2026-07-03) — r14: calibrating thresholds overfits; mechanism-grounded ones generalise
+Status: complete. Outcome: **confirmed** + methodological lesson. Four splits (selector_multi_runner
+records per-cell features + 4 candidate RMSEs + oracle): r14_calib (synthetic_hd, seed1000, 16 cells),
+r14_test (same grid seed2000, held-out), r14_real_housing (8/8), r14_real_news20 (6/8; 2 high-d gbm
+cells timed out). `calibrate_selector.py` grid-searches thresholds on calib, evaluates all splits.
+**Calibration OVERFITS**: tuned thresholds (eps 3→1, n_gate 1000→500) cut train regret (0.0095→0.0015)
+but generalize WORSE — held-out +0.0366 vs hand-set +0.0351, and **real housing +0.0409 vs hand-set
++0.0012 (34× worse)**. The mechanism-grounded hand-set thresholds are robust (boundaries are intrinsic,
+r11 → no fitting needed); DEFAULT_THRESHOLDS left unchanged. **Selector transfers to REAL X**: hand-set
+near-oracle on housing (+0.0012, 7/8) and good on news20 (+0.0095, 4/6). Held-out regret +0.035 is 3
+edge cells (13/16 exact): 2 noise-dominated small-n nonlinear (OLS/OML_gbm oracle flips across seeds),
+1 high-d heavy-ε where ICA picked but underperforms → refinement: **gate the ICA branch on dimension**
+(ICA needs low d, r06). Figure: calibration.{png,pdf} (hand-set vs calibrated across splits).
+Findings: `autoresearch/rounds/findings_round14.md`. Infra: calibrate_selector.py, plot_calibration.py.
+Next: add d-gate to ICA branch; learn a shallow tree to confirm boundaries are intrinsic → WS4 complete.
+
 ## Round 13 (WS4, 2026-07-03) — r13_multiselector_eval: one rule spans the whole regime map
 Status: complete (12/16; 4 d=300/n=20000 cells timed out — OML(gbm) intractable in 3h at high-d
 large-n, documented). Outcome: **confirmed** with an n-gate refinement the eval motivated. Multi-feature
