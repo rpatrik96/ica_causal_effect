@@ -1,0 +1,36 @@
+# WS1 round r03_oracle_nuisance — isolate the oracle / nuisance-selection axis.
+#
+# r02 mapped the OLS-favorable corner (oracle support ON, well-specified low-d):
+# OLS won all 25 configs and ICA was never competitive. The most likely route to
+# an ICA-favorable / "OLS breaks down when..." region (WS1 success criterion b)
+# is REMOVING the oracle: with oracle_support OFF, every estimator must fit the
+# full covariate vector (cov_dim_max=50 here) instead of the true 10-dim support
+# -> 40 nuisance covariates. Verified empirically that --no_oracle_support is a
+# real change here (cov_dim_max=50 != support_size=10; oracle on vs off differ).
+#
+# Design: cross oracle {ON, OFF} x eta {gennorm_heavy (ICA-favorable, symmetric
+# Laplace-tailed, excess kurt ~+2.6), discrete (skewed, the one shape where HOML
+# is non-degenerate)} x n. --single_config pins covariate gennorm beta=4, d=10
+# support within 50 covariates, theta=1. The grid toggles the oracle via the
+# bare-flag mechanism: no_oracle_support=false omits the flag (default oracle ON),
+# =true emits --no_oracle_support (oracle OFF).
+#
+# Hypothesis: under oracle OFF, OLS and OML degrade (must estimate 50 coefficients,
+# variance + misspecification pressure) while ICA's structural identification is
+# comparatively robust -> at small n and oracle OFF, ICA/OML should close or
+# reverse the gap to OLS. If OLS RMSE inflates sharply oracle-OFF vs -ON, that is
+# the first evidence for criterion (b).
+round: r03_oracle_nuisance
+script: monte_carlo_single_instance.py
+base_args: "--n_experiments 25 --single_config --no_plot --covariate_pdf gennorm --support_size 10"
+output_flag: "--output_dir"
+grid:
+  no_oracle_support: [false, true]
+  eta_noise_dist: [gennorm_heavy, discrete]
+  n_samples: [500, 1000, 2000, 5000, 10000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600

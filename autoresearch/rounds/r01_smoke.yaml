@@ -1,0 +1,22 @@
+# WS1 round r01_smoke — validate cluster/sweep_runner.py end-to-end.
+#
+# Goal: prove the pipeline (grid expand -> condor_submit_bid -> run_autoresearch_job.sh
+# activates .venv -> monte_carlo_single_instance.py writes .npy + DONE -> aggregate)
+# works on real GPU/CPU nodes. NOT a science round.
+#
+# --single_config collapses OMLParameterGrid to exactly one point per job
+# (support=10, beta=4.0, treatment_effect=1, tcoef=1.56, ocoef=-1.45), so each
+# job is 1 config x n_experiments -> fast. The only grid axis is n_samples, giving
+# a tiny n-scaling curve at a fixed (near-Gaussian eta, d=10) regime as a bonus.
+round: r01_smoke
+script: monte_carlo_single_instance.py
+base_args: "--n_experiments 10 --single_config --no_plot --covariate_pdf gennorm"
+output_flag: "--output_dir"
+grid:
+  n_samples: [200, 500, 1000, 2000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600

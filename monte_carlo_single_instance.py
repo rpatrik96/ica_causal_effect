@@ -401,6 +401,7 @@ def run_experiments_for_configuration(
         "beta": beta,
         "treatment_effect": treatment_effect,
         "cov_dim_max": cov_dim_max,
+        "oracle_support": config.oracle_support,
         "sigma_outcome": config.sigma_outcome,
         "eta_noise_dist": eta_noise_dist,
         "ortho_rec_tau": ortho_rec_tau,

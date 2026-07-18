@@ -1,0 +1,4 @@
+idx	args	status
+1	--n_samples 500	done
+2	--n_samples 1000	done
+3	--n_samples 2000	done

@@ -86,6 +86,69 @@ class OMLParameterGrid:
     support_filter: int = 10
     cov_dim_max: int = 50
 
+    @classmethod
+    def create_from_config(cls, config: OMLExperimentConfig) -> "OMLParameterGrid":
+        """Create parameter grid based on experiment configuration.
+
+        Args:
+            config: Experiment configuration
+
+        Returns:
+            Configured parameter grid
+        """
+        grid = cls()
+
+        # Capture cov_dim_max from the full default grid before any restriction
+        grid.cov_dim_max = grid.support_sizes[-1]
+
+        # Adjust for small_data mode
+        if config.small_data:
+            grid.support_sizes = [2, 5, 10]
+            grid.data_samples = [20, 50, 100]
+            grid.support_filter = 5
+        else:
+            # Adjust for asymptotic_var or scalar_coeffs modes
+            if config.asymptotic_var or config.scalar_coeffs:
+                grid.support_sizes = [10]
+                grid.treatment_effects = [1]
+
+            if config.asymptotic_var:
+                grid.data_samples = [10**4]
+                # Asymptotic variance specific coefficients
+                grid.treatment_coefs = [-0.002, -0.33, 1.26]
+                grid.outcome_coefs = [-0.05, 0.7, 1.9]
+
+        # Single config mode: collapse grid to one point for seed stability testing
+        if config.single_config:
+            grid.data_samples = [config.n_samples]
+            grid.support_sizes = [10]
+            grid.beta_values = [4.0]
+            grid.treatment_effects = [1]
+            grid.treatment_coefs = [1.56]
+            grid.outcome_coefs = [-1.45]
+            return grid
+
+        # Adjust beta values
+        if config.covariate_pdf != "gennorm" or config.asymptotic_var:
+            grid.beta_values = [1.0]
+
+        # Adjust treatment effects
+        if config.matched_coefficients:
+            grid.treatment_effects = [1.0]
+
+        # Restrict grid to the CLI-specified n_samples (enables per-sample-size job splitting)
+        grid.data_samples = [config.n_samples]
+
+        # Restrict beta if explicitly specified (enables per-beta job splitting)
+        if config.beta is not None:
+            grid.beta_values = [config.beta]
+
+        # Restrict support_size if explicitly specified (enables per-support-size job splitting)
+        if config.support_size is not None:
+            grid.support_sizes = [config.support_size]
+
+        return grid
+
 
 @dataclass
 class OMLMethodConfig:

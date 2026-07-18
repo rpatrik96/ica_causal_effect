@@ -1,0 +1,20 @@
+# WS4 round r14_real_housing — confirm the calibrated selector on REAL dense X.
+#
+# California Housing covariates (d'<=8, low-dim), across nonlinear {F,T} x eps
+# {0.5,2.0} x n {500,10000}. Tests whether thresholds calibrated on synthetic_hd
+# (r14_calib) transfer to real covariate structure. Housing supports only the
+# low-d regimes (8 features); news20 covers high-d.
+round: r14_real_housing
+script: selector_multi_runner.py
+base_args: "--dataset housing --n_components 5 --eta_beta 1.0 --n_experiments 12 --base_seed 3000 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  nonlinear: [false, true]
+  eps_beta: [0.5, 2.0]
+  n_samples: [500, 10000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600

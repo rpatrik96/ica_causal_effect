@@ -1,0 +1,25 @@
+# WS2 round r11_frontier_news20 — reproduce the ICA-win frontier on SPARSE real X.
+#
+# Companion to r11_frontier_synthetic: confirms r10's eps-driven frontier on
+# news20 (20 Newsgroups TF-IDF, sparse text, TruncatedSVD pre-disentangle) — a
+# very different real-covariate structure from housing (dense) and synthetic
+# (Gaussian). news20 has only 2365 rows, so use its NATIVE n (no bootstrap
+# saturation): n=2000. The efficiency edge is an asymptotic effect, so at this
+# smaller n expect a WEAKER-magnitude edge but the same qualitative asymmetry
+# (heavy-eps wins, Gaussian-eps loses, (2,2) worst).
+#
+# 3x3 mini-frontier: eta_beta {0.5,1,2} x eps_beta {0.5,1,2}. d'=10, linear PLR,
+# theta=1, --n_jobs 4.
+round: r11_frontier_news20
+script: semisynth_runner.py
+base_args: "--n_experiments 25 --dataset news20 --n_components 10 --nuisance linear --n_samples 2000 --treatment_effect 1.0 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  eta_beta: [0.5, 1.0, 2.0]
+  eps_beta: [0.5, 1.0, 2.0]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600

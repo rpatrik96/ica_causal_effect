@@ -1,0 +1,17 @@
+job	dataset	n_samples	n_covariates	support_size	nuisance	nonlinear	heavy_tail_eta	eta_beta	eps_beta	bootstrap	hetero_eps	treatment_effect	n_exp_kept	n_attempted	Ortho ML.rmse	Ortho ML.bias	Ortho ML.std	Ortho ML.finite	Robust Ortho ML.rmse	Robust Ortho ML.bias	Robust Ortho ML.std	Robust Ortho ML.finite	Robust Ortho Est.rmse	Robust Ortho Est.bias	Robust Ortho Est.std	Robust Ortho Est.finite	Robust Ortho Split.rmse	Robust Ortho Split.bias	Robust Ortho Split.std	Robust Ortho Split.finite	ICA.rmse	ICA.bias	ICA.std	ICA.finite	OLS.rmse	OLS.bias	OLS.std	OLS.finite	Matching.rmse	Matching.bias	Matching.std	Matching.finite	note
+job_0000	synthetic_hd	200	5	5	multi	False	True	1	0.5	False	False	1	15	15	0.0869941	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	0.0545165	nan	nan	15	0.0796487	nan	nan	15	nan	nan	nan	15	
+job_0001	synthetic_hd	200	5	5	multi	True	True	1	0.5	False	False	1	15	15	0.126336	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	0.262566	nan	nan	15	0.107965	nan	nan	15	nan	nan	nan	15	
+job_0002	synthetic_hd	20000	5	5	multi	False	True	1	0.5	False	False	1	15	15	0.00597054	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	0.00449222	nan	nan	15	0.00595755	nan	nan	15	nan	nan	nan	15	
+job_0003	synthetic_hd	20000	5	5	multi	True	True	1	0.5	False	False	1	15	15	0.0817888	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	0.0390851	nan	nan	15	0.0816869	nan	nan	15	nan	nan	nan	15	
+job_0004	synthetic_hd	200	300	300	multi	False	True	1	0.5	False	False	1	15	15	0.113124	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	2.27757	nan	nan	15	0.306245	nan	nan	15	nan	nan	nan	15	
+job_0005	synthetic_hd	200	300	300	multi	True	True	1	0.5	False	False	1	15	15	0.0886561	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	52.2807	nan	nan	15	0.177616	nan	nan	15	nan	nan	nan	15	
+job_0006																																											NO .npy (failed/held/empty)
+job_0007																																											NO .npy (failed/held/empty)
+job_0008	synthetic_hd	200	5	5	multi	False	True	1	2	False	False	1	15	15	0.0659491	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	0.248519	nan	nan	15	0.075558	nan	nan	15	nan	nan	nan	15	
+job_0009	synthetic_hd	200	5	5	multi	True	True	1	2	False	False	1	15	15	0.131413	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	0.628083	nan	nan	15	0.113759	nan	nan	15	nan	nan	nan	15	
+job_0010	synthetic_hd	20000	5	5	multi	False	True	1	2	False	False	1	15	15	0.00819884	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	0.0219731	nan	nan	15	0.00795324	nan	nan	15	nan	nan	nan	15	
+job_0011	synthetic_hd	20000	5	5	multi	True	True	1	2	False	False	1	15	15	0.083009	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	0.201054	nan	nan	15	0.0828993	nan	nan	15	nan	nan	nan	15	
+job_0012	synthetic_hd	200	300	300	multi	False	True	1	2	False	False	1	15	15	0.0983717	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	3.59163	nan	nan	15	0.284845	nan	nan	15	nan	nan	nan	15	
+job_0013	synthetic_hd	200	300	300	multi	True	True	1	2	False	False	1	15	15	0.0972269	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	nan	nan	nan	15	4.55916	nan	nan	15	0.190103	nan	nan	15	nan	nan	nan	15	
+job_0014																																											NO .npy (failed/held/empty)
+job_0015																																											NO .npy (failed/held/empty)

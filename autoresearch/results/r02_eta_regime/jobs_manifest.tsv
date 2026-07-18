@@ -1,0 +1,26 @@
+idx	args	status
+0	--eta_noise_dist gennorm_heavy --n_samples 500	done
+1	--eta_noise_dist gennorm_heavy --n_samples 1000	done
+2	--eta_noise_dist gennorm_heavy --n_samples 2000	done
+3	--eta_noise_dist gennorm_heavy --n_samples 5000	done
+4	--eta_noise_dist gennorm_heavy --n_samples 10000	done
+5	--eta_noise_dist discrete --n_samples 500	done
+6	--eta_noise_dist discrete --n_samples 1000	done
+7	--eta_noise_dist discrete --n_samples 2000	done
+8	--eta_noise_dist discrete --n_samples 5000	done
+9	--eta_noise_dist discrete --n_samples 10000	done
+10	--eta_noise_dist rademacher --n_samples 500	done
+11	--eta_noise_dist rademacher --n_samples 1000	done
+12	--eta_noise_dist rademacher --n_samples 2000	done
+13	--eta_noise_dist rademacher --n_samples 5000	done
+14	--eta_noise_dist rademacher --n_samples 10000	done
+15	--eta_noise_dist uniform --n_samples 500	done
+16	--eta_noise_dist uniform --n_samples 1000	done
+17	--eta_noise_dist uniform --n_samples 2000	done
+18	--eta_noise_dist uniform --n_samples 5000	done
+19	--eta_noise_dist uniform --n_samples 10000	done
+20	--eta_noise_dist gennorm_light --n_samples 500	done
+21	--eta_noise_dist gennorm_light --n_samples 1000	done
+22	--eta_noise_dist gennorm_light --n_samples 2000	done
+23	--eta_noise_dist gennorm_light --n_samples 5000	done
+24	--eta_noise_dist gennorm_light --n_samples 10000	done

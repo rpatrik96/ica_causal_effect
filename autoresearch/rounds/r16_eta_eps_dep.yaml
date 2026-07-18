@@ -1,0 +1,28 @@
+# WS3 sensitivity r16_eta_eps_dep — inject η–ε dependence (violate independence).
+#
+# The partially linear model's moment conditions assume the treatment noise η and
+# outcome noise ε are independent (Cov(η,ε)=0). This sweep injects a controlled
+# correlation ρ = Corr(η,ε) from 0 to 0.75 and charts each estimator's RMSE — the
+# sensitivity curve for the exogeneity assumption. The violation magnitude is ρ.
+#
+# Expectation: a non-zero Cov(η,ε) enters the treatment-effect estimand directly,
+# so ALL estimators (OLS, OML, HOML, ICA, matching) should be biased ~linearly in ρ
+# -- none is robust, because this violates exogeneity itself, not just a
+# distributional assumption. A crisp "abrupt / no-estimator-safe" degradation to
+# contrast with the graceful eta-Gaussianisation curve (r16_gauss_eta).
+#
+# Fixed operating point where all estimators are otherwise well-behaved: synthetic
+# X, d'=5, n=10000, linear PLR, eta_beta=0.5 & eps_beta=0.5 (both heavy so ICA is
+# in-play at rho=0), theta=1. 8 cells.
+round: r16_eta_eps_dep
+script: semisynth_runner.py
+base_args: "--dataset synthetic --n_components 5 --nuisance linear --n_samples 10000 --eta_beta 0.5 --eps_beta 0.5 --treatment_effect 1.0 --n_experiments 20 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  eta_eps_corr: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.65, 0.8]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600

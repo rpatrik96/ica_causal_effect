@@ -1,0 +1,39 @@
+# WS2 round r08_nonlinear_realX — carry the r04/r06 nonlinear breakdown onto REAL X.
+#
+# r04/r05 (synthetic X): under nonlinear confounding OLS and weak-nuisance OML
+# break down (irreducible bias), only flexible-nuisance (gbm) OML recovers, ICA
+# fails. r07 (real X, LINEAR PLR): OLS/OML strong, ICA competitive at non-Gaussian
+# eta. This round applies the NONLINEAR recast (semisynth_loaders.impose_plr
+# nonlinear=True: m(X),g(X) = sin(pi X)@coef + 0.5 X^2@quad, which a linear first
+# stage cannot represent) to the real covariate datasets, asking whether the r04
+# story reproduces on real covariate structure.
+#
+# Grid: dataset {housing (dense/PCA), news20 (sparse/SVD)} x nuisance {linear
+# (weak), gbm (flexible)} x n {2000, 10000} = 8 jobs. eta Laplace (beta=1), d'=10
+# (housing clamps to 8), theta=1, --n_jobs 4. --bootstrap so n=10000 is reachable
+# on news20 (only 2365 rows) -- NOTE news20 n=10000 is bootstrap-saturated
+# (effective n ~2365, ~4x duplication), so read the n-trend on housing; news20 is
+# the cross-structure confirmation.
+#
+# Hypotheses:
+#   H1 (breakdown on real X): OLS RMSE biased and roughly n-flat under nonlinear
+#       confounding (as r04) -> "OLS breaks down when g is nonlinear" holds on real
+#       covariates.
+#   H2 (rescue): gbm-OML decreases with n and beats OLS/linear-OML at n=10000 on
+#       housing -> the flexible-nuisance rescue transfers to real X. (Preliminary
+#       6-exp run hinted gbm may need the larger n to help -- 25 exp will settle.)
+#   H3 (ICA): ICA no better than OLS under nonlinear confounding on real X, as r04.
+round: r08_nonlinear_realX
+script: semisynth_runner.py
+base_args: "--n_experiments 25 --nonlinear --bootstrap --eta_beta 1.0 --n_components 10 --treatment_effect 1.0 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  dataset: [housing, news20]
+  nuisance: [linear, gbm]
+  n_samples: [2000, 10000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600

@@ -1,0 +1,24 @@
+# WS4 round r14_calib — CALIBRATION split for selector-threshold tuning.
+#
+# Records per-cell features + all four candidate RMSEs on a regime grid; the
+# post-hoc calibrator (autoresearch/calibrate_selector.py) grid-searches the rule
+# thresholds (nl, dn, eps, n_gate) to minimise total regret on THIS split, then
+# r14_test / r14_real measure generalisation. synthetic_hd, base_seed=1000.
+#
+# Regime grid kept feasible (no d=300/n=20000 gbm timeouts): d {5,200} x n {200,5000}
+# spans d/n from 0.001 (d5,n5000) to 1.0 (d200,n200, d>=n, cheap gbm).
+round: r14_calib
+script: selector_multi_runner.py
+base_args: "--dataset synthetic_hd --eta_beta 1.0 --n_experiments 12 --base_seed 1000 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  nonlinear: [false, true]
+  eps_beta: [0.5, 2.0]
+  n_components: [5, 200]
+  n_samples: [200, 5000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 7200

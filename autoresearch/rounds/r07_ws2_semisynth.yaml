@@ -1,0 +1,50 @@
+# WS2 round r07_ws2_semisynth — first semi-synthetic benchmark on REAL covariates.
+#
+# WS1 (r02-r06) used synthetic Gaussian X. WS2 tests whether the estimator story
+# survives on real covariate structure via the synthetic-on-real-X PLR recast
+# (docs/dataset-research/DATASETS.md): keep real covariates, PRE-DISENTANGLE them
+# (the committed fix for the raw-features-into-FastICA housing strawman), then
+# impose T = m(X)+η, Y = θT + g(X)+ε with θ exact and η ~ gennorm(eta_beta).
+#
+# Two real covariate sources (sklearn-fetchable, cached to semisynth_data/ on
+# shared lustre so compute nodes need no network):
+#   housing  California Housing 20640x8, DENSE strongly-correlated (|corr|<=0.93),
+#            PCA-whitened -> the housing strawman done RIGHT.
+#   news20   20 Newsgroups TF-IDF 2365x2000, SPARSE text, TruncatedSVD-reduced ->
+#            the sparse-X contrast (stands in for the News/BoW dataset).
+#
+# Primary axis: eta_beta {0.5 super-heavy, 1.0 Laplace, 2.0 GAUSSIAN null, 4.0
+# light} -- ICA's identifiability lever. KEY TEST: does ICA's non-Gaussianity
+# advantage (r02, on synthetic X) reproduce on real covariates after
+# pre-disentangle -- competitive at beta!=2, degrading at the beta=2 Gaussian null?
+# If yes, the pre-disentangle recast genuinely puts ICA in-regime on real X.
+#
+# Grid: dataset {housing, news20} x eta_beta {0.5,1,2,4} x n {500, 2000} = 16 jobs.
+# Linear nuisance (the imposed PLR is linear in the pre-disentangled components, so
+# LassoCV is well-specified; gbm deferred -- r04 showed it only adds variance when
+# the truth is linear). theta=1, d'=10 components (housing clamps to its 8),
+# --n_jobs 4. Each experiment subsamples n rows of the pre-disentangled X and
+# redraws η,ε (fixed PLR coefficients) -> sampling variability + exact θ.
+#
+# Hypotheses:
+#   H1: OLS/OML strong on real X (well-specified linear PLR), like WS1's linear
+#       control -> the recast is sound, not degenerate.
+#   H2: ICA competitive at beta!=2 and worst at beta=2 (Gaussian) on BOTH datasets
+#       -> the r02 non-Gaussianity story is real-covariate-robust; pre-disentangle
+#       works. If ICA is bad even at beta=0.5, the real correlation structure
+#       defeats the pre-disentangle (a negative worth documenting).
+#   H3: HOML degenerate throughout (symmetric η -> zero skewness), as in r02.
+round: r07_ws2_semisynth
+script: semisynth_runner.py
+base_args: "--n_experiments 25 --nuisance linear --n_components 10 --treatment_effect 1.0 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  dataset: [housing, news20]
+  eta_beta: [0.5, 1.0, 2.0, 4.0]
+  n_samples: [500, 2000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600

@@ -1,0 +1,38 @@
+# WS2 round r10_ica_win_frontier — chart WHERE ICA wins in (η, ε) non-Gaussianity.
+#
+# r09 showed ICA beats OLS/OML at large n ONLY when BOTH the treatment noise η and
+# the outcome noise ε are non-Gaussian (heavy-tailed); with Gaussian ε there is no
+# edge. This round maps the full frontier: sweep η and ε non-Gaussianity jointly at
+# fixed large n and chart the ICA/OLS RMSE-ratio surface -> the region where ICA is
+# the best estimator.
+#
+# eta_beta / eps_beta are gennorm shape params: 0.5 super-heavy, 1.0 Laplace,
+# 1.5 heavy, 2.0 GAUSSIAN (ICA non-identifiable on that source), 3.0 sub-Gaussian
+# light. The Gaussian line (β=2) on either axis should kill ICA's edge; the
+# heavy-heavy corner (both β small) should be ICA's win region.
+#
+# Fixed: housing covariates, d'=5 (n>>d), n=50000 via --bootstrap (r09's strongest
+# edge point; the n=50k jobs run fast at d=5), linear (well-specified) nuisance,
+# theta=1, --n_jobs 4. Grid: eta_beta {0.5,1,1.5,2,3} x eps_beta {0.5,1,1.5,2,3}
+# = 25 jobs.
+#
+# Hypotheses:
+#   H1: ICA/OLS < 1 (ICA wins) in a contiguous region where BOTH β are well below
+#       2; the win deepens toward the (0.5, 0.5) super-heavy corner.
+#   H2: ICA/OLS >= 1 along the eta_beta=2 and eps_beta=2 Gaussian lines and in the
+#       light-tailed (β>2) region.
+#   H3: the frontier is roughly symmetric in η vs ε (ICA needs non-Gaussianity in
+#       both), or -- if asymmetric -- reveals which noise's tail matters more.
+round: r10_ica_win_frontier
+script: semisynth_runner.py
+base_args: "--n_experiments 25 --dataset housing --n_components 5 --nuisance linear --bootstrap --n_samples 50000 --treatment_effect 1.0 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  eta_beta: [0.5, 1.0, 1.5, 2.0, 3.0]
+  eps_beta: [0.5, 1.0, 1.5, 2.0, 3.0]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 7200

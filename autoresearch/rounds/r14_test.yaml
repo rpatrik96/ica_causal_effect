@@ -1,0 +1,20 @@
+# WS4 round r14_test — HELD-OUT split (same grid as r14_calib, different draws).
+#
+# Identical regime grid to r14_calib but base_seed=2000, so the Monte-Carlo draws
+# are disjoint. Thresholds calibrated on r14_calib are evaluated here to show they
+# generalise (held-out regret ~ calibration regret) and are not overfit.
+round: r14_test
+script: selector_multi_runner.py
+base_args: "--dataset synthetic_hd --eta_beta 1.0 --n_experiments 12 --base_seed 2000 --n_jobs 4"
+output_flag: "--output_dir"
+grid:
+  nonlinear: [false, true]
+  eps_beta: [0.5, 2.0]
+  n_components: [5, 200]
+  n_samples: [200, 5000]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 7200

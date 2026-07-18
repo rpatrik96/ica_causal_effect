@@ -1,0 +1,5 @@
+job	done	all_results_n_exp_10_gennorm_sigma_outcome_1.7320508075688772_n200	all_results_n_exp_10_gennorm_sigma_outcome_1.7320508075688772_n500	all_results_n_exp_10_gennorm_sigma_outcome_1.7320508075688772_n1000	all_results_n_exp_10_gennorm_sigma_outcome_1.7320508075688772_n2000
+job_0000	True	shape=(1,)			
+job_0001	True		shape=(1,)		
+job_0002	True			shape=(1,)	
+job_0003	True				shape=(1,)
