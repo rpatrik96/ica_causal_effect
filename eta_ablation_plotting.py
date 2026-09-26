@@ -803,6 +803,33 @@ def plot_coefficient_ablation_results(results: List[dict], output_dir: str = "fi
     plt.savefig(os.path.join(output_dir, "rmse_diff_vs_ica_var_coeff.svg"), dpi=300, bbox_inches="tight")
     plt.close()
 
+    # Plot 4: RMSE difference by treatment effect (restored from 11b225d^:eta_noise_ablation.py;
+    # backs appendix figure rmse_diff_boxplot_by_te)
+    unique_tes = sorted({r["treatment_effect"] for r in results})
+    rmse_diff_by_te = []
+    for te in unique_tes:
+        te_diff = [
+            i - h
+            for r, h, i in zip(results, homl_rmse, ica_rmse)
+            if r["treatment_effect"] == te and not np.isnan(i)
+        ]
+        rmse_diff_by_te.append(te_diff)
+
+    _, ax = plt.subplots(figsize=(10, 6))
+    bp = ax.boxplot(rmse_diff_by_te, positions=range(len(unique_tes)), patch_artist=True)
+    for box, median_line in zip(bp["boxes"], bp["medians"]):
+        box.set_facecolor(ICA_COLOR if median_line.get_ydata()[0] < 0 else OML_COLOR)
+        box.set_alpha(0.6)
+    ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
+    ax.set_xlabel(r"Treatment Effect $\theta$")
+    ax.set_ylabel("RMSE Difference (ICA - OML)")
+    ax.set_xticks(range(len(unique_tes)))
+    ax.set_xticklabels([f"{te}" for te in unique_tes])
+    ax.grid(True, alpha=0.3, axis="y")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "rmse_diff_boxplot_by_te.svg"), dpi=300, bbox_inches="tight")
+    plt.close()
+
     print(f"\nCoefficient ablation plots saved to {output_dir}")
 
 
