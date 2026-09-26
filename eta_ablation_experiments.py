@@ -19,10 +19,12 @@ from ablation_utils import (
     calculate_ica_moments,
     compute_estimation_statistics,
     compute_estimation_statistics_varying_te,
+    covariate_variance,
     create_covariate_sampler,
     create_outcome_noise_sampler,
     extract_treatment_estimates,
     run_parallel_experiments,
+    summarize_named_estimates,
 )
 from oml_runner import setup_treatment_noise
 
@@ -411,6 +413,9 @@ def run_variance_ablation_experiments(
     verbose: bool = False,
     seed: int = 12143,
     oracle_support: bool = True,
+    ica_readouts: Tuple[str, ...] = ("munkres_oracle",),
+    robust_baseline: bool = False,
+    extra_covariates: int = 0,
 ) -> dict:
     """Run experiments varying gennorm beta and variance.
 
@@ -432,6 +437,12 @@ def run_variance_ablation_experiments(
         seed: Random seed
         oracle_support: If True, ICA receives x[:, support]. If False, both
             OML and ICA receive full x matrix.
+        ica_readouts: ICA readouts computed on the same draw per seed.
+        robust_baseline: If True, add Huber regression on cross-fitted residuals.
+        extra_covariates: Irrelevant covariate columns appended beyond the
+            support (ambient dimension = support size + extra_covariates; the
+            Lasso penalty uses the ambient dimension). With the default 0 the
+            support is all of X, so oracle_support has no effect.
 
     Returns:
         Dictionary with results organized by (beta, variance) pairs
@@ -449,7 +460,7 @@ def run_variance_ablation_experiments(
     epsilon_sample = create_outcome_noise_sampler(sigma_outcome)
 
     # Setup base coefficients
-    cov_dim_max = support_size
+    cov_dim_max = support_size + extra_covariates
     treatment_support = outcome_support = np.array(range(support_size))
 
     # Fixed scalar coefficients
@@ -471,6 +482,17 @@ def run_variance_ablation_experiments(
         "variance_values": np.array(variance_values),
         "treatment_effect": treatment_effect,
         "ica_var_coeff": ica_var_coeff,
+        "c_ica": ica_var_coeff,
+        "c_b": 1 + np.linalg.norm(outcome_coef) ** 2 * covariate_variance(covariate_pdf, covariate_beta),
+        "a": treatment_coef.copy(),
+        "b": outcome_coef.copy(),
+        "theta": treatment_effect,
+        "oracle_support": oracle_support,
+        "covariate_beta": covariate_beta,
+        "covariate_pdf": covariate_pdf,
+        "pipeline": "variance_ablation",
+        "cov_dim_max": cov_dim_max,
+        "ica_readouts": list(ica_readouts),
         "grid_results": {},
     }
 
@@ -535,6 +557,8 @@ def run_variance_ablation_experiments(
                 check_convergence=check_convergence,
                 verbose=verbose,
                 oracle_support=oracle_support,
+                ica_readouts=ica_readouts,
+                robust_baseline=robust_baseline,
             )
 
             print(f"  Experiments kept: {len(results)} out of {n_experiments}")
@@ -549,6 +573,7 @@ def run_variance_ablation_experiments(
             biases, sigmas, rmse = compute_estimation_statistics(ortho_rec_tau, treatment_effect)
 
             # Store results
+            paired_summary = summarize_named_estimates(results, treatment_effect)
             all_results["grid_results"][(beta_val, var_val)] = {
                 "biases": biases,
                 "sigmas": sigmas,
@@ -557,6 +582,7 @@ def run_variance_ablation_experiments(
                 "eta_excess_kurtosis": eta_excess_kurtosis,
                 "homl_asymptotic_var": homl_asymptotic_var,
                 "ica_asymptotic_var": ica_asymptotic_var,
+                **paired_summary,
             }
 
             # Print summary
@@ -587,6 +613,9 @@ def run_coefficient_ablation_experiments(
     verbose: bool = False,
     seed: int = 12143,
     oracle_support: bool = True,
+    ica_readouts: Tuple[str, ...] = ("munkres_oracle",),
+    robust_baseline: bool = False,
+    extra_covariates: int = 0,
 ) -> List[dict]:
     """Run experiments with varying coefficient configurations.
 
@@ -606,6 +635,12 @@ def run_coefficient_ablation_experiments(
         seed: Random seed
         oracle_support: If True, ICA receives x[:, support]. If False, both
             OML and ICA receive full x matrix.
+        ica_readouts: ICA readouts computed on the same draw per seed.
+        robust_baseline: If True, add Huber regression on cross-fitted residuals.
+        extra_covariates: Irrelevant covariate columns appended beyond the
+            support (ambient dimension = support size + extra_covariates; the
+            Lasso penalty uses the ambient dimension). With the default 0 the
+            support is all of X, so oracle_support has no effect.
 
     Returns:
         List of result dictionaries, one per coefficient configuration
@@ -633,7 +668,7 @@ def run_coefficient_ablation_experiments(
     )
 
     # Compute regularization parameter
-    cov_dim_max = support_size
+    cov_dim_max = support_size + extra_covariates
     lambda_reg = np.sqrt(np.log(cov_dim_max) / n_samples)
 
     # Setup support indices
@@ -666,6 +701,7 @@ def run_coefficient_ablation_experiments(
         # TODO(theory): The implemented ratio readout's variance depends on b,
         # not b + a * theta (see eval report).
         ica_var_coeff = 1 + np.linalg.norm(outcome_coef + treatment_coef * current_treatment_effect) ** 2
+        c_b = 1 + np.linalg.norm(outcome_coef) ** 2 * covariate_variance(covariate_pdf, beta)
 
         print(
             f"\n[{config_idx + 1}/{total_configs}] tc={tc_val}, oc={oc_val}, "
@@ -691,6 +727,8 @@ def run_coefficient_ablation_experiments(
             check_convergence=check_convergence,
             verbose=verbose,
             oracle_support=oracle_support,
+            ica_readouts=ica_readouts,
+            robust_baseline=robust_baseline,
         )
 
         print(f"  Experiments kept: {len(results)} out of {n_experiments}")
@@ -704,11 +742,17 @@ def run_coefficient_ablation_experiments(
         biases, sigmas, rmse = compute_estimation_statistics(ortho_rec_tau, current_treatment_effect)
 
         # Store results
+        paired_summary = summarize_named_estimates(results, current_treatment_effect)
         result_dict = {
             "treatment_coef_scalar": tc_val,
             "outcome_coef_scalar": oc_val,
             "treatment_effect": current_treatment_effect,
             "ica_var_coeff": ica_var_coeff,
+            "a": tc_val,
+            "b": oc_val,
+            "theta": current_treatment_effect,
+            "c_ica": ica_var_coeff,
+            "c_b": c_b,
             "ortho_rec_tau": ortho_rec_tau,
             "biases": biases,
             "sigmas": sigmas,
@@ -719,6 +763,13 @@ def run_coefficient_ablation_experiments(
             "eta_second_moment": eta_second_moment,
             "eta_third_moment": eta_third_moment,
             "homl_asymptotic_var": homl_asymptotic_var,
+            "oracle_support": oracle_support,
+            "covariate_beta": beta,
+            "covariate_pdf": covariate_pdf,
+            "pipeline": "coefficient_ablation",
+            "cov_dim_max": cov_dim_max,
+            "ica_readouts": list(ica_readouts),
+            **paired_summary,
         }
         all_results.append(result_dict)
 
@@ -748,6 +799,9 @@ def run_sample_dimension_grid_experiments(
     verbose: bool = False,
     seed: int = 12143,
     oracle_support: bool = True,
+    ica_readouts: Tuple[str, ...] = ("munkres_oracle",),
+    robust_baseline: bool = False,
+    extra_covariates: int = 0,
 ) -> List[dict]:
     """Run experiments over sample size and dimension/beta grid.
 
@@ -770,6 +824,12 @@ def run_sample_dimension_grid_experiments(
         seed: Random seed
         oracle_support: If True, ICA receives x[:, support]. If False, both
             OML and ICA receive full x matrix.
+        ica_readouts: ICA readouts computed on the same draw per seed.
+        robust_baseline: If True, add Huber regression on cross-fitted residuals.
+        extra_covariates: Irrelevant covariate columns appended beyond the
+            support (ambient dimension = support size + extra_covariates; the
+            Lasso penalty uses the ambient dimension). With the default 0 the
+            support is all of X, so oracle_support has no effect.
 
     Returns:
         List of result dictionaries, one per (sample_size, dimension/beta) configuration
@@ -838,13 +898,15 @@ def run_sample_dimension_grid_experiments(
         # TODO(theory): The implemented ratio readout's variance depends on b,
         # not b + a * theta (see eval report).
         ica_var_coeff = 1 + np.linalg.norm(outcome_coef + treatment_coef * treatment_effect) ** 2
+        c_b = 1 + np.linalg.norm(outcome_coef) ** 2 * covariate_variance(covariate_pdf, covariate_beta)
 
         # Setup samplers
         x_sample = create_covariate_sampler(covariate_pdf, covariate_beta)
         epsilon_sample = create_outcome_noise_sampler(sigma_outcome)
 
         # Compute regularization parameter
-        lambda_reg = np.sqrt(np.log(support_size) / n_samples)
+        cov_dim_max = support_size + extra_covariates
+        lambda_reg = np.sqrt(np.log(cov_dim_max) / n_samples)
 
         # Setup support indices
         treatment_support = outcome_support = np.array(range(support_size))
@@ -861,7 +923,7 @@ def run_sample_dimension_grid_experiments(
             eta_sample=eta_sample,
             epsilon_sample=epsilon_sample,
             n_samples=n_samples,
-            cov_dim_max=support_size,
+            cov_dim_max=cov_dim_max,
             treatment_effect=treatment_effect,
             treatment_support=treatment_support,
             treatment_coef=treatment_coef,
@@ -873,6 +935,8 @@ def run_sample_dimension_grid_experiments(
             check_convergence=check_convergence,
             verbose=verbose,
             oracle_support=oracle_support,
+            ica_readouts=ica_readouts,
+            robust_baseline=robust_baseline,
         )
 
         print(f"  Experiments kept: {len(results)} out of {n_experiments}")
@@ -886,6 +950,7 @@ def run_sample_dimension_grid_experiments(
         biases, sigmas, rmse = compute_estimation_statistics(ortho_rec_tau, treatment_effect)
 
         # Store results
+        paired_summary = summarize_named_estimates(results, treatment_effect)
         result_dict = {
             "n_samples": n_samples,
             "support_size": support_size,
@@ -894,6 +959,11 @@ def run_sample_dimension_grid_experiments(
             "treatment_coef_scalar": treatment_coef_scalar,
             "outcome_coef_scalar": outcome_coef_scalar,
             "ica_var_coeff": ica_var_coeff,
+            "a": treatment_coef_scalar,
+            "b": outcome_coef_scalar,
+            "theta": treatment_effect,
+            "c_ica": ica_var_coeff,
+            "c_b": c_b,
             "ortho_rec_tau": ortho_rec_tau,
             "biases": biases,
             "sigmas": sigmas,
@@ -903,6 +973,13 @@ def run_sample_dimension_grid_experiments(
             "eta_second_moment": eta_second_moment,
             "eta_third_moment": eta_third_moment,
             "homl_asymptotic_var": homl_asymptotic_var,
+            "oracle_support": oracle_support,
+            "covariate_pdf": covariate_pdf,
+            "axis_mode": axis_mode,
+            "cov_dim_max": cov_dim_max,
+            "pipeline": "filtered_heatmap",
+            "ica_readouts": list(ica_readouts),
+            **paired_summary,
         }
         all_results.append(result_dict)
 

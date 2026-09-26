@@ -29,6 +29,7 @@ the cluster provides only the empirical companion).
 | Sensitivity to assumption violations (iuAn, NeBn, NbV6) | WS3 | Sensitivity curves per assumption |
 | Estimator-selection Pareto frontier (TMLR meeting / Rahul) | WS4 | Data-driven selector vs. per-regime best |
 | Projection pursuit as selective estimation (TMLR meeting / Lester) | WS4 | Prototype + cost/accuracy comparison vs. full ICA |
+| Headline comparison uses a source-oracle ICA readout, oracle support and no OLS/OML (TMLR critical evaluation) | WS5 | Paired-test reruns of Fig. 2/3 (E1), r02-vs-Fig. 2 reconciliation (E3), variance-ablation rerun (E4) |
 
 ## 3. Round protocol
 
@@ -140,6 +141,73 @@ evidence); WS4 only starts once WS1–WS3 stopping criteria are met or blocked.
 **Initial task queue.**
 - [ ] Extend the estimator-selection studies from PR #39 into a selector evaluated on the WS1 regime grid.
 - [ ] Prototype projection pursuit for the treatment-relevant direction; compare cost/accuracy against full ICA.
+
+### WS5 — TMLR critical-eval reruns (r17: E1, E3, E4)
+
+**Purpose.** A TMLR critical evaluation of the paper found that the headline
+linear-PLR comparison (Fig. 2 coefficient ablation; Fig. 3 filtered heatmaps
+at a=0.5, b=0.05, θ=1) resolves the ICA permutation by Hungarian matching to
+the true sources (`ica.py:ica_treatment_effect_estimation`), passes oracle
+support to both methods by default, and reports neither OLS nor first-order
+OML. It also found that the variance of the implemented η-column ratio readout
+depends on b rather than on c_ICA = 1 + ‖b + aθ‖². WS5 reruns those
+experiments with the oracle-free eps-row readout
+(`ica_treatment_effect_estimation_eps_row`) next to the Munkres-oracle one,
+with OLS, OML, HOML (known and estimated moments), matching and Huber
+regression on the cross-fitted residuals computed on the same draws, with
+per-seed estimates saved for paired tests, and with the oracle-support switch
+exercised. In the paper's pipelines X consists of exactly the support columns,
+so `--oracle_support` has no effect unless `--extra_covariates` appends
+irrelevant columns; the E1 and E3 grids therefore cross oracle support with
+`--extra_covariates {0, 40}`, where 0 is the paper setting. WS5 also reconciles
+campaign round r02 with Fig. 2 (E3) and reruns the variance ablation on the
+fixed HOML moments (E4).
+
+**Rounds.** All use 50 seeds, `--ica_readouts munkres_oracle eps_row`,
+`--robust_baseline` and bid 43. Each YAML header gives the settings, the job
+split and the cost estimate with its derivation (timed local runs at reduced
+seeds, scaled to 50 seeds; cluster cores assumed up to 2× slower, which doubles
+the CPU-h column at most).
+
+| Round (`autoresearch/rounds/`) | Script | Grid | Jobs | Est. CPU-h (local) |
+|---|---|---|---:|---:|
+| `r17_e3_reconcile.yaml` | `monte_carlo_single_instance.py --single_config` | covariate β {1, 4} × `scalar_coeffs` {true, false} × oracle {true, false} | 8 | 0.3 |
+| `r17_e3_reconcile_ablation.yaml` | `eta_noise_ablation.py --coefficient_ablation`, a=1.56, b=−1.45, θ=1 | covariate β {1, 4} × `extra_covariates` {0, 40} × oracle | 8 | 0.2 |
+| `r17_e4_variance.yaml` | `eta_noise_ablation.py --variance_ablation` | η shape {0.5, 1, 1.5, 2.5, 3, 4} × σ² {0.25, 0.5, 1, 2, 4} in one job | 1 | 0.25 |
+| `r17_e1_coef.yaml` | `eta_noise_ablation.py --coefficient_ablation` | a (4) × `extra_covariates` {0, 40} × oracle; each job runs 4 b × 6 θ | 16 | 3.8 |
+| `r17_e1_heatmaps.yaml` | `eta_noise_ablation.py --filtered_heatmap` | axis mode {d_vs_n, beta_vs_n} × `extra_covariates` {0, 40} × oracle; each job is one full heatmap | 8 | 5.8 |
+
+The `r17_e3_reconcile.yaml` header lists the differences found between the
+r02 job and the Fig. 2 setting.
+
+**Launch order.**
+1. E3 first, as a cheap check: both E3 YAMLs (16 jobs). Run the protocol-step-3
+   local sanity check on one E3 job only (`--limit 1`); the E1 jobs are too
+   heavy for the login node.
+2. Then E4 (1 job) and E1 (`r17_e1_coef`, then `r17_e1_heatmaps`; 24 jobs).
+
+**Deliverables.**
+- The `autoresearch/analyze_e1.py` summary over `r17_e1_coef` and
+  `r17_e1_heatmaps` (`e1_summary.md` plus the per-config RMSE, paired-test and
+  win-rate CSVs), committed under `autoresearch/results/r17_e1_analysis/`.
+- The E3 difference table: per job, RMSE per method (from `analyze_e1.py` over
+  both E3 rounds) set against the difference list in the
+  `r17_e3_reconcile.yaml` header, stating which differences the grid isolates.
+- The E4 heatmaps regenerated with the existing plotting: re-run the job's
+  command without `--no_plot` (it reloads the saved `.npy`), plus
+  `analyze_e1.py` over `r17_e4_variance` for the paired statistics.
+- `findings_round17.md` per §7, with failure and FastICA-convergence counts per
+  method from the `failure_counts` and `convergence_counts` fields.
+
+**Stopping criteria.** All 41 jobs are DONE, or every failed job is documented
+with its reason (§3 step 5); the deliverables above are written; each E3
+difference is either isolated by the grid or listed as not isolated. WS5 has
+no adaptive refinement: follow-up grids are proposed in the findings doc, not
+run.
+
+**Hand-back.** Results come back as a pull request against this repo
+(`ica_causal_effect`) containing the findings doc, the analysis outputs and
+the aggregated tables; raw `.npy` stays on the cluster (§6).
 
 ## 5. Guardrails
 

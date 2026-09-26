@@ -1,0 +1,59 @@
+# WS5 r17_e3_reconcile — TMLR critical-eval rerun E3: reconcile r02 with Fig. 2.
+#
+# Fig. 2 reports ICA winning 52/54 low-c configurations; r02 (discrete eta, n=5000)
+# reports ICA RMSE 0.0707 vs HOML 0.0191 at what its YAML header and
+# findings_round02.md describe as a=1.56, b=-1.45, theta=1 (c_ica = 1.012), a point of
+# the Fig. 2 grid. Differences between the r02 job and the Fig. 2 setting, found by
+# reading both code paths and re-running the r02 command on this branch at n=500 with
+# 2 seeds to read off the realised coefficients:
+#
+#   1. Coefficients (the largest difference). r02 did not pass --scalar_coeffs, so
+#      monte_carlo_single_instance.py ran in full-coefficient mode: a and b are dense
+#      U(-5, 5) vectors on a random 10-subset of 50 covariates (seed 12143). The
+#      1.56 / -1.45 of --single_config are stored in the result dict but unused. The
+#      realised config has c_ica = 1 + ||b + a theta||^2 = 165.4 and c_b = 35.3, not
+#      c_ica = 1.012. Fig. 2 puts scalar a, b on the first covariate only.
+#   2. Covariate law: gennorm beta=4 in r02 (--single_config default) vs beta=1 in Fig. 2.
+#   3. Ambient covariate dimension: r02 draws 50 columns (cov_dim_max = 50) and uses a
+#      random 10-column support; Fig. 2 draws exactly the 10 support columns. With oracle
+#      support both pass 10 columns to the estimators, but the Lasso penalty is
+#      sqrt(log 50 / n) in r02 vs sqrt(log 10 / n) in Fig. 2.
+#   4. Pipeline/script: monte_carlo_single_instance.py --single_config vs
+#      eta_noise_ablation.py --coefficient_ablation (same estimators, same Lasso
+#      cross-fitting, same eps ~ U[-sqrt(3), sqrt(3)], different RNG streams).
+#   5. Seeds: 25 replications in r02 vs 20 in Fig. 2.
+#   Same in both: ICA readout munkres_oracle, oracle_support on, discrete eta with
+#   E[eta^2] = 1 and E[eta^3] = -2.4, n=5000, theta=1, check_convergence off.
+#
+# This YAML covers the monte_carlo_single_instance.py pipeline;
+# r17_e3_reconcile_ablation.yaml runs the same (a, b, theta) through the
+# coefficient-ablation pipeline (one script per grid spec). Grid: covariate beta in
+# {1, 4} x scalar_coeffs in {true (a=1.56, b=-1.45 on covariate 0), false (r02's dense
+# coefficients)} x oracle_support in {true, false}, 50 seeds, readouts munkres_oracle
+# and eps_row, OLS / OML / HOML / matching / Huber. The (beta=4, scalar_coeffs=false,
+# oracle=true) job repeats the r02 command; data are drawn sequentially from seed
+# 12143, so its first 25 replications use r02's draws. Estimates need not equal r02's
+# exactly, because the base branch (fix/moment-variance-bugs) changed the HOML
+# known-moment scale and the FastICA retry logic after r02 ran.
+# Note: scalar_coeffs=false draws the coefficient vectors from the RNG first, so the
+# scalar and dense arms do not share draws.
+#
+# Cost estimate (timed local run of the costliest job, beta=4, scalar_coeffs=false,
+# oracle=false (52-column ICA), 10 seeds; 4 loky workers, single-thread BLAS,
+# Apple-silicon laptop): 62 CPU-s; ~45 CPU-s start-up subtracted and scaled to 50
+# seeds: ~130 CPU-s per job, 8 jobs <= ~0.3 CPU-h; <= 0.6 CPU-h and a few minutes per
+# job if cluster cores are 2x slower.
+round: r17_e3_reconcile
+script: monte_carlo_single_instance.py
+base_args: "--single_config --no_plot --covariate_pdf gennorm --eta_noise_dist discrete --n_samples 5000 --n_experiments 50 --seed 12143 --ica_readouts munkres_oracle eps_row --robust_baseline"
+output_flag: "--output_dir"
+grid:
+  beta: [1.0, 4.0]
+  scalar_coeffs: ["true", "false"]
+  oracle_support: ["true", "false"]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600

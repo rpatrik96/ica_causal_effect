@@ -20,7 +20,9 @@ invalidated by heavy optional packages such as ``causalml`` (numba) or
 from __future__ import annotations
 
 import numpy as np
-from sklearn.linear_model import LassoCV, LinearRegression, LogisticRegression
+from sklearn.base import clone
+from sklearn.linear_model import HuberRegressor, Lasso, LassoCV, LinearRegression, LogisticRegression
+from sklearn.model_selection import KFold
 from sklearn.neighbors import NearestNeighbors
 
 # Regularisation grid reused from main_estimation.py for apples-to-apples
@@ -75,6 +77,44 @@ def ols_baseline(
     reg.fit(X_design, outcome)
 
     return reg.coef_[:m].copy()  # shape (m,)
+
+
+def huber_residual_baseline(
+    covariates: np.ndarray,
+    treatment: np.ndarray,
+    outcome: np.ndarray,
+    model_treatment=None,
+    model_outcome=None,
+) -> np.ndarray:
+    """Fit Huber regression to cross-fitted PLR residuals.
+
+    The nuisance models are trained on the complementary fold with the same
+    unshuffled 2-fold split as ``main_estimation.all_together_cross_fitting``,
+    so with the deterministic Lasso nuisances the residuals match the ones
+    the OML/HOML estimators use. The final Huber regression is unpenalised
+    and has no intercept because both inputs are residuals.
+
+    Returns an array of shape ``(1,)``.
+    """
+    covariates = np.asarray(covariates, dtype=float)
+    treatment = np.asarray(treatment, dtype=float).reshape(-1)
+    outcome = np.asarray(outcome, dtype=float).reshape(-1)
+    if model_treatment is None:
+        model_treatment = Lasso(alpha=0.01)
+    if model_outcome is None:
+        model_outcome = Lasso(alpha=0.01)
+
+    residual_treatment = np.empty_like(treatment)
+    residual_outcome = np.empty_like(outcome)
+    for train_idx, test_idx in KFold(n_splits=2).split(covariates):
+        treatment_model = clone(model_treatment).fit(covariates[train_idx], treatment[train_idx])
+        outcome_model = clone(model_outcome).fit(covariates[train_idx], outcome[train_idx])
+        residual_treatment[test_idx] = treatment[test_idx] - treatment_model.predict(covariates[test_idx])
+        residual_outcome[test_idx] = outcome[test_idx] - outcome_model.predict(covariates[test_idx])
+
+    model = HuberRegressor(fit_intercept=False, alpha=0.0, max_iter=1000)
+    model.fit(residual_treatment.reshape(-1, 1), residual_outcome)
+    return np.asarray(model.coef_, dtype=float)
 
 
 def matching_baseline(
