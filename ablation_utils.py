@@ -81,6 +81,19 @@ def is_extended_mode(ica_readouts, robust_baseline: bool) -> bool:
     return tuple(ica_readouts) != ("munkres_oracle",) or bool(robust_baseline)
 
 
+def covariate_variance(covariate_pdf: str, beta: float) -> float:
+    """Return the marginal variance of the configured covariate law."""
+    if covariate_pdf == "gauss":
+        return 1.0
+    if covariate_pdf == "uniform":
+        return 1.0 / 3.0
+    if covariate_pdf == "gennorm":
+        from scipy.stats import gennorm
+
+        return float(gennorm.var(beta))
+    raise ValueError(f"Unknown covariate PDF: {covariate_pdf}")
+
+
 def get_distribution_label(dist_key: str) -> str:
     """Generate a display label for a distribution key.
 
@@ -776,6 +789,75 @@ def extract_treatment_estimates(results: List[Tuple]) -> List[List[float]]:
         ) in results
     ]
     return ortho_rec_tau
+
+
+def extract_named_estimates(results: List[Tuple]) -> Dict[str, np.ndarray]:
+    """Return paired per-seed estimates under stable method names.
+
+    Keys: ``oml`` (first-order orthogonal ML / DML), ``homl_known`` (HOML with
+    the known eta moments), ``homl_estimated`` and ``homl_estimated_split``
+    (HOML with estimated moments), ``ols``, ``matching``, one
+    ``ica_<readout>`` per ICA readout, and ``huber`` when the robust baseline
+    ran. Entry ``i`` of every array comes from the same simulated dataset.
+    """
+    names = {
+        "oml": [],
+        "homl_known": [],
+        "homl_estimated": [],
+        "homl_estimated_split": [],
+        "ols": [],
+        "matching": [],
+    }
+    for result in results:
+        for name, value in zip(tuple(names)[:4], result[:4]):
+            names[name].append(float(value))
+        names["ols"].append(float(np.asarray(result[8]).reshape(-1)[0]))
+        names["matching"].append(float(np.asarray(result[9]).reshape(-1)[0]))
+        if isinstance(result[6], dict):
+            for name, value in result[6].items():
+                names.setdefault(name, []).append(float(np.asarray(value).reshape(-1)[0]))
+        else:
+            names.setdefault("ica_munkres_oracle", []).append(float(np.asarray(result[6]).reshape(-1)[0]))
+    return {name: np.asarray(values, dtype=float) for name, values in names.items() if values}
+
+
+def summarize_named_estimates(results: List[Tuple], treatment_effect: float) -> Dict[str, object]:
+    """Build named paired estimates, RMSE statistics, and failure counts.
+
+    ``failure_counts[name]`` counts non-finite estimates; RMSE, bias and std
+    use the finite ones. ``convergence_counts`` (extended mode only) counts,
+    per ICA readout, the replications where FastICA converged or did not.
+    """
+    theta_hats = extract_named_estimates(results)
+    method_stats = {}
+    failure_counts = {}
+    for name, values in theta_hats.items():
+        finite = np.isfinite(values)
+        failure_counts[name] = int((~finite).sum())
+        if finite.any():
+            errors = values[finite] - treatment_effect
+            method_stats[name] = {
+                "bias": float(np.mean(errors)),
+                "std": float(np.std(values[finite])),
+                "rmse": float(np.sqrt(np.mean(errors**2))),
+            }
+        else:
+            method_stats[name] = {"bias": np.nan, "std": np.nan, "rmse": np.nan}
+
+    convergence_counts = {}
+    for result in results:
+        if not isinstance(result[7], dict):
+            continue
+        for name, info in result[7].items():
+            counts = convergence_counts.setdefault(name, {"converged": 0, "failed": 0})
+            key = "converged" if info.get("converged", False) else "failed"
+            counts[key] += 1
+    return {
+        "theta_hats": theta_hats,
+        "method_stats": method_stats,
+        "failure_counts": failure_counts,
+        "convergence_counts": convergence_counts,
+    }
 
 
 def compute_estimation_statistics(

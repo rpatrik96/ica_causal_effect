@@ -19,11 +19,13 @@ from tueplots import bundles
 
 import baselines
 from ablation_utils import (
+    covariate_variance,
     extract_treatment_estimates,
     parse_ica_readouts,
     primary_ica_estimate,
     primary_ica_mcc,
     run_parallel_experiments,
+    summarize_named_estimates,
 )
 from ica import ica_treatment_effect_estimation
 from main_estimation import all_together_cross_fitting
@@ -396,6 +398,8 @@ def run_experiments_for_configuration(
     )
 
     # Assemble result dictionary
+    paired_summary = summarize_named_estimates(results, treatment_effect)
+    c_b = 1 + np.linalg.norm(outcome_coef) ** 2 * covariate_variance(config.covariate_pdf, beta)
     result_dict = {
         "n_samples": n_samples,
         "support_size": support_size,
@@ -419,6 +423,11 @@ def run_experiments_for_configuration(
         "eta_skewness_squared": eta_skewness_squared,
         "eta_excess_kurtosis": eta_excess_kurtosis,
         "ica_var_coeff": ica_var_coeff,
+        "a": treatment_coef.copy(),
+        "b": outcome_coef.copy(),
+        "theta": treatment_effect,
+        "c_ica": 1 + np.linalg.norm(outcome_coef + treatment_coef * treatment_effect) ** 2,
+        "c_b": c_b,
         "ica_asymptotic_var": ica_asymptotic_var,
         "ica_asymptotic_var_hyvarinen": ica_asymptotic_var_hyvarinen,
         "ica_asymptotic_var_num": ica_asymptotic_var_num,
@@ -426,6 +435,11 @@ def run_experiments_for_configuration(
         "homl_asymptotic_var_num": homl_asymptotic_var_num,
         "treatment_coefficient": treatment_coefficient if treatment_coefficient is not None else treatment_coef_array,
         "outcome_coefficient": outcome_coefficient if outcome_coefficient is not None else outcome_coef_array,
+        "scalar_coeffs": bool(config.scalar_coeffs),
+        "covariate_pdf": config.covariate_pdf,
+        "pipeline": "monte_carlo_single_instance",
+        "ica_readouts": list(ica_readouts),
+        **paired_summary,
     }
 
     return result_dict
