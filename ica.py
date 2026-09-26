@@ -250,9 +250,7 @@ def ica_treatment_effect_estimation(
     mcc : float or None
         Permutation disentanglement score (MCC), or None on failure.
     """
-    ica, S_hat, converged = _fit_fastica_with_retries(
-        X, random_state, whiten, fun, verbose, convergence_info
-    )
+    ica, S_hat, converged = _fit_fastica_with_retries(X, random_state, whiten, fun, verbose, convergence_info)
     if not converged and check_convergence:
         if verbose:
             print("Maximum retry tolerance reached without convergence")
@@ -341,9 +339,7 @@ def ica_treatment_effect_estimation_eps_row(
         raise ValueError(f"eps_identification must be 'y_loading' or 'kurtosis', got '{eps_identification}'")
     from scipy.stats import kurtosis  # pylint: disable=import-outside-toplevel
 
-    ica, S_hat, converged = _fit_fastica_with_retries(
-        X, random_state, whiten, fun, verbose, convergence_info
-    )
+    ica, S_hat, converged = _fit_fastica_with_retries(X, random_state, whiten, fun, verbose, convergence_info)
     if not converged and check_convergence:
         if verbose:
             print("Maximum retry tolerance reached without convergence")

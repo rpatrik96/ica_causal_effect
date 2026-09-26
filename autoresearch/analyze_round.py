@@ -121,7 +121,16 @@ def print_headline(rows: list[dict]) -> None:
     if not data:
         print("(no metric rows)")
         return
-    data.sort(key=lambda r: (r["eta_noise_dist"], r.get("oracle", ""), r["beta"], r["support_size"], r["n_samples"], r["treatment_effect"]))
+    data.sort(
+        key=lambda r: (
+            r["eta_noise_dist"],
+            r.get("oracle", ""),
+            r["beta"],
+            r["support_size"],
+            r["n_samples"],
+            r["treatment_effect"],
+        )
+    )
     hdr = ["eta", "oracle", "d", "D", "n", "kept"] + [f"{m}.rmse" for m in HEADLINE]
     print("  ".join(f"{h:>10s}" for h in hdr))
     for r in data:

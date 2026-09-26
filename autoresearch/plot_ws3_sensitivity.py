@@ -12,6 +12,7 @@ import glob
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,12 +36,11 @@ def gauss_eta():
     G = load("r16_gauss_eta", lambda d: (round(float(d["eps_beta"]), 2), round(float(d["eta_beta"]), 2)))
     etas = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.4), sharey=True)
-    for ax, (eps, title) in zip(axes, [(0.5, "heavy-tailed ε (β=0.5)"),
-                                        (2.0, "Gaussian ε (β=2)")]):
+    for ax, (eps, title) in zip(axes, [(0.5, "heavy-tailed ε (β=0.5)"), (2.0, "Gaussian ε (β=2)")]):
         for m in ("OLS", "OML", "HOML", "ICA", "matching"):
-            ax.plot(etas, [G[(eps, e)][m] for e in etas], "-o", ms=4, lw=1.8,
-                    color=COL[m], label=m)
-        ax.set_yscale("log"); ax.axvline(2.0, color="0.6", ls=":", lw=1)
+            ax.plot(etas, [G[(eps, e)][m] for e in etas], "-o", ms=4, lw=1.8, color=COL[m], label=m)
+        ax.set_yscale("log")
+        ax.axvline(2.0, color="0.6", ls=":", lw=1)
         ax.set_xlabel("η shape  β   (2 = Gaussian →)", fontsize=9.5)
         ax.set_title(title, fontsize=10)
         ax.grid(True, which="both", color="0.92")
@@ -48,11 +48,19 @@ def gauss_eta():
             ax.spines[sp].set_visible(False)
     axes[0].set_ylabel("treatment-effect RMSE (log)", fontsize=9.5)
     axes[0].legend(frameon=False, fontsize=8.5, ncol=2)
-    axes[1].annotate("ICA non-identifiability\nwall (both noises Gaussian)",
-                     xy=(2.0, G[(2.0, 2.0)]["ICA"]), xytext=(1.15, 0.9), fontsize=8.2,
-                     color="#a3384a", arrowprops=dict(arrowstyle="->", color="#a3384a"))
-    fig.suptitle("WS3 — sensitivity to Gaussianising η: OLS/OML flat (robust); "
-                 "ICA graceful iff ε non-Gaussian; HOML detonates at Gaussian η", fontsize=10.5)
+    axes[1].annotate(
+        "ICA non-identifiability\nwall (both noises Gaussian)",
+        xy=(2.0, G[(2.0, 2.0)]["ICA"]),
+        xytext=(1.15, 0.9),
+        fontsize=8.2,
+        color="#a3384a",
+        arrowprops=dict(arrowstyle="->", color="#a3384a"),
+    )
+    fig.suptitle(
+        "WS3 — sensitivity to Gaussianising η: OLS/OML flat (robust); "
+        "ICA graceful iff ε non-Gaussian; HOML detonates at Gaussian η",
+        fontsize=10.5,
+    )
     fig.tight_layout()
     for e in ("png", "pdf"):
         fig.savefig(RES / "r16_gauss_eta" / f"ws3_gauss_eta.{e}", dpi=160, bbox_inches="tight")
@@ -72,8 +80,11 @@ def eta_eps_dep():
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     ax.legend(frameon=False, fontsize=8.6, ncol=2, loc="upper left")
-    ax.set_title("WS3 — sensitivity to η–ε dependence: every estimator biases ~linearly in ρ\n"
-                 "no method is robust — violating exogeneity changes the estimand", fontsize=10)
+    ax.set_title(
+        "WS3 — sensitivity to η–ε dependence: every estimator biases ~linearly in ρ\n"
+        "no method is robust — violating exogeneity changes the estimand",
+        fontsize=10,
+    )
     fig.tight_layout()
     for e in ("png", "pdf"):
         fig.savefig(RES / "r16_eta_eps_dep" / f"ws3_eta_eps_dep.{e}", dpi=160, bbox_inches="tight")

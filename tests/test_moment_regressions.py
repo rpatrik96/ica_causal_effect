@@ -24,9 +24,7 @@ def test_gennorm_moments_match_monte_carlo(beta, variance):
 
 
 def test_default_discrete_moments_and_homl_variance():
-    moments = compute_distribution_moments(
-        "discrete", DEFAULT_TREATMENT_DISCOUNTS, DEFAULT_TREATMENT_PROBS
-    )
+    moments = compute_distribution_moments("discrete", DEFAULT_TREATMENT_DISCOUNTS, DEFAULT_TREATMENT_PROBS)
     homl = AsymptoticVarianceCalculator.calc_homl_asymptotic_var(
         DEFAULT_TREATMENT_DISCOUNTS,
         np.dot(DEFAULT_TREATMENT_DISCOUNTS, DEFAULT_TREATMENT_PROBS),
@@ -46,9 +44,7 @@ def test_default_discrete_moments_and_homl_variance():
         ("rademacher", -2.0, None, 1.0),
     ],
 )
-def test_symmetric_unit_variance_homl_formulas(
-    distribution, expected_kappa, expected_cubed_variance, expected_homl
-):
+def test_symmetric_unit_variance_homl_formulas(distribution, expected_kappa, expected_cubed_variance, expected_homl):
     moments = compute_distribution_moments(distribution)
     homl = AsymptoticVarianceCalculator.calc_homl_asymptotic_var_from_distribution(distribution)
 

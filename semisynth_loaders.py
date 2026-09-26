@@ -87,9 +87,7 @@ def load_news20_covariates(
         from sklearn.feature_extraction.text import TfidfVectorizer
 
         cats = categories or ["sci.med", "sci.space", "rec.autos", "comp.graphics"]
-        ng = fetch_20newsgroups(
-            subset="train", categories=cats, remove=("headers", "footers", "quotes")
-        )
+        ng = fetch_20newsgroups(subset="train", categories=cats, remove=("headers", "footers", "quotes"))
         Xs = TfidfVectorizer(max_features=max_features, min_df=5).fit_transform(ng.data)
         X = np.asarray(Xs.todense(), dtype=np.float64)
         base.mkdir(parents=True, exist_ok=True)
@@ -102,8 +100,7 @@ def load_news20_covariates(
         return _correlated_fixture(1800, 2000, seed=2)
 
 
-def load_synthetic_covariates(data_dir=None, use_fixture_on_failure=True,
-                              n_rows=60000, d=10) -> np.ndarray:
+def load_synthetic_covariates(data_dir=None, use_fixture_on_failure=True, n_rows=60000, d=10) -> np.ndarray:
     """Large iid-Gaussian covariate matrix (n_rows, d), cached. The synthetic
     control for frontier-robustness checks: confirms an effect is intrinsic to the
     estimators, not a real-covariate artifact, and supplies unlimited real (non-
@@ -119,8 +116,7 @@ def load_synthetic_covariates(data_dir=None, use_fixture_on_failure=True,
     return X
 
 
-def load_synthetic_hd_covariates(data_dir=None, use_fixture_on_failure=True,
-                                 n_rows=30000, d=400) -> np.ndarray:
+def load_synthetic_hd_covariates(data_dir=None, use_fixture_on_failure=True, n_rows=30000, d=400) -> np.ndarray:
     """High-dimensional iid-Gaussian covariates (30000, 400), cached. Lets the
     multi-feature selector eval reach the d >= n regime (predisentangle to up to
     ~300 components, subsample down to n=200 -> d/n up to ~1.5)."""
@@ -199,8 +195,17 @@ def _plr_mean(X, coef, quad_coef, nonlinear):
 
 
 def impose_plr(
-    X, theta, treatment_coef, outcome_coef, sigma_eps=1.0, eta_beta=1.0, seed=0,
-    nonlinear=False, treatment_quad=None, outcome_quad=None, eps_beta=None,
+    X,
+    theta,
+    treatment_coef,
+    outcome_coef,
+    sigma_eps=1.0,
+    eta_beta=1.0,
+    seed=0,
+    nonlinear=False,
+    treatment_quad=None,
+    outcome_quad=None,
+    eps_beta=None,
     eta_eps_corr=0.0,
 ):
     """Impose ``T = m(X) + η``, ``Y = θT + g(X) + ε`` on pre-disentangled ``X``.
@@ -220,8 +225,7 @@ def impose_plr(
     """
     rng = np.random.default_rng(seed)
     eta = _gennorm_eta(eta_beta, X.shape[0], rng)
-    base_eps = (rng.normal(0.0, 1.0, size=X.shape[0]) if eps_beta is None
-                else _gennorm_eta(eps_beta, X.shape[0], rng))
+    base_eps = rng.normal(0.0, 1.0, size=X.shape[0]) if eps_beta is None else _gennorm_eta(eps_beta, X.shape[0], rng)
     if eta_eps_corr:
         rho = float(eta_eps_corr)
         base_eps = rho * eta + np.sqrt(max(0.0, 1.0 - rho * rho)) * base_eps
@@ -243,8 +247,7 @@ def make_coefficients(d, seed=0, scale=1.0):
     g = scale * rng.standard_normal(d) / np.sqrt(d)
     m_quad = scale * rng.standard_normal(d) / np.sqrt(d)
     g_quad = scale * rng.standard_normal(d) / np.sqrt(d)
-    return (m.astype(np.float64), g.astype(np.float64),
-            m_quad.astype(np.float64), g_quad.astype(np.float64))
+    return (m.astype(np.float64), g.astype(np.float64), m_quad.astype(np.float64), g_quad.astype(np.float64))
 
 
 if __name__ == "__main__":  # smoke: cache both datasets, print shapes
@@ -254,5 +257,6 @@ if __name__ == "__main__":  # smoke: cache both datasets, print shapes
         Z = predisentangle(X, n_components=10, method=method)
         m, g, mq, gq = make_coefficients(Z.shape[1], seed=0)
         T, Y, th, m2, m3 = impose_plr(Z[:500], 1.0, m, g, eta_beta=1.0, seed=0)
-        print(f"{name}: X{X.shape} -> Z{Z.shape}  T{T.shape} Y{Y.shape} theta={th} "
-              f"eta_var={m2:.3f} eta_m3={m3:.3f}")
+        print(
+            f"{name}: X{X.shape} -> Z{Z.shape}  T{T.shape} Y{Y.shape} theta={th} " f"eta_var={m2:.3f} eta_m3={m3:.3f}"
+        )

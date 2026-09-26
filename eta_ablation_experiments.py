@@ -496,9 +496,7 @@ def run_variance_ablation_experiments(
             )
 
             # Calculate moments using shared utility
-            moments = calculate_homl_moments(
-                "gennorm", params_or_discounts, mean_discount, probs, scale=scale_val
-            )
+            moments = calculate_homl_moments("gennorm", params_or_discounts, mean_discount, probs, scale=scale_val)
             eta_second_moment = moments["eta_second_moment"]
             eta_third_moment = moments["eta_third_moment"]
             eta_cubed_variance = moments["eta_cubed_variance"]

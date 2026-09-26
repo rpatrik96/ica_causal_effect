@@ -24,33 +24,33 @@ import os
 import numpy as np
 from joblib import Parallel, delayed
 
+import selector as sel
+import semisynth_loaders as ssl
 from baselines import ols_baseline
 from ica import ica_treatment_effect_estimation_eps_row
 from main_estimation import all_together_cross_fitting
 from nonlinear_runner import METHOD_NAMES, _make_nuisance_models
-import selector as sel
-import semisynth_loaders as ssl
 
 DENSE = {"housing", "synthetic"}
 
 
-def _one(seed, Zfull, n_samples, theta, coefs, sigma_eps, eta_beta, nuisance,
-         eps_beta, bootstrap, tau):
+def _one(seed, Zfull, n_samples, theta, coefs, sigma_eps, eta_beta, nuisance, eps_beta, bootstrap, tau):
     m_coef, g_coef, m_quad, g_quad = coefs
     rng = np.random.default_rng(seed)
     replace = bool(bootstrap) or n_samples > Zfull.shape[0]
     n = n_samples if replace else min(n_samples, Zfull.shape[0])
     Z = Zfull[rng.choice(Zfull.shape[0], size=n, replace=replace)]
-    T, Y, _th, m2, m3 = ssl.impose_plr(Z, theta, m_coef, g_coef, sigma_eps=sigma_eps,
-                                       eta_beta=eta_beta, seed=seed, eps_beta=eps_beta)
+    T, Y, _th, m2, m3 = ssl.impose_plr(
+        Z, theta, m_coef, g_coef, sigma_eps=sigma_eps, eta_beta=eta_beta, seed=seed, eps_beta=eps_beta
+    )
     mt, mo = _make_nuisance_models(nuisance)
     oml, rob, est, split, _tc, _oc = all_together_cross_fitting(
-        Z, T, Y, treatment_second_moment=m2, treatment_third_moment=m3,
-        model_treatment=mt, model_outcome=mo)
+        Z, T, Y, treatment_second_moment=m2, treatment_third_moment=m3, model_treatment=mt, model_outcome=mo
+    )
     try:
         ica_est, _ = ica_treatment_effect_estimation_eps_row(
-            np.hstack((Z, T.reshape(-1, 1), Y.reshape(-1, 1))), S=None,
-            check_convergence=False, verbose=False)
+            np.hstack((Z, T.reshape(-1, 1), Y.reshape(-1, 1))), S=None, check_convergence=False, verbose=False
+        )
         ica = float(ica_est[0]) if np.isfinite(ica_est).all() else np.nan
     except Exception:  # noqa: BLE001  pylint: disable=broad-exception-caught
         ica = np.nan
@@ -58,10 +58,18 @@ def _one(seed, Zfull, n_samples, theta, coefs, sigma_eps, eta_beta, nuisance,
     feats = sel.selection_features(Z, T, Y)
     name = sel.select_estimator(feats, tau)
     ests = {"ICA": ica, "OML": float(oml), "OLS": ols}
-    return {"ica": ica, "oml": float(oml), "ols": ols, "rob": float(rob),
-            "est": float(est), "split": float(split),
-            "pick": name, "chosen": ests[name],
-            "eps_kurt": feats["eps_excess_kurtosis"], "eta_kurt": feats["eta_excess_kurtosis"]}
+    return {
+        "ica": ica,
+        "oml": float(oml),
+        "ols": ols,
+        "rob": float(rob),
+        "est": float(est),
+        "split": float(split),
+        "pick": name,
+        "chosen": ests[name],
+        "eps_kurt": feats["eps_excess_kurtosis"],
+        "eta_kurt": feats["eta_excess_kurtosis"],
+    }
 
 
 def _rmse(v, theta, finite_mask):
@@ -71,8 +79,22 @@ def _rmse(v, theta, finite_mask):
     return float(np.sqrt(np.mean((v[finite_mask] - theta) ** 2)))
 
 
-def run(dataset, n_components, eta_beta, eps_beta, theta, sigma_eps, nuisance,
-        n_samples, n_experiments, coef_scale, base_seed, n_jobs, tau, bootstrap):
+def run(
+    dataset,
+    n_components,
+    eta_beta,
+    eps_beta,
+    theta,
+    sigma_eps,
+    nuisance,
+    n_samples,
+    n_experiments,
+    coef_scale,
+    base_seed,
+    n_jobs,
+    tau,
+    bootstrap,
+):
     method = "pca" if dataset in DENSE else "svd"
     Zfull = ssl.predisentangle(ssl.load_covariates(dataset), n_components=n_components, method=method)
     d = Zfull.shape[1]
@@ -80,8 +102,9 @@ def run(dataset, n_components, eta_beta, eps_beta, theta, sigma_eps, nuisance,
     actual_n = n_samples if (bootstrap or n_samples > Zfull.shape[0]) else min(n_samples, Zfull.shape[0])
     seeds = [base_seed + 1 + i for i in range(n_experiments)]
     rows = Parallel(n_jobs=n_jobs)(
-        delayed(_one)(s, Zfull, n_samples, theta, coefs, sigma_eps, eta_beta,
-                      nuisance, eps_beta, bootstrap, tau) for s in seeds)
+        delayed(_one)(s, Zfull, n_samples, theta, coefs, sigma_eps, eta_beta, nuisance, eps_beta, bootstrap, tau)
+        for s in seeds
+    )
 
     method_values = np.array(
         [[r[key] for key in ("oml", "rob", "est", "split", "ica", "ols")] for r in rows], dtype=float
@@ -96,26 +119,42 @@ def run(dataset, n_components, eta_beta, eps_beta, theta, sigma_eps, nuisance,
     pick_ica = float(np.mean([r["pick"] == "ICA" for r in rows]))
     # per-method rmse array in METHOD_NAMES order (OML,HOML,est,split,ICA,OLS,Matching)
     rmse_arr = np.array([oml_rmse, rob_rmse, est_rmse, split_rmse, ica_rmse, ols_rmse, np.nan])
-    print(f"{dataset} eta={eta_beta} eps={eps_beta} n={actual_n} tau={tau}: "
-          f"ICA={ica_rmse:.4f} OML={oml_rmse:.4f} SELECTOR={sel_rmse:.4f} "
-          f"oracle={oracle_fixed:.4f} regret={sel_rmse-oracle_fixed:+.4f} "
-          f"pick_ICA={pick_ica:.2f} eps_kurt={np.nanmean([r['eps_kurt'] for r in rows]):.2f}")
+    print(
+        f"{dataset} eta={eta_beta} eps={eps_beta} n={actual_n} tau={tau}: "
+        f"ICA={ica_rmse:.4f} OML={oml_rmse:.4f} SELECTOR={sel_rmse:.4f} "
+        f"oracle={oracle_fixed:.4f} regret={sel_rmse-oracle_fixed:+.4f} "
+        f"pick_ICA={pick_ica:.2f} eps_kurt={np.nanmean([r['eps_kurt'] for r in rows]):.2f}"
+    )
     return {
-        "method_names": np.array(METHOD_NAMES), "rmse": rmse_arr,
-        "biases": np.full(7, np.nan), "sigmas": np.full(7, np.nan),
-        "n_experiments": int(finite_mask.sum()), "n_attempted": len(seeds),
+        "method_names": np.array(METHOD_NAMES),
+        "rmse": rmse_arr,
+        "biases": np.full(7, np.nan),
+        "sigmas": np.full(7, np.nan),
+        "n_experiments": int(finite_mask.sum()),
+        "n_attempted": len(seeds),
         "finite_per_method": finite_per_method,
-        "treatment_effect": float(theta), "n_samples": int(actual_n),
-        "n_covariates": int(d), "support_size": int(d), "nuisance": nuisance,
-        "nonlinear_confounding": False, "heavy_tail_eta": True,
-        "eta_beta": float(eta_beta), "eps_beta": float(eps_beta),
-        "high_dim": False, "heteroscedastic_eps": False, "sigma_eta": 1.0,
-        "sigma_outcome": float(sigma_eps), "dataset": dataset,
-        "predisentangle_method": method, "n_components": int(n_components),
+        "treatment_effect": float(theta),
+        "n_samples": int(actual_n),
+        "n_covariates": int(d),
+        "support_size": int(d),
+        "nuisance": nuisance,
+        "nonlinear_confounding": False,
+        "heavy_tail_eta": True,
+        "eta_beta": float(eta_beta),
+        "eps_beta": float(eps_beta),
+        "high_dim": False,
+        "heteroscedastic_eps": False,
+        "sigma_eta": 1.0,
+        "sigma_outcome": float(sigma_eps),
+        "dataset": dataset,
+        "predisentangle_method": method,
+        "n_components": int(n_components),
         "bootstrap": bool(bootstrap),
         # selector-specific
-        "selector_tau": float(tau), "selector_rmse": sel_rmse,
-        "oracle_fixed_rmse": oracle_fixed, "selector_regret": sel_rmse - oracle_fixed,
+        "selector_tau": float(tau),
+        "selector_rmse": sel_rmse,
+        "oracle_fixed_rmse": oracle_fixed,
+        "selector_regret": sel_rmse - oracle_fixed,
         "selector_pick_ica_rate": pick_ica,
         "mean_eps_kurt": float(np.nanmean([r["eps_kurt"] for r in rows])),
         "mean_eta_kurt": float(np.nanmean([r["eta_kurt"] for r in rows])),
@@ -142,11 +181,25 @@ def main() -> None:
     p.add_argument("--results_file", default=None)
     o = p.parse_args()
     os.makedirs(o.output_dir, exist_ok=True)
-    res = run(o.dataset, o.n_components, o.eta_beta, o.eps_beta, o.treatment_effect,
-              o.sigma_outcome, o.nuisance, o.n_samples, o.n_experiments, o.coef_scale,
-              o.base_seed, o.n_jobs, o.tau, o.bootstrap)
-    fname = o.results_file or (f"selector_{o.dataset}_eta{o.eta_beta}_eps{o.eps_beta}_"
-                               f"n{o.n_samples}_tau{o.tau}.npy")
+    res = run(
+        o.dataset,
+        o.n_components,
+        o.eta_beta,
+        o.eps_beta,
+        o.treatment_effect,
+        o.sigma_outcome,
+        o.nuisance,
+        o.n_samples,
+        o.n_experiments,
+        o.coef_scale,
+        o.base_seed,
+        o.n_jobs,
+        o.tau,
+        o.bootstrap,
+    )
+    fname = o.results_file or (
+        f"selector_{o.dataset}_eta{o.eta_beta}_eps{o.eps_beta}_" f"n{o.n_samples}_tau{o.tau}.npy"
+    )
     np.save(os.path.join(o.output_dir, fname), res)
     print(f"Saved -> {os.path.join(o.output_dir, fname)}")
 

@@ -104,5 +104,5 @@ def select_estimator_multi(features: dict, thresholds: dict | None = None) -> st
         # nonlinear g(X): rescue with a flexible nuisance only if n supports it.
         return "OML_gbm" if enough_n else "OLS"
     if features["eps_excess_kurtosis"] > th["eps"]:
-        return "ICA"                           # heavy outcome noise, linear, low-dim (r09-r12)
-    return "OLS"                               # well-specified linear (r02/r07)
+        return "ICA"  # heavy outcome noise, linear, low-dim (r09-r12)
+    return "OLS"  # well-specified linear (r02/r07)
