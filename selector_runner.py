@@ -64,9 +64,11 @@ def _one(seed, Zfull, n_samples, theta, coefs, sigma_eps, eta_beta, nuisance,
             "eps_kurt": feats["eps_excess_kurtosis"], "eta_kurt": feats["eta_excess_kurtosis"]}
 
 
-def _rmse(v, theta):
+def _rmse(v, theta, finite_mask):
     v = np.asarray(v, float)
-    return float(np.sqrt(np.nanmean((v - theta) ** 2)))
+    if not np.any(finite_mask):
+        return float("nan")
+    return float(np.sqrt(np.mean((v[finite_mask] - theta) ** 2)))
 
 
 def run(dataset, n_components, eta_beta, eps_beta, theta, sigma_eps, nuisance,
@@ -81,17 +83,19 @@ def run(dataset, n_components, eta_beta, eps_beta, theta, sigma_eps, nuisance,
         delayed(_one)(s, Zfull, n_samples, theta, coefs, sigma_eps, eta_beta,
                       nuisance, eps_beta, bootstrap, tau) for s in seeds)
 
-    ica = [r["ica"] for r in rows]; oml = [r["oml"] for r in rows]; ols = [r["ols"] for r in rows]
-    chosen = [r["chosen"] for r in rows]
-    ica_rmse, oml_rmse, ols_rmse = _rmse(ica, theta), _rmse(oml, theta), _rmse(ols, theta)
-    sel_rmse = _rmse(chosen, theta)
+    method_values = np.array(
+        [[r[key] for key in ("oml", "rob", "est", "split", "ica", "ols")] for r in rows], dtype=float
+    )
+    finite_per_method = np.append(np.isfinite(method_values).sum(axis=0), 0)
+    finite_mask = np.isfinite(method_values).all(axis=1)
+    oml_rmse, rob_rmse, est_rmse, split_rmse, ica_rmse, ols_rmse = [
+        _rmse(method_values[:, idx], theta, finite_mask) for idx in range(method_values.shape[1])
+    ]
+    sel_rmse = _rmse([r["chosen"] for r in rows], theta, finite_mask)
     oracle_fixed = min(ica_rmse, oml_rmse)
     pick_ica = float(np.mean([r["pick"] == "ICA" for r in rows]))
     # per-method rmse array in METHOD_NAMES order (OML,HOML,est,split,ICA,OLS,Matching)
-    rmse_arr = np.array([oml_rmse, _rmse([r["rob"] for r in rows], theta),
-                         _rmse([r["est"] for r in rows], theta),
-                         _rmse([r["split"] for r in rows], theta),
-                         ica_rmse, ols_rmse, np.nan])
+    rmse_arr = np.array([oml_rmse, rob_rmse, est_rmse, split_rmse, ica_rmse, ols_rmse, np.nan])
     print(f"{dataset} eta={eta_beta} eps={eps_beta} n={actual_n} tau={tau}: "
           f"ICA={ica_rmse:.4f} OML={oml_rmse:.4f} SELECTOR={sel_rmse:.4f} "
           f"oracle={oracle_fixed:.4f} regret={sel_rmse-oracle_fixed:+.4f} "
@@ -99,8 +103,8 @@ def run(dataset, n_components, eta_beta, eps_beta, theta, sigma_eps, nuisance,
     return {
         "method_names": np.array(METHOD_NAMES), "rmse": rmse_arr,
         "biases": np.full(7, np.nan), "sigmas": np.full(7, np.nan),
-        "n_experiments": int(np.sum(np.isfinite(ica))), "n_attempted": len(seeds),
-        "finite_per_method": np.full(7, len(seeds)),
+        "n_experiments": int(finite_mask.sum()), "n_attempted": len(seeds),
+        "finite_per_method": finite_per_method,
         "treatment_effect": float(theta), "n_samples": int(actual_n),
         "n_covariates": int(d), "support_size": int(d), "nuisance": nuisance,
         "nonlinear_confounding": False, "heavy_tail_eta": True,

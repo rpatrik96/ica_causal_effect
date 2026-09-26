@@ -30,7 +30,7 @@ from joblib import Parallel, delayed
 
 from baselines import matching_baseline, ols_baseline
 from main_estimation import all_together_cross_fitting
-from nonlinear_runner import METHOD_NAMES, _make_nuisance_models
+from nonlinear_runner import METHOD_NAMES, _make_nuisance_models, _summarize_estimates
 import semisynth_loaders as ssl
 
 _DEFAULT_METHOD = "svd"  # for sparse text; overridden per-dataset below
@@ -93,14 +93,7 @@ def run(dataset, n_components, eta_beta, theta, sigma_eps, nuisance,
         for s in seeds
     )
     estimates = np.asarray(results, dtype=float)  # (n_exp, 7)
-    finite_mask = np.isfinite(estimates).all(axis=1)
-    finite = estimates[finite_mask]
-    err = estimates - theta
-    with np.errstate(invalid="ignore"):
-        rmse = np.sqrt(np.nanmean(err**2, axis=0))
-        biases = np.nanmean(err, axis=0)
-        sigmas = np.nanstd(estimates, axis=0)
-    finite_per_col = np.isfinite(estimates).sum(axis=0)
+    finite_mask, finite, finite_per_col, biases, sigmas, rmse = _summarize_estimates(estimates, theta)
     print(f"dataset={dataset} d'={d} n={actual_n} bootstrap={bootstrap} nonlinear={nonlinear} "
           f"eta_beta={eta_beta} nuisance={nuisance} theta={theta}")
     print(f"{'method':<22}{'bias':>10}{'sigma':>10}{'rmse':>10}")
