@@ -1,0 +1,48 @@
+# WS5 r17_e1_heatmaps — TMLR critical-eval rerun E1: the Fig. 3 filtered heatmaps.
+#
+# Reruns eta_noise_ablation.py --filtered_heatmap at the Fig. 3 operating point
+# (cluster/sweep_all_experiments.sub: a=0.5 (--heatmap_treatment_coef default),
+# b=0.05, theta=1, so c_ica = 1 + (0.05 + 0.5)^2 = 1.3025 <= threshold 1.5; discrete
+# eta, gennorm covariates, eps ~ U[-sqrt(3), sqrt(3)]) over both grids:
+#   * d_vs_n:    n in {500, 1000, 2000, 5000, 10000} x d in {5, 10, 20, 50}, covariate
+#                gennorm beta=1 (20 cells);
+#   * beta_vs_n: n in {500, ..., 10000} x covariate beta in {0.5, 1, 2, 3, 4}, d=10
+#                (25 cells; produces rmse_diff_sample_size_vs_beta_filtered_below_1.5).
+# 50 seeds (paper: 20), with the same flags as r17_e1_coef: ICA readouts
+# munkres_oracle and eps_row, OLS / OML / HOML (known + estimated moments) / matching /
+# Huber on residuals, per-seed theta_hats, c_ica and c_b per cell.
+#
+# Oracle arms: as in r17_e1_coef, the paper's pipeline draws X with exactly the support
+# columns, so oracle_support is inert at extra_covariates=0 (both arms agree up to floating-point rounding); at
+# extra_covariates=40 the ambient dimension is d+40 and oracle_support=false gives every
+# method all of it. The Lasso penalty uses the ambient dimension.
+#
+# Split: one job per (axis mode, extra_covariates, oracle_support) = 2 x 2 x 2 = 8 jobs,
+# each a full heatmap, so re-running the job command without --no_plot (it reloads the
+# saved .npy) regenerates the figure with the existing plotting code.
+#
+# Cost estimate (timed local runs of one job at reduced seeds; 4 loky workers,
+# single-thread BLAS, Apple-silicon laptop; ~45 CPU-s fixed start-up subtracted, rest
+# scaled linearly to 50 seeds):
+#   d_vs_n,    extra=0,  oracle=false, 4 seeds:  90 CPU-s -> ~610 CPU-s
+#   d_vs_n,    extra=40, oracle=false, 2 seeds:  85 CPU-s -> ~1,030 CPU-s
+#   beta_vs_n, extra=0,  oracle=false, 4 seeds: 220 CPU-s -> ~2,240 CPU-s
+#   beta_vs_n, extra=40, oracle=false, 2 seeds: 493 CPU-s -> ~11,200 CPU-s
+# Oracle=true jobs assumed at the extra=0 cost of their mode. Round total ~20,800 CPU-s
+# = ~5.8 CPU-h; longest job (beta_vs_n, extra=40, oracle=false) ~75 min wall at a
+# parallel speed-up of ~2.5 on 4 CPUs. Assuming cluster cores up to 2x slower:
+# <= 11.6 CPU-h for the round and <= 2.5 h wall for the longest job.
+round: r17_e1_heatmaps
+script: eta_noise_ablation.py
+base_args: "--filtered_heatmap --no_plot --noise_distribution discrete --n_experiments 50 --heatmap_treatment_coef 0.5 --heatmap_outcome_coef 0.05 --treatment_effect 1.0 --ica_var_threshold 1.5 --fixed_beta 1.0 --fixed_dimension 10 --heatmap_sample_sizes 500 1000 2000 5000 10000 --heatmap_dimensions 5 10 20 50 --heatmap_betas 0.5 1.0 2.0 3.0 4.0 --covariate_pdf gennorm --seed 12143 --ica_readouts munkres_oracle eps_row --robust_baseline"
+output_flag: "--output_dir"
+grid:
+  heatmap_axis_mode: [d_vs_n, beta_vs_n]
+  extra_covariates: [0, 40]
+  oracle_support: ["true", "false"]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 28800

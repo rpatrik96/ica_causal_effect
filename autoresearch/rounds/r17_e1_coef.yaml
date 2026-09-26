@@ -1,0 +1,55 @@
+# WS5 r17_e1_coef — TMLR critical-eval rerun E1: the Fig. 2 coefficient ablation.
+#
+# Reruns the paper's linear-PLR coefficient grid (eta_noise_ablation.py
+# --coefficient_ablation defaults): a in {-0.002, 0.05, -0.43, 1.56} x
+# b in {0.003, -0.02, 0.63, -1.45} x theta in {0.01, 0.1, 0.5, 1, 3, 10} = 96 configs,
+# discrete eta, covariates gennorm(beta=1), support d=10 (a, b non-zero on the first
+# coordinate only), n=5000, eps ~ U[-sqrt(3), sqrt(3)], now with 50 seeds (paper: 20)
+# and, on the same draw per seed:
+#   * ICA readouts munkres_oracle (Hungarian matching to the TRUE sources, the paper's
+#     readout) and eps_row (oracle-free: eps row of the unmixing matrix);
+#   * OLS, first-order OML (DML), HOML with known and with estimated moments, matching,
+#     and Huber regression on the cross-fitted residuals (--robust_baseline).
+#
+# Oracle arms. In the paper's pipeline X has exactly the 10 support columns, so
+# x[:, support] == x and --oracle_support true/false give identical inputs. The
+# extra_covariates axis appends irrelevant columns: extra_covariates=0 is the paper
+# setting (its two oracle arms get the same inputs and seed, so their estimates agree
+# up to floating-point rounding, a built-in check that the switch is inert there;
+# the smoke test measured differences ~1e-15); extra_covariates=40 gives ambient
+# d=50 (as in monte_carlo_single_instance.py), where oracle_support=false hands every
+# method all 50 columns. The Lasso penalty sqrt(log(d_ambient)/n) follows the existing
+# code, so the (oracle=true, extra=40) arm differs from the paper in the penalty only.
+#
+# Every result dict stores per-seed theta_hat per method (theta_hats), failure and
+# FastICA-convergence counts, and a, b, theta, c_ica = 1 + ||b + a theta||^2,
+# c_b = 1 + ||b||^2 Var(X), cov_dim_max. Analyse with autoresearch/analyze_e1.py.
+#
+# Split: one job per (a, extra_covariates, oracle_support) = 4 x 2 x 2 = 16 jobs; each
+# runs 4 b x 6 theta = 24 configs x 50 seeds. Every job seeds NumPy with 12143 once, so
+# the two oracle arms of the same (a, extra_covariates) see identical draws; the
+# extra=0 and extra=40 arms draw X with a different shape and do not share draws.
+#
+# Cost estimate (timed local runs of one job, a=1.56, 5 seeds; 4 loky workers,
+# single-thread BLAS, Apple-silicon laptop): extra=0/oracle=false 120 CPU-s;
+# extra=40/oracle=false 139 CPU-s. After subtracting a ~45 CPU-s fixed start-up cost
+# (measured from 8- vs 32-seed runs) and scaling linearly to 50 seeds: ~800 CPU-s per
+# extra=0 job, ~980 CPU-s per extra=40/oracle=false job (oracle=true jobs assumed at the
+# extra=0 cost). Round total ~13,500 CPU-s = ~3.8 CPU-h; longest job ~7 min wall at a
+# measured parallel speed-up of ~2.5 on 4 CPUs. Assuming cluster cores up to 2x slower:
+# <= 7.5 CPU-h for the round and <= 15 min wall per job. Only a=1.56 was timed; other
+# a values may converge differently in FastICA. max_time_s leaves >= 4x headroom.
+round: r17_e1_coef
+script: eta_noise_ablation.py
+base_args: "--coefficient_ablation --no_plot --noise_distribution discrete --n_samples 5000 --n_experiments 50 --support_size 10 --beta 1.0 --covariate_pdf gennorm --seed 12143 --outcome_coef_values 0.003 -0.02 0.63 -1.45 --treatment_effect_values 0.01 0.1 0.5 1.0 3.0 10 --ica_readouts munkres_oracle eps_row --robust_baseline"
+output_flag: "--output_dir"
+grid:
+  treatment_coef_values: [-0.002, 0.05, -0.43, 1.56]
+  extra_covariates: [0, 40]
+  oracle_support: ["true", "false"]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600

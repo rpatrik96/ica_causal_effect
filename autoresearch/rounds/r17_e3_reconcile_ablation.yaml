@@ -1,0 +1,33 @@
+# WS5 r17_e3_reconcile_ablation — E3, coefficient-ablation pipeline half.
+#
+# Companion to r17_e3_reconcile.yaml (which carries the list of differences between
+# r02 and the Fig. 2 setting). Runs the Fig. 2 point a=1.56, b=-1.45, theta=1
+# (c_ica = 1.0121) through eta_noise_ablation.py --coefficient_ablation, the Fig. 2
+# pipeline, crossed with covariate beta in {1 (Fig. 2), 4 (r02)} x extra_covariates in
+# {0 (Fig. 2: X is exactly the 10 support columns), 40 (ambient d=50 as in r02, which
+# also sets the Lasso penalty to r02's sqrt(log 50 / n))} x oracle_support in
+# {true, false}; 50 seeds, readouts munkres_oracle and eps_row, OLS / OML / HOML /
+# matching / Huber. At extra_covariates=0 the two oracle arms get the same inputs
+# and agree up to floating-point rounding. The (beta=4, extra=40, oracle=true) job matches r17_e3_reconcile's
+# (beta=4, scalar_coeffs=true, oracle=true) job in distribution (same law, coefficients,
+# support, penalty), with a different RNG stream.
+#
+# Cost estimate (timed local run, beta=4, extra=0, oracle=false, 10 seeds; 4 loky
+# workers, single-thread BLAS, Apple-silicon laptop): 49 CPU-s; ~45 CPU-s start-up
+# subtracted and scaled to 50 seeds: ~70 CPU-s per job, ~90 CPU-s for extra=40 by the
+# extra=40/extra=0 ratio measured in r17_e1_coef; 8 jobs ~0.2 CPU-h, <= 0.4 CPU-h if
+# cluster cores are 2x slower.
+round: r17_e3_reconcile_ablation
+script: eta_noise_ablation.py
+base_args: "--coefficient_ablation --no_plot --noise_distribution discrete --n_samples 5000 --n_experiments 50 --support_size 10 --covariate_pdf gennorm --seed 12143 --treatment_coef_values 1.56 --outcome_coef_values -1.45 --treatment_effect_values 1.0 --ica_readouts munkres_oracle eps_row --robust_baseline"
+output_flag: "--output_dir"
+grid:
+  beta: [1.0, 4.0]
+  extra_covariates: [0, 40]
+  oracle_support: ["true", "false"]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600

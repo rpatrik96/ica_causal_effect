@@ -1,0 +1,32 @@
+# WS5 r17_e4_variance — TMLR critical-eval rerun E4: the variance ablation.
+#
+# Reruns eta_noise_ablation.py --variance_ablation (treatment noise eta ~ gennorm with
+# shape beta in {0.5, 1, 1.5, 2.5, 3, 4} and variance sigma^2 in {0.25, 0.5, 1, 2, 4};
+# a = b = 1 on the first of d=10 covariates, theta=1, so c_ica = 5; covariates
+# gennorm beta=1; n=5000) on this branch, whose HOML known moments use the fixed
+# scale-aware moment calculation, with 50 seeds (paper: 20), ICA readouts
+# munkres_oracle and eps_row, and OLS / OML / HOML (known + estimated moments) /
+# matching / Huber on residuals, all on the same draw per seed. Oracle support stays
+# at the paper default (true; inert here because X is exactly the support).
+#
+# One job over the full 6 x 5 grid, so re-running the command without --no_plot
+# (it reloads variance_ablation/variance_ablation_results.npy from the job's output
+# dir) regenerates the heatmaps with the existing plot_variance_ablation_heatmaps.
+#
+# Cost estimate (timed local run of this job at 4 seeds; 4 loky workers, single-thread
+# BLAS, Apple-silicon laptop): 114 CPU-s; ~45 CPU-s start-up subtracted and scaled
+# linearly to 50 seeds: ~900 CPU-s (0.25 CPU-h), ~6 min wall at a parallel speed-up of
+# ~2.5; <= 0.5 CPU-h and <= 15 min wall if cluster cores are 2x slower.
+round: r17_e4_variance
+script: eta_noise_ablation.py
+base_args: "--variance_ablation --no_plot --n_samples 5000 --n_experiments 50 --support_size 10 --beta 1.0 --covariate_pdf gennorm --treatment_effect 1.0 --seed 12143 --ica_readouts munkres_oracle eps_row --robust_baseline"
+output_flag: "--output_dir"
+grid:
+  variance_beta_values: [[0.5, 1.0, 1.5, 2.5, 3.0, 4.0]]
+  variance_values: [[0.25, 0.5, 1.0, 2.0, 4.0]]
+bid: 43
+resources:
+  cpus: 4
+  memory_gb: 16
+  disk_gb: 10
+  max_time_s: 3600
