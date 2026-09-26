@@ -14,11 +14,17 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from joblib import Parallel, delayed
 from sklearn.linear_model import Lasso
 from tueplots import bundles
 
 import baselines
+from ablation_utils import (
+    extract_treatment_estimates,
+    parse_ica_readouts,
+    primary_ica_estimate,
+    primary_ica_mcc,
+    run_parallel_experiments,
+)
 from ica import ica_treatment_effect_estimation
 from main_estimation import all_together_cross_fitting
 from oml_plotting import generate_all_oml_plots, plot_method_comparison_both_errors, save_results_with_metadata
@@ -67,6 +73,12 @@ def experiment(
     disable_baselines=False,
 ):
     """Run a single OML experiment.
+
+    Retained for API compatibility. ``run_experiments_for_configuration`` now
+    delegates to ``ablation_utils.run_parallel_experiments`` (and hence
+    ``ablation_utils.run_single_experiment``), which computes the same
+    estimators on the default path and adds the ICA readouts and the robust
+    baseline.
 
     Args:
         x: Covariate matrix
@@ -183,6 +195,8 @@ def run_experiments_for_configuration(
     treatment_coef_array: np.ndarray,
     outcome_coef_array: np.ndarray,
     disable_baselines: bool = False,
+    ica_readouts=("munkres_oracle",),
+    robust_baseline: bool = False,
 ) -> dict:
     """Run experiments for a single parameter configuration.
 
@@ -327,33 +341,30 @@ def run_experiments_for_configuration(
     # Compute regularization parameter
     lambda_reg = np.sqrt(np.log(cov_dim_max) / n_samples)
 
-    # Run parallel experiments
-    results = [
-        r
-        for r in Parallel(n_jobs=-1, verbose=0)(
-            delayed(experiment)(
-                x_sample(n_samples, cov_dim_max),
-                eta_sample(n_samples),
-                epsilon_sample(n_samples),
-                treatment_effect,
-                treatment_support,
-                treatment_coef,
-                outcome_support,
-                outcome_coef,
-                eta_second_moment,
-                eta_third_moment,
-                lambda_reg,
-                config.check_convergence,
-                verbose=config.verbose,
-                oracle_support=config.oracle_support,
-                disable_baselines=disable_baselines,
-            )
-            for _ in range(config.n_experiments)
-        )
-        # ica_mcc is at position -3 after the OLS/matching baselines were
-        # appended to the experiment() return tuple.
-        if (config.check_convergence is False or r[-3] is not None)
-    ]
+    # Every seed draws a fresh dataset. All methods, including both ICA
+    # readouts, operate on that same draw so paired comparisons are valid.
+    results = run_parallel_experiments(
+        n_experiments=config.n_experiments,
+        x_sample=x_sample,
+        eta_sample=eta_sample,
+        epsilon_sample=epsilon_sample,
+        n_samples=n_samples,
+        cov_dim_max=cov_dim_max,
+        treatment_effect=treatment_effect,
+        treatment_support=treatment_support,
+        treatment_coef=treatment_coef,
+        outcome_support=outcome_support,
+        outcome_coef=outcome_coef,
+        eta_second_moment=eta_second_moment,
+        eta_third_moment=eta_third_moment,
+        lambda_reg=lambda_reg,
+        check_convergence=config.check_convergence,
+        verbose=config.verbose,
+        oracle_support=config.oracle_support,
+        disable_baselines=disable_baselines,
+        ica_readouts=ica_readouts,
+        robust_baseline=robust_baseline,
+    )
 
     print(f"Experiments kept: {len(results)} out of {config.n_experiments} seeds")
 
@@ -361,40 +372,17 @@ def run_experiments_for_configuration(
         print("Configuration skipped as no runs converged")
         return None
 
-    def _to_list_local(value):
-        if hasattr(value, "tolist"):
-            result = value.tolist()
-            return result if isinstance(result, list) else [result]
-        return [value]
-
     # Extract results.  The per-experiment list grows from 5 to 7 entries
     # for univariate treatment (5 + 1 + 1 + 1 = 7); for m-variate treatment
     # it is 4 + m + m + m = 4 + 3m.
-    ortho_rec_tau = [
-        [ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml]
-        + _to_list_local(ica_estimate)
-        + _to_list_local(ols_estimate)
-        + _to_list_local(matching_estimate)
-        for (
-            ortho_ml,
-            robust_ortho_ml,
-            robust_ortho_est_ml,
-            robust_ortho_est_split_ml,
-            _,
-            _,
-            ica_estimate,
-            _,
-            ols_estimate,
-            matching_estimate,
-        ) in results
-    ]
+    ortho_rec_tau = extract_treatment_estimates(results)
 
     first_stage_mse = [
         [
             np.linalg.norm(true_coef_treatment - coef_treatment),
             np.linalg.norm(true_coef_outcome - coef_outcome),
-            np.linalg.norm(ica_estimate - treatment_effect),
-            ica_mcc,
+            np.linalg.norm(np.asarray(primary_ica_estimate(ica_estimate)) - treatment_effect),
+            primary_ica_mcc(ica_mcc),
         ]
         for _, _, _, _, coef_treatment, coef_outcome, ica_estimate, ica_mcc, _, _ in results
     ]
@@ -491,6 +479,19 @@ def main(args):
     parser.add_argument("--covariate_pdf", dest="covariate_pdf", type=str, help="pdf of covariates", default="gennorm")
     parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
     parser.add_argument(
+        "--ica_readouts",
+        nargs="+",
+        default=["munkres_oracle"],
+        help="ICA readouts computed on the same data per seed, as a comma list or space-separated "
+        "values from {munkres_oracle, eps_row}. Default: munkres_oracle (Hungarian matching to the true "
+        "sources). Use space separation in cluster grids (no commas).",
+    )
+    parser.add_argument(
+        "--robust_baseline",
+        action="store_true",
+        help="Add Huber regression on the cross-fitted treatment/outcome residuals as a robust baseline.",
+    )
+    parser.add_argument(
         "--check_convergence", dest="check_convergence", type=str2bool, help="check convergence", default=False
     )
     parser.add_argument(
@@ -573,9 +574,13 @@ def main(args):
     parser.add_argument(
         "--oracle_support",
         dest="oracle_support",
-        action="store_true",
+        nargs="?",
+        const=True,
+        type=str2bool,
         default=True,
-        help="If True, both OML and ICA receive x[:, support] (oracle knowledge). Default: True.",
+        help="If true, both OML/HOML and ICA (and the baselines) receive x[:, support] (oracle "
+        "knowledge); if false, all methods receive the full x. Accepts true/false; a bare flag means "
+        "true. Default: true.",
     )
     parser.add_argument(
         "--no_oracle_support",
@@ -615,6 +620,7 @@ def main(args):
     )
 
     opts = parser.parse_args(args)
+    opts.ica_readouts = parse_ica_readouts(opts.ica_readouts)
 
     # --- Merge workflow: merge partial results and optionally plot ---
     if opts.merge_dir is not None:
@@ -752,6 +758,8 @@ def main(args):
                                     treatment_coef_array=treatment_coef_array,
                                     outcome_coef_array=outcome_coef_array,
                                     disable_baselines=opts.disable_baselines,
+                                    ica_readouts=opts.ica_readouts,
+                                    robust_baseline=opts.robust_baseline,
                                 )
 
                                 if result is not None:

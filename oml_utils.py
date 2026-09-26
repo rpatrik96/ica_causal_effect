@@ -126,6 +126,10 @@ class OMLParameterGrid:
             grid.treatment_effects = [1]
             grid.treatment_coefs = [1.56]
             grid.outcome_coefs = [-1.45]
+            if config.beta is not None:
+                grid.beta_values = [config.beta]
+            if config.support_size is not None:
+                grid.support_sizes = [config.support_size]
             return grid
 
         # Adjust beta values

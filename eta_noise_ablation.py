@@ -30,6 +30,7 @@ import sys
 
 import numpy as np
 
+from ablation_utils import is_extended_mode, parse_ica_readouts
 from eta_ablation_experiments import (
     compute_constrained_treatment_coef,
     compute_ica_var_coeff,
@@ -50,6 +51,18 @@ from eta_ablation_plotting import (
     plot_noise_ablation_std_scatter,
     plot_variance_ablation_heatmaps,
 )
+
+
+def str2bool(value):
+    """Parse an explicit command-line boolean."""
+    if isinstance(value, bool):
+        return value
+    normalized = value.lower()
+    if normalized in {"true", "1", "yes"}:
+        return True
+    if normalized in {"false", "0", "no"}:
+        return False
+    raise argparse.ArgumentTypeError(f"expected true or false, got {value!r}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -96,6 +109,30 @@ Examples:
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--seed", type=int, default=12143, help="Random seed")
     parser.add_argument("--output_dir", type=str, default="figures/noise_ablation", help="Output directory")
+    parser.add_argument(
+        "--ica_readouts",
+        nargs="+",
+        default=["munkres_oracle"],
+        help="ICA readouts computed on the same data per seed, as a comma list or space-separated "
+        "values from {munkres_oracle, eps_row}. munkres_oracle (default) resolves the permutation by "
+        "Hungarian matching to the true sources; eps_row reads theta from the eps row of the unmixing "
+        "matrix without the true sources. Use space separation in cluster grids (no commas).",
+    )
+    parser.add_argument(
+        "--robust_baseline",
+        action="store_true",
+        help="Add Huber regression on the cross-fitted treatment/outcome residuals as a robust baseline.",
+    )
+    parser.add_argument("--no_plot", action="store_true", help="Skip plot generation (recommended for split jobs).")
+    parser.add_argument(
+        "--extra_covariates",
+        type=int,
+        default=0,
+        help="Irrelevant covariate columns appended beyond the support in the variance ablation, coefficient "
+        "ablation and filtered heatmap (ambient dimension = support size + this; the Lasso penalty uses the "
+        "ambient dimension). Default 0 reproduces the paper, where the support is all of X and "
+        "--oracle_support therefore has no effect.",
+    )
 
     # Noise ablation arguments
     parser.add_argument("--treatment_effect", type=float, default=1.0, help="True treatment effect")
@@ -127,6 +164,27 @@ Examples:
     parser.add_argument("--coefficient_ablation", action="store_true", help="Run coefficient ablation")
     parser.add_argument(
         "--noise_distribution", type=str, default="discrete", help="Noise distribution for coef ablation"
+    )
+    parser.add_argument(
+        "--treatment_coef_values",
+        nargs="+",
+        type=float,
+        default=None,
+        help="Treatment coefficients a for the coefficient ablation (default: the paper grid).",
+    )
+    parser.add_argument(
+        "--outcome_coef_values",
+        nargs="+",
+        type=float,
+        default=None,
+        help="Outcome coefficients b for the coefficient ablation (default: the paper grid).",
+    )
+    parser.add_argument(
+        "--treatment_effect_values",
+        nargs="+",
+        type=float,
+        default=None,
+        help="Treatment effects theta for the coefficient ablation (default: the paper grid).",
     )
 
     # Variance ablation arguments
@@ -217,9 +275,13 @@ Examples:
     parser.add_argument(
         "--oracle_support",
         dest="oracle_support",
-        action="store_true",
+        nargs="?",
+        const=True,
+        type=str2bool,
         default=True,
-        help="If True, both OML and ICA receive x[:, support] (oracle knowledge). Default: True.",
+        help="If true, both OML/HOML and ICA (and the baselines) receive x[:, support] (oracle "
+        "knowledge); if false, all methods receive the full x. Accepts true/false; a bare flag means "
+        "true. Default: true.",
     )
     parser.add_argument(
         "--no_oracle_support",
@@ -270,6 +332,18 @@ def run(opts) -> None:
     ``opts`` must be the result of ``build_parser().parse_args(...)`` or an
     equivalent Namespace with the same attributes.
     """
+    opts.ica_readouts = parse_ica_readouts(opts.ica_readouts)
+    extended_mode_supported = opts.variance_ablation or opts.coefficient_ablation or opts.filtered_heatmap
+    if opts.extra_covariates < 0:
+        raise ValueError("--extra_covariates must be non-negative.")
+    if (is_extended_mode(opts.ica_readouts, opts.robust_baseline) or opts.extra_covariates) and (
+        opts.bernoulli_only or not extended_mode_supported
+    ):
+        raise ValueError(
+            "--ica_readouts other than munkres_oracle, --robust_baseline and --extra_covariates are implemented for "
+            "--variance_ablation, --coefficient_ablation and --filtered_heatmap only."
+        )
+
     # Compute oracle suffix for output directories
     oracle_suffix = "" if opts.oracle_support else "_no_oracle"
 
@@ -381,13 +455,17 @@ def run(opts) -> None:
                 verbose=opts.verbose,
                 seed=opts.seed,
                 oracle_support=opts.oracle_support,
+                ica_readouts=opts.ica_readouts,
+                robust_baseline=opts.robust_baseline,
+                extra_covariates=opts.extra_covariates,
             )
 
             os.makedirs(var_output_dir, exist_ok=True)
             np.save(results_file, var_results)
             print(f"Results saved to {results_file}")
 
-        plot_variance_ablation_heatmaps(var_results, var_output_dir)
+        if not opts.no_plot:
+            plot_variance_ablation_heatmaps(var_results, var_output_dir)
 
         # Print summary
         print_variance_ablation_summary(var_results, opts)
@@ -403,6 +481,9 @@ def run(opts) -> None:
         else:
             coef_results = run_coefficient_ablation_experiments(
                 noise_distribution=opts.noise_distribution,
+                treatment_coef_values=opts.treatment_coef_values,
+                outcome_coef_values=opts.outcome_coef_values,
+                treatment_effect_values=opts.treatment_effect_values,
                 n_samples=opts.n_samples,
                 n_experiments=opts.n_experiments,
                 support_size=opts.support_size,
@@ -413,13 +494,17 @@ def run(opts) -> None:
                 verbose=opts.verbose,
                 seed=opts.seed,
                 oracle_support=opts.oracle_support,
+                ica_readouts=opts.ica_readouts,
+                robust_baseline=opts.robust_baseline,
+                extra_covariates=opts.extra_covariates,
             )
 
             os.makedirs(coef_output_dir, exist_ok=True)
             np.save(results_file, coef_results)
             print(f"Results saved to {results_file}")
 
-        plot_coefficient_ablation_results(coef_results, coef_output_dir)
+        if not opts.no_plot:
+            plot_coefficient_ablation_results(coef_results, coef_output_dir)
 
         # Print summary
         print_coefficient_ablation_summary(coef_results, opts)
@@ -491,6 +576,9 @@ def run(opts) -> None:
                 verbose=opts.verbose,
                 seed=opts.seed,
                 oracle_support=opts.oracle_support,
+                ica_readouts=opts.ica_readouts,
+                robust_baseline=opts.robust_baseline,
+                extra_covariates=opts.extra_covariates,
             )
 
             os.makedirs(heatmap_output_dir, exist_ok=True)
@@ -522,22 +610,24 @@ def run(opts) -> None:
             print(f"  Range: [{min_ica_var:.6f}, {max_ica_var:.6f}]")
 
         # Plot filtered RMSE heatmap
-        plot_ica_var_filtered_rmse_heatmap(
-            heatmap_results,
-            heatmap_output_dir,
-            axis_mode=opts.heatmap_axis_mode,
-            ica_var_threshold=opts.ica_var_threshold,
-            filter_below=True,
-        )
+        if not opts.no_plot:
+            plot_ica_var_filtered_rmse_heatmap(
+                heatmap_results,
+                heatmap_output_dir,
+                axis_mode=opts.heatmap_axis_mode,
+                ica_var_threshold=opts.ica_var_threshold,
+                filter_below=True,
+            )
 
         # Plot filtered bias heatmaps
-        plot_ica_var_filtered_bias_heatmaps(
-            heatmap_results,
-            heatmap_output_dir,
-            axis_mode=opts.heatmap_axis_mode,
-            ica_var_threshold=opts.ica_var_threshold,
-            filter_below=True,
-        )
+        if not opts.no_plot:
+            plot_ica_var_filtered_bias_heatmaps(
+                heatmap_results,
+                heatmap_output_dir,
+                axis_mode=opts.heatmap_axis_mode,
+                ica_var_threshold=opts.ica_var_threshold,
+                filter_below=True,
+            )
 
         # Print summary
         print(f"\n{'=' * 80}")

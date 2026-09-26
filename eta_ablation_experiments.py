@@ -411,6 +411,9 @@ def run_variance_ablation_experiments(
     verbose: bool = False,
     seed: int = 12143,
     oracle_support: bool = True,
+    ica_readouts: Tuple[str, ...] = ("munkres_oracle",),
+    robust_baseline: bool = False,
+    extra_covariates: int = 0,
 ) -> dict:
     """Run experiments varying gennorm beta and variance.
 
@@ -432,6 +435,12 @@ def run_variance_ablation_experiments(
         seed: Random seed
         oracle_support: If True, ICA receives x[:, support]. If False, both
             OML and ICA receive full x matrix.
+        ica_readouts: ICA readouts computed on the same draw per seed.
+        robust_baseline: If True, add Huber regression on cross-fitted residuals.
+        extra_covariates: Irrelevant covariate columns appended beyond the
+            support (ambient dimension = support size + extra_covariates; the
+            Lasso penalty uses the ambient dimension). With the default 0 the
+            support is all of X, so oracle_support has no effect.
 
     Returns:
         Dictionary with results organized by (beta, variance) pairs
@@ -449,7 +458,7 @@ def run_variance_ablation_experiments(
     epsilon_sample = create_outcome_noise_sampler(sigma_outcome)
 
     # Setup base coefficients
-    cov_dim_max = support_size
+    cov_dim_max = support_size + extra_covariates
     treatment_support = outcome_support = np.array(range(support_size))
 
     # Fixed scalar coefficients
@@ -535,6 +544,8 @@ def run_variance_ablation_experiments(
                 check_convergence=check_convergence,
                 verbose=verbose,
                 oracle_support=oracle_support,
+                ica_readouts=ica_readouts,
+                robust_baseline=robust_baseline,
             )
 
             print(f"  Experiments kept: {len(results)} out of {n_experiments}")
@@ -587,6 +598,9 @@ def run_coefficient_ablation_experiments(
     verbose: bool = False,
     seed: int = 12143,
     oracle_support: bool = True,
+    ica_readouts: Tuple[str, ...] = ("munkres_oracle",),
+    robust_baseline: bool = False,
+    extra_covariates: int = 0,
 ) -> List[dict]:
     """Run experiments with varying coefficient configurations.
 
@@ -606,6 +620,12 @@ def run_coefficient_ablation_experiments(
         seed: Random seed
         oracle_support: If True, ICA receives x[:, support]. If False, both
             OML and ICA receive full x matrix.
+        ica_readouts: ICA readouts computed on the same draw per seed.
+        robust_baseline: If True, add Huber regression on cross-fitted residuals.
+        extra_covariates: Irrelevant covariate columns appended beyond the
+            support (ambient dimension = support size + extra_covariates; the
+            Lasso penalty uses the ambient dimension). With the default 0 the
+            support is all of X, so oracle_support has no effect.
 
     Returns:
         List of result dictionaries, one per coefficient configuration
@@ -633,7 +653,7 @@ def run_coefficient_ablation_experiments(
     )
 
     # Compute regularization parameter
-    cov_dim_max = support_size
+    cov_dim_max = support_size + extra_covariates
     lambda_reg = np.sqrt(np.log(cov_dim_max) / n_samples)
 
     # Setup support indices
@@ -691,6 +711,8 @@ def run_coefficient_ablation_experiments(
             check_convergence=check_convergence,
             verbose=verbose,
             oracle_support=oracle_support,
+            ica_readouts=ica_readouts,
+            robust_baseline=robust_baseline,
         )
 
         print(f"  Experiments kept: {len(results)} out of {n_experiments}")
@@ -748,6 +770,9 @@ def run_sample_dimension_grid_experiments(
     verbose: bool = False,
     seed: int = 12143,
     oracle_support: bool = True,
+    ica_readouts: Tuple[str, ...] = ("munkres_oracle",),
+    robust_baseline: bool = False,
+    extra_covariates: int = 0,
 ) -> List[dict]:
     """Run experiments over sample size and dimension/beta grid.
 
@@ -770,6 +795,12 @@ def run_sample_dimension_grid_experiments(
         seed: Random seed
         oracle_support: If True, ICA receives x[:, support]. If False, both
             OML and ICA receive full x matrix.
+        ica_readouts: ICA readouts computed on the same draw per seed.
+        robust_baseline: If True, add Huber regression on cross-fitted residuals.
+        extra_covariates: Irrelevant covariate columns appended beyond the
+            support (ambient dimension = support size + extra_covariates; the
+            Lasso penalty uses the ambient dimension). With the default 0 the
+            support is all of X, so oracle_support has no effect.
 
     Returns:
         List of result dictionaries, one per (sample_size, dimension/beta) configuration
@@ -844,7 +875,8 @@ def run_sample_dimension_grid_experiments(
         epsilon_sample = create_outcome_noise_sampler(sigma_outcome)
 
         # Compute regularization parameter
-        lambda_reg = np.sqrt(np.log(support_size) / n_samples)
+        cov_dim_max = support_size + extra_covariates
+        lambda_reg = np.sqrt(np.log(cov_dim_max) / n_samples)
 
         # Setup support indices
         treatment_support = outcome_support = np.array(range(support_size))
@@ -861,7 +893,7 @@ def run_sample_dimension_grid_experiments(
             eta_sample=eta_sample,
             epsilon_sample=epsilon_sample,
             n_samples=n_samples,
-            cov_dim_max=support_size,
+            cov_dim_max=cov_dim_max,
             treatment_effect=treatment_effect,
             treatment_support=treatment_support,
             treatment_coef=treatment_coef,
@@ -873,6 +905,8 @@ def run_sample_dimension_grid_experiments(
             check_convergence=check_convergence,
             verbose=verbose,
             oracle_support=oracle_support,
+            ica_readouts=ica_readouts,
+            robust_baseline=robust_baseline,
         )
 
         print(f"  Experiments kept: {len(results)} out of {n_experiments}")

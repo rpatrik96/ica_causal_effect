@@ -13,7 +13,7 @@ from joblib import Parallel, delayed
 from sklearn.linear_model import Lasso
 
 import baselines
-from ica import ica_treatment_effect_estimation
+from ica import ica_treatment_effect_estimation, ica_treatment_effect_estimation_eps_row
 from main_estimation import all_together_cross_fitting
 from oml_utils import AsymptoticVarianceCalculator
 
@@ -31,6 +31,8 @@ ROBUST_ORTHO_SPLIT_IDX = 3
 ICA_IDX = 4
 OLS_IDX = 5
 MATCHING_IDX = 6
+
+ICA_READOUTS = ("munkres_oracle", "eps_row")
 
 # Method names for display
 METHOD_NAMES = ["Ortho ML", "OML", "Robust Ortho Est", "Robust Ortho Split", "ICA", "OLS", "Matching"]
@@ -57,6 +59,26 @@ DISTRIBUTION_LABELS = {
     "gennorm_heavy": r"GenNorm ($\beta$=1)",
     "gennorm_light": r"GenNorm ($\beta$=4)",
 }
+
+
+def parse_ica_readouts(values) -> Tuple[str, ...]:
+    """Parse comma-separated or whitespace-separated ICA readout names."""
+    if isinstance(values, str):
+        values = [values]
+    parsed = tuple(part for value in values for part in str(value).split(",") if part)
+    invalid = set(parsed) - set(ICA_READOUTS)
+    if not parsed or invalid:
+        raise ValueError(f"ica_readouts must be drawn from {ICA_READOUTS}; got {values!r}")
+    return parsed
+
+
+def is_extended_mode(ica_readouts, robust_baseline: bool) -> bool:
+    """Return True when experiment tuples carry named-estimate dicts.
+
+    The default configuration (the Munkres-oracle readout alone, no robust
+    baseline) keeps the historical tuple layout unchanged.
+    """
+    return tuple(ica_readouts) != ("munkres_oracle",) or bool(robust_baseline)
 
 
 def get_distribution_label(dist_key: str) -> str:
@@ -364,6 +386,9 @@ def run_single_experiment(
     verbose: bool = False,
     oracle_support: bool = True,
     disable_baselines: bool = False,
+    ica_readouts: Tuple[str, ...] = ("munkres_oracle",),
+    robust_baseline: bool = False,
+    random_state: int = 0,
 ) -> Tuple:
     """Run a single OML experiment with specified noise samples.
 
@@ -406,6 +431,15 @@ def run_single_experiment(
     disable_baselines : bool
         If True, skip the OLS and matching baseline calls and return NaNs of
         the appropriate shape so downstream slicing logic is unchanged.
+    ica_readouts : tuple of str
+        ICA readouts to compute on the same draw, drawn from
+        ``ICA_READOUTS``: ``"munkres_oracle"`` (Hungarian matching to the true
+        sources, the historical default) and ``"eps_row"`` (oracle-free: the
+        eps row of the unmixing matrix, located by its Y loading).
+    robust_baseline : bool
+        If True, also fit Huber regression on the cross-fitted residuals.
+    random_state : int
+        FastICA seed; the default 0 matches the historical behaviour.
 
     Returns
     -------
@@ -414,6 +448,11 @@ def run_single_experiment(
         robust_ortho_est_split_ml, first_stage_mse_treatment,
         first_stage_mse_outcome, ica_estimate, ica_mcc, ols_estimate,
         matching_estimate)``.
+
+        In extended mode (see ``is_extended_mode``) ``ica_estimate`` is a
+        dict ``{"ica_<readout>": estimate, ..., "huber": estimate}`` and
+        ``ica_mcc`` a dict ``{"ica_<readout>": {"converged", "attempts",
+        "tol", "mcc"}}``.
 
         ``ols_estimate`` and ``matching_estimate`` are arrays of shape
         ``(m,)`` matching the ICA estimate's leading shape (``m=1`` for
@@ -439,17 +478,38 @@ def run_single_experiment(
     else:
         covariates = x
 
-    try:
-        ica_treatment_effect_estimate, ica_mcc = ica_treatment_effect_estimation(
-            np.hstack((covariates, treatment.reshape(-1, 1), outcome.reshape(-1, 1))),
-            np.hstack((covariates, eta.reshape(-1, 1), epsilon.reshape(-1, 1))),
-            check_convergence=check_convergence,
-            verbose=verbose,
+    invalid_readouts = set(ica_readouts) - set(ICA_READOUTS)
+    if invalid_readouts:
+        raise ValueError(f"Unknown ICA readout(s): {sorted(invalid_readouts)}")
+
+    observed = np.hstack((covariates, treatment.reshape(-1, 1), outcome.reshape(-1, 1)))
+    sources = np.hstack((covariates, eta.reshape(-1, 1), epsilon.reshape(-1, 1)))
+    readout_estimates = {}
+    readout_diagnostics = {}
+    for readout in ica_readouts:
+        convergence_info = {}
+        estimator = (
+            ica_treatment_effect_estimation if readout == "munkres_oracle" else ica_treatment_effect_estimation_eps_row
         )
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"An error occurred during ICA treatment effect estimation: {e}")
-        ica_mcc = None
-        ica_treatment_effect_estimate = None
+        try:
+            estimate, mcc = estimator(
+                observed,
+                sources,
+                random_state=random_state,
+                check_convergence=check_convergence,
+                verbose=verbose,
+                convergence_info=convergence_info,
+            )
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            print(f"An error occurred during ICA {readout} estimation: {exc}")
+            estimate, mcc = np.full(1, np.nan), None
+            convergence_info = {"converged": False, "attempts": 0, "error": str(exc)}
+        readout_estimates[f"ica_{readout}"] = estimate
+        readout_diagnostics[f"ica_{readout}"] = {**convergence_info, "mcc": mcc}
+
+    primary_key = f"ica_{ica_readouts[0]}"
+    ica_treatment_effect_estimate = readout_estimates[primary_key]
+    ica_mcc = readout_diagnostics[primary_key].get("mcc")
 
     if verbose:
         print(f"Estimated vs true treatment effect: {ica_treatment_effect_estimate}, {treatment_effect}")
@@ -472,6 +532,30 @@ def run_single_experiment(
         # Matching is run per-coordinate (univariate path here, but
         # _matching_per_coordinate is multi-treatment safe by design).
         matching_estimate = _matching_per_coordinate(covariates, treatment, outcome)
+
+    huber_estimate = np.full(m, np.nan, dtype=float)
+    if robust_baseline:
+        try:
+            huber_estimate = baselines.huber_residual_baseline(
+                covariates,
+                treatment,
+                outcome,
+                model_treatment=model_treatment,
+                model_outcome=model_outcome,
+            )
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            print(f"An error occurred during Huber residual estimation: {exc}")
+
+    # Preserve the historical 10-tuple for the default path. Extended runs
+    # (any readout set other than the default, or the robust baseline) place
+    # the named estimates and per-readout diagnostics in the legacy ICA/MCC
+    # slots as dicts, so a single non-default readout is never mislabelled.
+    if is_extended_mode(ica_readouts, robust_baseline):
+        estimator_bundle = dict(readout_estimates)
+        if robust_baseline:
+            estimator_bundle["huber"] = huber_estimate
+        ica_treatment_effect_estimate = estimator_bundle
+        ica_mcc = readout_diagnostics
 
     return (
         *all_together_cross_fitting(
@@ -509,6 +593,8 @@ def run_parallel_experiments(
     verbose: bool = False,
     oracle_support: bool = True,
     disable_baselines: bool = False,
+    ica_readouts: Tuple[str, ...] = ("munkres_oracle",),
+    robust_baseline: bool = False,
 ) -> List[Tuple]:
     """Run Monte Carlo experiments in parallel using joblib.
 
@@ -552,12 +638,17 @@ def run_parallel_experiments(
         If True, the OLS and matching baselines are skipped; per-experiment
         result tuples still contain entries at indices 5/6 (NaN-filled with
         the appropriate shape) so downstream slicing logic remains valid.
+    ica_readouts : tuple of str
+        ICA readouts computed on every draw (see ``run_single_experiment``).
+    robust_baseline : bool
+        If True, add the Huber-on-residuals baseline.
 
     Returns
     -------
     List[Tuple]
         Experiment result tuples; filtered for ICA convergence when
-        ``check_convergence=True``.
+        ``check_convergence=True`` on the default path only. Extended runs
+        (``is_extended_mode``) keep every replication in draw order.
 
     Notes
     -----
@@ -565,6 +656,11 @@ def run_parallel_experiments(
     OLS and matching baseline estimates.  ``ica_mcc`` lives at index ``-3``;
     ``ols_estimate`` at ``-2``; ``matching_estimate`` at ``-1``.
     """
+    # Every replication draws a fresh (x, eta, epsilon) in the parent process,
+    # sequentially from the global NumPy RNG (seeded once by the caller), and
+    # all methods of that replication, including every ICA readout, see the
+    # same draw -- so per-seed estimates are paired across methods.
+    extended = is_extended_mode(ica_readouts, robust_baseline)
     results = [
         r
         for r in Parallel(n_jobs=-1, verbose=0)(
@@ -584,12 +680,16 @@ def run_parallel_experiments(
                 verbose,
                 oracle_support,
                 disable_baselines,
+                ica_readouts,
+                robust_baseline,
             )
             for _ in range(n_experiments)
         )
-        # ICA convergence is signalled via ica_mcc at index -3 (was -1 before
-        # the OLS/matching tuple extension); a None there means non-convergence.
-        if (check_convergence is False or r[-3] is not None)
+        # ICA convergence is signalled via ica_mcc at index -3; a None there
+        # means non-convergence (legacy path). Extended runs keep every
+        # replication (failed readouts are NaN) so failures are counted and
+        # the per-seed arrays stay aligned for paired tests.
+        if (check_convergence is False or extended or r[-3] is not None)
     ]
 
     return results
@@ -615,6 +715,29 @@ def _to_list(value) -> list:
     return [value]
 
 
+def primary_ica_estimate(ica_estimate):
+    """Return the ICA estimate used in the legacy ``ortho_rec_tau`` column.
+
+    On the default path the slot holds the estimate itself. In extended mode
+    it holds a dict of named estimates; the Munkres-oracle readout is primary
+    when present, otherwise the first ICA readout requested.
+    """
+    if not isinstance(ica_estimate, dict):
+        return ica_estimate
+    if "ica_munkres_oracle" in ica_estimate:
+        return ica_estimate["ica_munkres_oracle"]
+    return next(value for key, value in ica_estimate.items() if key.startswith("ica_"))
+
+
+def primary_ica_mcc(ica_mcc):
+    """Return the MCC of the primary ICA readout (NaN when unavailable)."""
+    if not isinstance(ica_mcc, dict):
+        return ica_mcc
+    info = ica_mcc.get("ica_munkres_oracle", next(iter(ica_mcc.values())))
+    mcc = info.get("mcc")
+    return np.nan if mcc is None else mcc
+
+
 def extract_treatment_estimates(results: List[Tuple]) -> List[List[float]]:
     """Extract treatment effect estimates from experiment result tuples.
 
@@ -636,7 +759,7 @@ def extract_treatment_estimates(results: List[Tuple]) -> List[List[float]]:
     """
     ortho_rec_tau = [
         [ortho_ml, robust_ortho_ml, robust_ortho_est_ml, robust_ortho_est_split_ml]
-        + _to_list(ica_estimate)
+        + _to_list(primary_ica_estimate(ica_estimate))
         + _to_list(ols_estimate)
         + _to_list(matching_estimate)
         for (
