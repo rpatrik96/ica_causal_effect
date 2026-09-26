@@ -180,6 +180,7 @@ def calculate_homl_moments(
     params_or_discounts: np.ndarray,
     mean_discount: float,
     probs: Optional[np.ndarray],
+    scale: float = 1.0,
 ) -> Dict[str, float]:
     """Calculate HOML-related moments for a treatment noise distribution.
 
@@ -194,6 +195,8 @@ def calculate_homl_moments(
         Mean of the distribution (used for centering in the discrete case).
     probs : np.ndarray or None
         Probability vector for "discrete"; None for continuous distributions.
+    scale : float
+        Target standard deviation for continuous distributions.
 
     Returns
     -------
@@ -222,7 +225,9 @@ def calculate_homl_moments(
             eta_third_moment,
             homl_asymptotic_var,
             _,  # homl_asymptotic_var_num
-        ) = var_calculator.calc_homl_asymptotic_var_from_distribution(noise_dist, params_or_discounts, probs)
+        ) = var_calculator.calc_homl_asymptotic_var_from_distribution(
+            noise_dist, params_or_discounts, probs, scale=scale
+        )
 
     return {
         "eta_cubed_variance": eta_cubed_variance,
@@ -263,7 +268,7 @@ def calculate_ica_moments(
     probs : np.ndarray or None
         Probability vector for "discrete"; None for continuous distributions.
     eta_cubed_variance : float
-        Pre-computed Var[eta³] = E[eta⁴]*E[eta²] - (E[eta³])².
+        Pre-computed Var[eta³] = E[eta⁶] - (E[eta³])².
 
     Returns
     -------
