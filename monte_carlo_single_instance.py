@@ -5,6 +5,7 @@ This script runs Monte Carlo experiments comparing different OML methods
 including standard orthogonal ML, robust variants, and ICA-based estimation.
 """
 
+import argparse
 import os
 import sys
 
@@ -34,6 +35,18 @@ from plot_utils import plot_typography
 
 # Default random seed for reproducibility
 DEFAULT_SEED = 12143
+
+
+def str2bool(value):
+    """Parse common textual boolean spellings for argparse."""
+    if isinstance(value, bool):
+        return value
+    normalized = value.lower()
+    if normalized in {"true", "1", "yes"}:
+        return True
+    if normalized in {"false", "0", "no"}:
+        return False
+    raise argparse.ArgumentTypeError(f"expected a boolean value, got {value!r}")
 
 
 def experiment(
@@ -469,8 +482,6 @@ def main(args):
     Args:
         args: Command-line arguments
     """
-    import argparse
-
     # Parse arguments
     parser = argparse.ArgumentParser(description="Second order orthogonal ML!")
     parser.add_argument("--n_samples", dest="n_samples", type=int, help="n_samples", default=500)
@@ -480,25 +491,31 @@ def main(args):
     parser.add_argument("--covariate_pdf", dest="covariate_pdf", type=str, help="pdf of covariates", default="gennorm")
     parser.add_argument("--output_dir", dest="output_dir", type=str, default="./figures")
     parser.add_argument(
-        "--check_convergence", dest="check_convergence", type=bool, help="check convergence", default=False
+        "--check_convergence", dest="check_convergence", type=str2bool, help="check convergence", default=False
     )
     parser.add_argument(
-        "--asymptotic_var", dest="asymptotic_var", type=bool, help="Flag to ablate asymptotic variance", default=False
+        "--asymptotic_var",
+        dest="asymptotic_var",
+        type=str2bool,
+        help="Flag to ablate asymptotic variance",
+        default=False,
     )
-    parser.add_argument("--tie_sample_dim", dest="tie_sample_dim", type=bool, help="Ties n=d**4", default=False)
-    parser.add_argument("--verbose", dest="verbose", type=bool, help="Enable verbose output", default=False)
-    parser.add_argument("--small_data", dest="small_data", type=bool, help="Flag to use a small dataset", default=False)
+    parser.add_argument("--tie_sample_dim", dest="tie_sample_dim", type=str2bool, help="Ties n=d**4", default=False)
+    parser.add_argument("--verbose", dest="verbose", type=str2bool, help="Enable verbose output", default=False)
+    parser.add_argument(
+        "--small_data", dest="small_data", type=str2bool, help="Flag to use a small dataset", default=False
+    )
     parser.add_argument(
         "--matched_coefficients",
         dest="matched_coefficients",
-        type=bool,
+        type=str2bool,
         help="Flag to indicate if treatment and outcome coefficients are matched",
         default=False,
     )
     parser.add_argument(
         "--scalar_coeffs",
         dest="scalar_coeffs",
-        type=bool,
+        type=str2bool,
         help="Flag to indicate if only one coefficient is non-zero",
         default=False,
     )
