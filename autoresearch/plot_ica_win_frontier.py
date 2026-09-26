@@ -13,6 +13,7 @@ import glob
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,10 +53,12 @@ def main():
     ax.set_yticks(range(len(etas)))
     ax.set_xticklabels([f"{e:g}" for e in epss])
     ax.set_yticklabels([f"{e:g}" for e in etas])
-    ax.set_xlabel("outcome-noise non-Gaussianity  ε ~ gennorm(β)\n"
-                  "← heavier-tailed        β        lighter →", fontsize=10)
-    ax.set_ylabel("treatment-noise non-Gaussianity  η ~ gennorm(β)\n"
-                  "← heavier-tailed        β        lighter →", fontsize=10)
+    ax.set_xlabel(
+        "outcome-noise non-Gaussianity  ε ~ gennorm(β)\n← heavier-tailed        β        lighter →", fontsize=10
+    )
+    ax.set_ylabel(
+        "treatment-noise non-Gaussianity  η ~ gennorm(β)\n← heavier-tailed        β        lighter →", fontsize=10
+    )
 
     # Gaussian reference lines (β=2): the source ICA cannot sharpen on.
     if 2.0 in epss:
@@ -71,20 +74,22 @@ def main():
             # readable text colour on each cell
             tc = "white" if abs(L[i, j]) > 0.75 else "0.12"
             txt = f"{r:.0f}" if r >= 10 else f"{r:.2f}"
-            ax.text(j, i, txt, ha="center", va="center", color=tc,
-                    fontsize=10, fontweight="bold" if B[i, j] else "normal")
+            ax.text(
+                j, i, txt, ha="center", va="center", color=tc, fontsize=10, fontweight="bold" if B[i, j] else "normal"
+            )
             if B[i, j]:  # ICA best of ALL estimators -> ring the cell
-                ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False,
-                                           edgecolor="#111", lw=2.4))
+                ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, edgecolor="#111", lw=2.4))
 
-    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03,
-                        ticks=[np.log2(v) for v in (0.5, 0.7, 1, 1.4, 2, 3)])
+    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03, ticks=[np.log2(v) for v in (0.5, 0.7, 1, 1.4, 2, 3)])
     cbar.ax.set_yticklabels(["0.5×", "0.7×", "1×", "1.4×", "2×", "3×"])
     cbar.set_label("ICA / OLS  RMSE ratio   (blue = ICA wins)", fontsize=9)
 
-    ax.set_title("Where does ICA win?  Treatment-effect RMSE, ICA vs OLS\n"
-                 "linear PLR on real (California-Housing) covariates · n=50 000 · d=5 · "
-                 "outlined = ICA best of all", fontsize=10.5)
+    ax.set_title(
+        "Where does ICA win?  Treatment-effect RMSE, ICA vs OLS\n"
+        "linear PLR on real (California-Housing) covariates · n=50 000 · d=5 · "
+        "outlined = ICA best of all",
+        fontsize=10.5,
+    )
     # legend note for the ring
     fig.tight_layout()
     for ext in ("png", "pdf"):

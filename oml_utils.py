@@ -243,7 +243,7 @@ def compute_distribution_moments(
     Returns
     -------
     dict
-        Keys: "second_moment", "third_moment", "fourth_moment",
+        Keys: "second_moment", "third_moment", "fourth_moment", "sixth_moment",
         "cubed_variance", "excess_kurtosis", "skewness", "skewness_squared".
 
     Raises
@@ -265,53 +265,59 @@ def compute_distribution_moments(
         second_moment = np.dot(centered_discounts**2, probs)
         third_moment = np.dot(centered_discounts**3, probs)
         fourth_moment = np.dot(centered_discounts**4, probs)
+        sixth_moment = np.dot(centered_discounts**6, probs)
 
     elif distribution == "laplace":
         # Laplace distribution: symmetric, heavy-tailed
-        # For Laplace(0, b): E[X^2] = 2b^2, E[X^3] = 0, E[X^4] = 24b^4
-        # We use b = scale/sqrt(2) so variance = scale^2
-        b = scale / np.sqrt(2)
+        # For Laplace(0, b), the even moments are n! b^n.
+        b = params[1] if params is not None else scale / np.sqrt(2)
         second_moment = 2 * b**2  # = scale^2
         third_moment = 0.0  # Symmetric distribution
         fourth_moment = 24 * b**4  # = 6 * scale^4
+        sixth_moment = 720 * b**6  # = 90 * scale^6
 
     elif distribution == "uniform":
         # Uniform distribution on [-a, a]: symmetric, bounded
-        # For Uniform(-a, a): E[X^2] = a^2/3, E[X^3] = 0, E[X^4] = a^4/5
-        # We use a = sqrt(3)*scale so variance = scale^2
-        a = np.sqrt(3) * scale
+        # For Uniform(-a, a), E[X^n] = a^n/(n+1) for even n.
+        a = (params[1] - params[0]) / 2 if params is not None else np.sqrt(3) * scale
         second_moment = a**2 / 3  # = scale^2
         third_moment = 0.0  # Symmetric distribution
         fourth_moment = a**4 / 5  # = 9/5 * scale^4 = 1.8 * scale^4
+        sixth_moment = a**6 / 7
 
     elif distribution == "rademacher":
         # Rademacher distribution: {-scale, +scale} with prob 0.5 each
         # E[X^2] = scale^2, E[X^3] = 0, E[X^4] = scale^4
-        second_moment = scale**2
-        third_moment = 0.0  # Symmetric distribution
-        fourth_moment = scale**4
+        if params is not None:
+            rademacher_probs = probs if probs is not None else np.full(len(params), 1 / len(params))
+            centered_support = params - np.dot(params, rademacher_probs)
+            second_moment = np.dot(centered_support**2, rademacher_probs)
+            third_moment = np.dot(centered_support**3, rademacher_probs)
+            fourth_moment = np.dot(centered_support**4, rademacher_probs)
+            sixth_moment = np.dot(centered_support**6, rademacher_probs)
+        else:
+            second_moment = scale**2
+            third_moment = 0.0  # Symmetric distribution
+            fourth_moment = scale**4
+            sixth_moment = scale**6
 
     elif distribution == "gennorm_heavy":
         # Generalized normal with beta=1 (equivalent to Laplace)
         gn_beta = 1.0
-        # Raw moments of standard gennorm(beta): E[X^n] = Gamma((n+1)/beta) / Gamma(1/beta)
-        # For centered (mean=0) symmetric distribution with unit variance
-        gn_var = gamma(3 / gn_beta) / gamma(1 / gn_beta)
-        gn_fourth = gamma(5 / gn_beta) / gamma(1 / gn_beta)
-        # Scale to have variance = scale^2
-        second_moment = scale**2
-        third_moment = 0.0  # Symmetric
-        fourth_moment = (gn_fourth / gn_var**2) * scale**4
+        gn_scale = params[2] if params is not None else scale / np.sqrt(gamma(3 / gn_beta) / gamma(1 / gn_beta))
+        second_moment = gn_scale**2 * gamma(3 / gn_beta) / gamma(1 / gn_beta)
+        third_moment = 0.0
+        fourth_moment = gn_scale**4 * gamma(5 / gn_beta) / gamma(1 / gn_beta)
+        sixth_moment = gn_scale**6 * gamma(7 / gn_beta) / gamma(1 / gn_beta)
 
     elif distribution == "gennorm_light":
         # Generalized normal with beta=4 (lighter tails than Gaussian)
         gn_beta = 4.0
-        gn_var = gamma(3 / gn_beta) / gamma(1 / gn_beta)
-        gn_fourth = gamma(5 / gn_beta) / gamma(1 / gn_beta)
-        # Scale to have variance = scale^2
-        second_moment = scale**2
-        third_moment = 0.0  # Symmetric
-        fourth_moment = (gn_fourth / gn_var**2) * scale**4
+        gn_scale = params[2] if params is not None else scale / np.sqrt(gamma(3 / gn_beta) / gamma(1 / gn_beta))
+        second_moment = gn_scale**2 * gamma(3 / gn_beta) / gamma(1 / gn_beta)
+        third_moment = 0.0
+        fourth_moment = gn_scale**4 * gamma(5 / gn_beta) / gamma(1 / gn_beta)
+        sixth_moment = gn_scale**6 * gamma(7 / gn_beta) / gamma(1 / gn_beta)
 
     elif distribution == "gennorm":
         # Generalized normal with arbitrary beta
@@ -324,11 +330,11 @@ def compute_distribution_moments(
             raise ValueError("beta parameter required for gennorm distribution (via beta arg or params[0])")
 
         gn_var = gamma(3 / gn_beta) / gamma(1 / gn_beta)
-        gn_fourth = gamma(5 / gn_beta) / gamma(1 / gn_beta)
-        # Scale to have variance = scale^2
-        second_moment = scale**2
-        third_moment = 0.0  # Symmetric
-        fourth_moment = (gn_fourth / gn_var**2) * scale**4
+        gn_scale = params[2] if params is not None and len(params) >= 3 else scale / np.sqrt(gn_var)
+        second_moment = gn_scale**2 * gn_var
+        third_moment = 0.0
+        fourth_moment = gn_scale**4 * gamma(5 / gn_beta) / gamma(1 / gn_beta)
+        sixth_moment = gn_scale**6 * gamma(7 / gn_beta) / gamma(1 / gn_beta)
 
     elif distribution == "bernoulli":
         # Asymmetric Bernoulli on pre-centered support {1-p, -p} with masses {p, 1-p}.
@@ -341,12 +347,13 @@ def compute_distribution_moments(
         second_moment = np.dot(support**2, probs)
         third_moment = np.dot(support**3, probs)
         fourth_moment = np.dot(support**4, probs)
+        sixth_moment = np.dot(support**6, probs)
 
     else:
         raise ValueError(f"Unknown distribution: {distribution}")
 
     # Compute derived quantities
-    cubed_variance = fourth_moment * second_moment - third_moment**2
+    cubed_variance = sixth_moment - third_moment**2
     excess_kurtosis = fourth_moment / (second_moment**2) - 3
     skewness = third_moment / (second_moment ** (3 / 2)) if second_moment > 0 else 0.0
 
@@ -354,6 +361,7 @@ def compute_distribution_moments(
         "second_moment": second_moment,
         "third_moment": third_moment,
         "fourth_moment": fourth_moment,
+        "sixth_moment": sixth_moment,
         "cubed_variance": cubed_variance,
         "excess_kurtosis": excess_kurtosis,
         "skewness": skewness,
@@ -396,18 +404,19 @@ class AsymptoticVarianceCalculator:
         eta_third_moment = moments["third_moment"]
         eta_fourth_moment = moments["fourth_moment"]
         eta_cubed_variance = moments["cubed_variance"]
+        eta_sixth_moment = moments["sixth_moment"]
 
-        # Non-Gaussianity condition (requires non-zero third moment for HOML)
-        # For symmetric distributions, this will be 0 which makes HOML inapplicable
-        if abs(eta_third_moment) > 1e-10:
-            eta_non_gauss_cond = eta_third_moment / np.sqrt(eta_cubed_variance)
-            homl_asymptotic_var_num = eta_cubed_variance
-            homl_asymptotic_var = homl_asymptotic_var_num / (eta_non_gauss_cond**2)
+        eta_non_gauss_cond = eta_fourth_moment - 3 * eta_second_moment**2
+        homl_asymptotic_var_num = (
+            eta_sixth_moment
+            - 6 * eta_second_moment * eta_fourth_moment
+            + 9 * eta_second_moment**3
+            - eta_third_moment**2
+        )
+        if abs(eta_non_gauss_cond) > 1e-10:
+            homl_asymptotic_var = homl_asymptotic_var_num / eta_non_gauss_cond**2
         else:
-            # For symmetric distributions, HOML is not applicable
-            eta_non_gauss_cond = 0.0
-            homl_asymptotic_var_num = eta_cubed_variance
-            homl_asymptotic_var = np.inf  # HOML not applicable
+            homl_asymptotic_var = np.inf
 
         return (
             eta_cubed_variance,
@@ -425,9 +434,9 @@ class AsymptoticVarianceCalculator:
     ) -> Tuple[float, float, float, float, float, float, float]:
         """Calculate HOML asymptotic variance components for discrete treatment noise.
 
-        The HOML asymptotic variance is Var[eta³] / (E[eta³] / sqrt(Var[eta³]))²,
-        which simplifies to Var[eta³] / (E[eta³])² * Var[eta³] = Var[eta³]².
-        Returns inf when E[eta³] = 0 (symmetric distribution).
+        The HOML asymptotic variance is
+        ``(m6 - 6*m2*m4 + 9*m2**3 - m3**2) / (m4 - 3*m2**2)**2``.
+        It is infinite when the fourth cumulant is zero.
 
         Parameters
         ----------
@@ -452,16 +461,24 @@ class AsymptoticVarianceCalculator:
         eta_second_moment = np.dot(centered_discounts**2, probs)
         eta_third_moment = np.dot(centered_discounts**3, probs)
         eta_fourth_moment = np.dot(centered_discounts**4, probs)
+        eta_sixth_moment = np.dot(centered_discounts**6, probs)
 
         # Compute variance of cubed noise
-        eta_cubed_variance = eta_fourth_moment * eta_second_moment - eta_third_moment**2
+        eta_cubed_variance = eta_sixth_moment - eta_third_moment**2
 
         # Non-Gaussianity condition
-        eta_non_gauss_cond = eta_third_moment / np.sqrt(eta_cubed_variance)
+        eta_non_gauss_cond = eta_fourth_moment - 3 * eta_second_moment**2
 
         # HOML asymptotic variance
-        homl_asymptotic_var_num = eta_cubed_variance
-        homl_asymptotic_var = homl_asymptotic_var_num / (eta_non_gauss_cond**2)
+        homl_asymptotic_var_num = (
+            eta_sixth_moment
+            - 6 * eta_second_moment * eta_fourth_moment
+            + 9 * eta_second_moment**3
+            - eta_third_moment**2
+        )
+        homl_asymptotic_var = (
+            homl_asymptotic_var_num / eta_non_gauss_cond**2 if abs(eta_non_gauss_cond) > 1e-10 else np.inf
+        )
 
         return (
             eta_cubed_variance,
@@ -504,7 +521,7 @@ class AsymptoticVarianceCalculator:
         probs : np.ndarray
             Probability vector corresponding to each discount value.
         eta_cubed_variance : float
-            Pre-computed Var[eta³] = E[eta⁴]*E[eta²] - (E[eta³])².
+            Pre-computed Var[eta³] = E[eta⁶] - (E[eta³])².
 
         Returns
         -------
@@ -524,7 +541,8 @@ class AsymptoticVarianceCalculator:
         eta_skewness_squared = (eta_third_moment / eta_second_moment ** (3 / 2)) ** 2
         eta_excess_kurtosis = eta_fourth_moment / (eta_second_moment**2) - 3
 
-        # ICA variance coefficient
+        # TODO(theory): The implemented ratio readout's variance depends on b,
+        # not b + a * theta (see eval report).
         ica_var_coeff = 1 + np.linalg.norm(outcome_coef + treatment_coef * treatment_effect) ** 2
 
         # ICA asymptotic variances
@@ -585,7 +603,8 @@ class AsymptoticVarianceCalculator:
         eta_skewness_squared = moments["skewness_squared"]
         eta_cubed_variance = moments["cubed_variance"]
 
-        # ICA variance coefficient
+        # TODO(theory): The implemented ratio readout's variance depends on b,
+        # not b + a * theta (see eval report).
         ica_var_coeff = 1 + np.linalg.norm(outcome_coef + treatment_coef * treatment_effect) ** 2
 
         # ICA asymptotic variances

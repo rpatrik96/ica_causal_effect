@@ -26,7 +26,6 @@ Mirrors the conventions of ``realdata_loaders.py`` (module-level DATA_DIR cache,
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import numpy as np
@@ -43,8 +42,10 @@ def _cache_path(name: str) -> Path:
 
 
 def _correlated_fixture(n: int, d: int, seed: int = 0) -> np.ndarray:
-    """Schema-matched synthetic fallback: a correlated Gaussian covariate block
-    (so the pipeline runs offline; NOT a real-data substitute for grading)."""
+    """Schema-matched synthetic fallback: a correlated Gaussian covariate block.
+
+    This lets the pipeline run offline; it is not a real-data substitute for grading.
+    """
     rng = np.random.default_rng(seed)
     latent = rng.standard_normal((n, max(2, d // 3)))
     mixing = rng.standard_normal((latent.shape[1], d))
@@ -87,9 +88,7 @@ def load_news20_covariates(
         from sklearn.feature_extraction.text import TfidfVectorizer
 
         cats = categories or ["sci.med", "sci.space", "rec.autos", "comp.graphics"]
-        ng = fetch_20newsgroups(
-            subset="train", categories=cats, remove=("headers", "footers", "quotes")
-        )
+        ng = fetch_20newsgroups(subset="train", categories=cats, remove=("headers", "footers", "quotes"))
         Xs = TfidfVectorizer(max_features=max_features, min_df=5).fit_transform(ng.data)
         X = np.asarray(Xs.todense(), dtype=np.float64)
         base.mkdir(parents=True, exist_ok=True)
@@ -102,12 +101,16 @@ def load_news20_covariates(
         return _correlated_fixture(1800, 2000, seed=2)
 
 
-def load_synthetic_covariates(data_dir=None, use_fixture_on_failure=True,
-                              n_rows=60000, d=10) -> np.ndarray:
-    """Large iid-Gaussian covariate matrix (n_rows, d), cached. The synthetic
+def load_synthetic_covariates(  # pylint: disable=unused-argument
+    data_dir=None, use_fixture_on_failure=True, n_rows=60000, d=10
+) -> np.ndarray:
+    """Return a large iid-Gaussian covariate matrix (n_rows, d), cached.
+
+    The synthetic
     control for frontier-robustness checks: confirms an effect is intrinsic to the
     estimators, not a real-covariate artifact, and supplies unlimited real (non-
-    bootstrapped) rows for the n>>d regime."""
+    bootstrapped) rows for the n>>d regime.
+    """
     base = Path(data_dir) if data_dir else DATA_DIR
     cache = base / "synthetic_X.npy"
     if cache.exists():
@@ -119,11 +122,15 @@ def load_synthetic_covariates(data_dir=None, use_fixture_on_failure=True,
     return X
 
 
-def load_synthetic_hd_covariates(data_dir=None, use_fixture_on_failure=True,
-                                 n_rows=30000, d=400) -> np.ndarray:
-    """High-dimensional iid-Gaussian covariates (30000, 400), cached. Lets the
+def load_synthetic_hd_covariates(  # pylint: disable=unused-argument
+    data_dir=None, use_fixture_on_failure=True, n_rows=30000, d=400
+) -> np.ndarray:
+    """Return high-dimensional iid-Gaussian covariates (30000, 400), cached.
+
+    This lets the
     multi-feature selector eval reach the d >= n regime (predisentangle to up to
-    ~300 components, subsample down to n=200 -> d/n up to ~1.5)."""
+    ~300 components, subsample down to n=200 -> d/n up to ~1.5).
+    """
     base = Path(data_dir) if data_dir else DATA_DIR
     cache = base / "synthetic_hd_X.npy"
     if cache.exists():
@@ -178,18 +185,24 @@ def predisentangle(X, n_components=10, method="pca", whiten=True, random_state=0
 
 
 def _gennorm_eta(beta, size, rng) -> np.ndarray:
-    """Zero-mean gennorm(beta) noise standardized to unit variance (β=1 Laplace,
-    β=2 Gaussian, β<2 heavy-tailed). ICA's identifiability lever is β≠2."""
+    """Return zero-mean gennorm(beta) noise standardized to unit variance.
+
+    β=1 is Laplace, β=2 is Gaussian, and β<2 is heavy-tailed. ICA's
+    identifiability lever is β≠2.
+    """
     scale = 1.0 / float(np.sqrt(gennorm.var(beta)))
     eta = gennorm.rvs(beta, scale=scale, size=size, random_state=rng)
     return eta - eta.mean()
 
 
 def _plr_mean(X, coef, quad_coef, nonlinear):
-    """Conditional mean m(X)/g(X). Linear ``X@coef``, or (nonlinear) a
+    """Return the conditional mean m(X)/g(X).
+
+    This is linear ``X@coef``, or (nonlinear) a
     sin + quadratic map mirroring ``nonlinear_dgp``'s
     ``g(X)=Σ sin(π X_j)·coef + 0.5·Σ X_j²·quad`` — a form linear OLS/OML with a
-    linear first stage cannot represent."""
+    linear first stage cannot represent.
+    """
     if not nonlinear:
         return X @ coef
     out = np.sin(np.pi * X) @ coef
@@ -199,8 +212,17 @@ def _plr_mean(X, coef, quad_coef, nonlinear):
 
 
 def impose_plr(
-    X, theta, treatment_coef, outcome_coef, sigma_eps=1.0, eta_beta=1.0, seed=0,
-    nonlinear=False, treatment_quad=None, outcome_quad=None, eps_beta=None,
+    X,
+    theta,
+    treatment_coef,
+    outcome_coef,
+    sigma_eps=1.0,
+    eta_beta=1.0,
+    seed=0,
+    nonlinear=False,
+    treatment_quad=None,
+    outcome_quad=None,
+    eps_beta=None,
     eta_eps_corr=0.0,
 ):
     """Impose ``T = m(X) + η``, ``Y = θT + g(X) + ε`` on pre-disentangled ``X``.
@@ -220,8 +242,7 @@ def impose_plr(
     """
     rng = np.random.default_rng(seed)
     eta = _gennorm_eta(eta_beta, X.shape[0], rng)
-    base_eps = (rng.normal(0.0, 1.0, size=X.shape[0]) if eps_beta is None
-                else _gennorm_eta(eps_beta, X.shape[0], rng))
+    base_eps = rng.normal(0.0, 1.0, size=X.shape[0]) if eps_beta is None else _gennorm_eta(eps_beta, X.shape[0], rng)
     if eta_eps_corr:
         rho = float(eta_eps_corr)
         base_eps = rho * eta + np.sqrt(max(0.0, 1.0 - rho * rho)) * base_eps
@@ -234,17 +255,18 @@ def impose_plr(
 
 
 def make_coefficients(d, seed=0, scale=1.0):
-    """Fixed (dataset-level) PLR coefficients on the ``d`` pre-disentangled
-    components, drawn once so only the noise varies across MC experiments. Returns
+    """Return fixed dataset-level PLR coefficients on the ``d`` components.
+
+    They are drawn once so only the noise varies across MC experiments. Returns
     ``(m, g, m_quad, g_quad)``: linear treatment/outcome vectors plus the quadratic
-    coefficients used only in the nonlinear recast."""
+    coefficients used only in the nonlinear recast.
+    """
     rng = np.random.default_rng(seed)
     m = scale * rng.standard_normal(d) / np.sqrt(d)
     g = scale * rng.standard_normal(d) / np.sqrt(d)
     m_quad = scale * rng.standard_normal(d) / np.sqrt(d)
     g_quad = scale * rng.standard_normal(d) / np.sqrt(d)
-    return (m.astype(np.float64), g.astype(np.float64),
-            m_quad.astype(np.float64), g_quad.astype(np.float64))
+    return (m.astype(np.float64), g.astype(np.float64), m_quad.astype(np.float64), g_quad.astype(np.float64))
 
 
 if __name__ == "__main__":  # smoke: cache both datasets, print shapes
@@ -254,5 +276,6 @@ if __name__ == "__main__":  # smoke: cache both datasets, print shapes
         Z = predisentangle(X, n_components=10, method=method)
         m, g, mq, gq = make_coefficients(Z.shape[1], seed=0)
         T, Y, th, m2, m3 = impose_plr(Z[:500], 1.0, m, g, eta_beta=1.0, seed=0)
-        print(f"{name}: X{X.shape} -> Z{Z.shape}  T{T.shape} Y{Y.shape} theta={th} "
-              f"eta_var={m2:.3f} eta_m3={m3:.3f}")
+        print(
+            f"{name}: X{X.shape} -> Z{Z.shape}  T{T.shape} Y{Y.shape} theta={th} " f"eta_var={m2:.3f} eta_m3={m3:.3f}"
+        )

@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import argparse
 import glob
-import os
 from pathlib import Path
 
 import numpy as np
@@ -85,7 +84,7 @@ def collect(results_root: Path, round_name: str) -> list[dict]:
         for npy in npys:
             try:
                 arr = np.load(npy, allow_pickle=True)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001  pylint: disable=broad-exception-caught
                 rows.append({"job": job_dir.name, "note": f"load_error: {exc}"})
                 continue
             payload = arr.tolist() if arr.ndim else [arr.item()]
@@ -121,7 +120,16 @@ def print_headline(rows: list[dict]) -> None:
     if not data:
         print("(no metric rows)")
         return
-    data.sort(key=lambda r: (r["eta_noise_dist"], r.get("oracle", ""), r["beta"], r["support_size"], r["n_samples"], r["treatment_effect"]))
+    data.sort(
+        key=lambda r: (
+            r["eta_noise_dist"],
+            r.get("oracle", ""),
+            r["beta"],
+            r["support_size"],
+            r["n_samples"],
+            r["treatment_effect"],
+        )
+    )
     hdr = ["eta", "oracle", "d", "D", "n", "kept"] + [f"{m}.rmse" for m in HEADLINE]
     print("  ".join(f"{h:>10s}" for h in hdr))
     for r in data:

@@ -52,6 +52,8 @@ def compute_ica_var_coeff(
     Returns:
         ICA variance coefficient
     """
+    # TODO(theory): The implemented ratio readout's variance depends on b,
+    # not b + a * theta (see eval report).
     return 1 + (outcome_coef_scalar + treatment_coef_scalar * treatment_effect) ** 2
 
 
@@ -231,7 +233,8 @@ def run_noise_ablation_experiments(
         # Calculate empirical kurtosis
         empirical_eta_samples = eta_sample(100000)
         empirical_excess_kurtosis = scipy_kurtosis(empirical_eta_samples, fisher=True)
-        print(f"  Theoretical excess kurtosis: {eta_cubed_variance / eta_second_moment**2 - 3:.4f}")
+        theoretical_excess_kurtosis = eta_fourth_moment / eta_second_moment**2 - 3
+        print(f"  Theoretical excess kurtosis: {theoretical_excess_kurtosis:.4f}")
         print(f"  Empirical excess kurtosis: {empirical_excess_kurtosis:.4f}")
 
         # Store per-config results
@@ -246,6 +249,8 @@ def run_noise_ablation_experiments(
             current_treatment_effect = te_val
 
             # Calculate ICA variance coefficient
+            # TODO(theory): The implemented ratio readout's variance depends on b,
+            # not b + a * theta (see eval report).
             ica_var_coeff = 1 + np.linalg.norm(outcome_coef + treatment_coef * current_treatment_effect) ** 2
 
             if randomize_coeffs:
@@ -457,6 +462,8 @@ def run_variance_ablation_experiments(
     lambda_reg = np.sqrt(np.log(cov_dim_max) / n_samples)
 
     # Calculate ICA variance coefficient (fixed for this experiment)
+    # TODO(theory): The implemented ratio readout's variance depends on b,
+    # not b + a * theta (see eval report).
     ica_var_coeff = 1 + np.linalg.norm(outcome_coef + treatment_coef * treatment_effect) ** 2
 
     all_results = {
@@ -489,7 +496,7 @@ def run_variance_ablation_experiments(
             )
 
             # Calculate moments using shared utility
-            moments = calculate_homl_moments("gennorm", params_or_discounts, mean_discount, probs)
+            moments = calculate_homl_moments("gennorm", params_or_discounts, mean_discount, probs, scale=scale_val)
             eta_second_moment = moments["eta_second_moment"]
             eta_third_moment = moments["eta_third_moment"]
             eta_cubed_variance = moments["eta_cubed_variance"]
@@ -656,6 +663,8 @@ def run_coefficient_ablation_experiments(
         current_treatment_effect = te_val
 
         # Calculate ICA variance coefficient
+        # TODO(theory): The implemented ratio readout's variance depends on b,
+        # not b + a * theta (see eval report).
         ica_var_coeff = 1 + np.linalg.norm(outcome_coef + treatment_coef * current_treatment_effect) ** 2
 
         print(
@@ -826,6 +835,8 @@ def run_sample_dimension_grid_experiments(
         outcome_coef[0] = outcome_coef_scalar
 
         # Calculate ICA variance coefficient
+        # TODO(theory): The implemented ratio readout's variance depends on b,
+        # not b + a * theta (see eval report).
         ica_var_coeff = 1 + np.linalg.norm(outcome_coef + treatment_coef * treatment_effect) ** 2
 
         # Setup samplers

@@ -3,8 +3,10 @@
 import numpy as np
 import pytest
 import torch
+from scipy.stats import gennorm
 
-from ica import generate_ica_data, ica_treatment_effect_estimation
+import ica as ica_module
+from ica import generate_ica_data, ica_treatment_effect_estimation, ica_treatment_effect_estimation_eps_row
 
 
 class TestGenerateICAData:
@@ -197,3 +199,27 @@ class TestICAEstimation:
             assert mcc is None, "MCC should be None if convergence failed"
         else:
             assert mcc is not None, "MCC should not be None if convergence succeeded"
+
+
+@pytest.mark.parametrize("estimator", [ica_treatment_effect_estimation, ica_treatment_effect_estimation_eps_row])
+def test_ica_retries_with_relaxed_tolerance(monkeypatch, estimator):
+    """A five-iteration failure is retried and converges at a looser tolerance."""
+    rng = np.random.default_rng(0)
+    sources = gennorm.rvs(1.0, size=(500, 4), random_state=rng)
+    observations = sources @ rng.normal(size=(4, 4)).T
+    convergence_info = {}
+    monkeypatch.setattr(ica_module, "ICA_MAX_ITER", 5)
+
+    estimate, _ = estimator(
+        observations,
+        sources,
+        random_state=0,
+        check_convergence=True,
+        verbose=False,
+        convergence_info=convergence_info,
+    )
+
+    assert convergence_info["converged"] is True
+    assert convergence_info["attempts"] > 1
+    assert convergence_info["tol"] > ica_module.ICA_BASE_TOL
+    assert np.isfinite(estimate).all()

@@ -12,6 +12,7 @@ import glob
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,16 +28,21 @@ def main():
         if float(d["selector_tau"]) != TAU:
             continue
         rmse = np.asarray(d["rmse"], float)
-        sel.append(d["selector_rmse"]); orc.append(d["oracle_fixed_rmse"])
-        ica.append(rmse[4]); oml.append(rmse[0])
-    rms = lambda v: float(np.sqrt(np.mean(np.square(v))))
+        sel.append(d["selector_rmse"])
+        orc.append(d["oracle_fixed_rmse"])
+        ica.append(rmse[4])
+        oml.append(rmse[0])
+
+    def rms(v):
+        return float(np.sqrt(np.mean(np.square(v))))
+
     vals = [rms(ica), rms(oml), rms(sel), rms(orc)]
     labels = ["always\nICA", "always\nOML", "Selector\n(ε-kurtosis)", "per-cell\noracle"]
     # muted grey for references, one accent for the Selector, light grey for oracle
     colors = ["#9aa0a6", "#9aa0a6", "#2f6fb0", "#c7ccd1"]
 
     fig, ax = plt.subplots(figsize=(6.6, 4.6))
-    bars = ax.bar(range(4), vals, color=colors, width=0.62, zorder=3)
+    ax.bar(range(4), vals, color=colors, width=0.62, zorder=3)
     ax.set_yscale("log")
     ax.set_ylim(0.004, 0.4)
     ax.set_xticks(range(4))
@@ -46,18 +52,37 @@ def main():
     for spine in ("top", "right"):
         ax.spines[spine].set_visible(False)
     for i, v in enumerate(vals):
-        ax.text(i, v * 1.06, f"{v:.4f}", ha="center", va="bottom",
-                fontsize=10, fontweight="bold" if i == 2 else "normal",
-                color="#1a1a1a")
-    ax.text(0, vals[0] * 1.28, "24× worse\n(ICA blows up at\nGaussian-ε cells)",
-            ha="center", va="bottom", fontsize=8, color="#7a2f2f")
-    ax.set_title("WS4 selector matches the oracle and avoids ICA's blow-ups\n"
-                 "linear PLR, synthetic X, n=20 000, d=5 · pick ICA if est. ε-kurtosis > 8",
-                 fontsize=10.5)
+        ax.text(
+            i,
+            v * 1.06,
+            f"{v:.4f}",
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            fontweight="bold" if i == 2 else "normal",
+            color="#1a1a1a",
+        )
+    ax.text(
+        0,
+        vals[0] * 1.28,
+        "24× worse\n(ICA blows up at\nGaussian-ε cells)",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+        color="#7a2f2f",
+    )
+    ax.set_title(
+        "WS4 selector matches the oracle and avoids ICA's blow-ups\n"
+        "linear PLR, synthetic X, n=20 000, d=5 · pick ICA if est. ε-kurtosis > 8",
+        fontsize=10.5,
+    )
     fig.tight_layout()
     for ext in ("png", "pdf"):
         fig.savefig(R / f"selector_regret.{ext}", dpi=160, bbox_inches="tight")
-    print(f"saved -> {R/'selector_regret.png'}  vals={dict(zip(['ICA','OML','SEL','oracle'],[round(v,4) for v in vals]))}")
+    print(
+        f"saved -> {R/'selector_regret.png'}  "
+        f"vals={dict(zip(['ICA', 'OML', 'SEL', 'oracle'], [round(v, 4) for v in vals]))}"
+    )
 
 
 if __name__ == "__main__":

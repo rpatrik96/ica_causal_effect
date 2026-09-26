@@ -77,6 +77,22 @@ METHOD_NAMES: Tuple[str, ...] = (
 )
 
 
+def _summarize_estimates(estimates: np.ndarray, treatment_effect: float):
+    """Compute method statistics on the rows finite for every method."""
+    finite_per_method = np.isfinite(estimates).sum(axis=0)
+    finite_mask = np.isfinite(estimates).all(axis=1)
+    estimates_finite = estimates[finite_mask]
+    if estimates_finite.shape[0] == 0:
+        empty = np.full(estimates.shape[1], np.nan)
+        return finite_mask, estimates_finite, finite_per_method, empty, empty.copy(), empty.copy()
+
+    errors = estimates_finite - treatment_effect
+    biases = np.mean(errors, axis=0)
+    sigmas = np.std(estimates_finite, axis=0)
+    rmse = np.sqrt(np.mean(errors**2, axis=0))
+    return finite_mask, estimates_finite, finite_per_method, biases, sigmas, rmse
+
+
 def _make_nuisance_models(nuisance: str):
     """Return (model_treatment, model_outcome) for the chosen nuisance type.
 
@@ -247,7 +263,9 @@ def run_nonlinear_experiments(
 
     estimates = np.array(results, dtype=float)
 
-    finite_per_col = np.isfinite(estimates).sum(axis=0)
+    finite_mask, estimates_finite, finite_per_col, biases, sigmas, rmse = _summarize_estimates(
+        estimates, config.treatment_effect
+    )
     if verbose:
         for name, n_finite in zip(METHOD_NAMES, finite_per_col):
             n_non = len(seeds) - int(n_finite)
@@ -256,13 +274,6 @@ def run_nonlinear_experiments(
                     f"[nonlinear_runner] {name}: {n_non}/{len(seeds)} "
                     "replications produced non-finite estimates and were dropped."
                 )
-
-    finite_mask = np.all(np.isfinite(estimates), axis=1)
-    estimates_finite = estimates[finite_mask]
-
-    biases = np.nanmean(estimates - config.treatment_effect, axis=0)
-    sigmas = np.nanstd(estimates, axis=0)
-    rmse = np.sqrt(biases**2 + sigmas**2)
 
     d_eff = config.high_dim_d if config.high_dim else config.n_covariates
 

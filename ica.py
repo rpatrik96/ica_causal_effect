@@ -6,11 +6,14 @@ treatment effects theta in Y = D*theta + X*b + eps, where D, X, eps are
 mutually independent non-Gaussian sources.
 """
 
+import warnings
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 from scipy.stats import gennorm
 from sklearn.decomposition import FastICA
+from sklearn.exceptions import ConvergenceWarning
 
 from mcc import calc_disent_metrics
 
@@ -21,6 +24,43 @@ ICA_MAX_RETRIES = 5
 
 # Fixed treatment effect vector used when theta_choice="fixed"
 DEFAULT_TREATMENT_EFFECTS = [1.55, 0.65, -2.45, 1.75, -1.35]
+
+
+def _fit_fastica_with_retries(X, random_state, whiten, fun, verbose, convergence_info):
+    """Fit FastICA, relaxing its tolerance after convergence failures."""
+    tol = ICA_BASE_TOL
+    converged = False
+
+    for attempt in range(ICA_MAX_RETRIES):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", ConvergenceWarning)
+            ica = FastICA(
+                n_components=X.shape[1],
+                random_state=random_state + attempt,
+                max_iter=ICA_MAX_ITER,
+                whiten=whiten,
+                tol=tol,
+                fun=fun,
+            )
+            S_hat = ica.fit_transform(X)
+
+        convergence_warning = any(issubclass(warning.category, ConvergenceWarning) for warning in caught)
+        if not convergence_warning:
+            converged = True
+            if verbose:
+                print(f"success at attempt={attempt}, tol={tol:g}")
+            break
+
+        if verbose:
+            print(f"convergence warning at attempt={attempt}, tol={tol:g}")
+        if attempt < ICA_MAX_RETRIES - 1:
+            tol *= 10
+
+    if convergence_info is not None:
+        convergence_info.clear()
+        convergence_info.update(converged=converged, attempts=attempt + 1, tol=tol)
+
+    return ica, S_hat, converged
 
 
 def generate_ica_data(
@@ -170,6 +210,7 @@ def ica_treatment_effect_estimation(
     n_treatments: int = 1,
     verbose: bool = True,
     fun: str = "logcosh",
+    convergence_info: dict = None,
 ) -> tuple:
     """Estimate treatment effects via FastICA with Munkres permutation matching.
 
@@ -190,13 +231,16 @@ def ica_treatment_effect_estimation(
     whiten : str
         Whitening strategy passed to FastICA.
     check_convergence : bool
-        If True, return NaN when FastICA fails to converge within max iterations.
+        If True, return NaN when FastICA fails to converge after all retries.
     n_treatments : int
         Number of treatment variables.
     verbose : bool
         Print convergence attempt information.
     fun : str
         Contrast function for FastICA ("logcosh", "exp", or "cube").
+    convergence_info : dict, optional
+        Mutable output populated with ``converged``, ``attempts``, and the final
+        ``tol`` while preserving the existing return value.
 
     Returns
     -------
@@ -206,37 +250,11 @@ def ica_treatment_effect_estimation(
     mcc : float or None
         Permutation disentanglement score (MCC), or None on failure.
     """
-    from warnings import catch_warnings  # pylint: disable=import-outside-toplevel
-
-    tol = ICA_BASE_TOL  # Initial tolerance
-
-    for attempt in range(ICA_MAX_RETRIES):
-        with catch_warnings(record=True) as w:
-
-            ica = FastICA(
-                n_components=X.shape[1],
-                random_state=random_state + attempt,
-                max_iter=ICA_MAX_ITER,
-                whiten=whiten,
-                tol=tol,
-                fun=fun,
-            )
-            S_hat = ica.fit_transform(X)
-
-            if len(w) > 0 and check_convergence is True:
-                if verbose:
-                    print(f"warning at {attempt=}")
-                print("Max tolerance reached without convergence")
-                return (
-                    np.nan
-                    * np.ones(
-                        n_treatments,
-                    ),
-                    None,
-                )
-            if verbose:
-                print(f"success at {attempt=}")
-            break
+    ica, S_hat, converged = _fit_fastica_with_retries(X, random_state, whiten, fun, verbose, convergence_info)
+    if not converged and check_convergence:
+        if verbose:
+            print("Maximum retry tolerance reached without convergence")
+        return np.nan * np.ones(n_treatments), None
 
     results = calc_disent_metrics(S, S_hat)
     # resolve the permutations
@@ -260,6 +278,7 @@ def ica_treatment_effect_estimation_eps_row(
     verbose: bool = True,
     fun: str = "logcosh",
     eps_identification: str = "y_loading",
+    convergence_info: dict = None,
 ) -> tuple:
     """Estimate treatment effects by identifying the eps component from W.
 
@@ -294,7 +313,7 @@ def ica_treatment_effect_estimation_eps_row(
     whiten : str
         Whitening strategy for FastICA.
     check_convergence : bool
-        If True, return NaN when FastICA fails to converge.
+        If True, return NaN when FastICA fails to converge after all retries.
     n_treatments : int
         Number of treatment variables.
     verbose : bool
@@ -304,6 +323,9 @@ def ica_treatment_effect_estimation_eps_row(
     eps_identification : str
         Strategy used to locate the eps row of W. One of ``"y_loading"`` or
         ``"kurtosis"``. See discussion above.
+    convergence_info : dict, optional
+        Mutable output populated with ``converged``, ``attempts``, and the final
+        ``tol`` while preserving the existing return value.
 
     Returns
     -------
@@ -315,35 +337,13 @@ def ica_treatment_effect_estimation_eps_row(
     """
     if eps_identification not in ("y_loading", "kurtosis"):
         raise ValueError(f"eps_identification must be 'y_loading' or 'kurtosis', got '{eps_identification}'")
-    from warnings import catch_warnings  # pylint: disable=import-outside-toplevel
-
     from scipy.stats import kurtosis  # pylint: disable=import-outside-toplevel
 
-    tol = ICA_BASE_TOL
-
-    for attempt in range(ICA_MAX_RETRIES):
-        with catch_warnings(record=True) as w:
-            ica = FastICA(
-                n_components=X.shape[1],
-                random_state=random_state + attempt,
-                max_iter=ICA_MAX_ITER,
-                whiten=whiten,
-                tol=tol,
-                fun=fun,
-            )
-            S_hat = ica.fit_transform(X)
-
-            if len(w) > 0 and check_convergence is True:
-                if verbose:
-                    print(f"warning at {attempt=}")
-                print("Max tolerance reached without convergence")
-                return (
-                    np.nan * np.ones(n_treatments),
-                    None,
-                )
-            if verbose:
-                print(f"success at {attempt=}")
-            break
+    ica, S_hat, converged = _fit_fastica_with_retries(X, random_state, whiten, fun, verbose, convergence_info)
+    if not converged and check_convergence:
+        if verbose:
+            print("Maximum retry tolerance reached without convergence")
+        return np.nan * np.ones(n_treatments), None
 
     # Identify the eps row of W. See the docstring for the difference between
     # the two strategies. Y-loading is robust for binary T; kurtosis is the

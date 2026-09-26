@@ -117,7 +117,7 @@ def print_headline(rows: list[dict]) -> None:
             f"{r['n_samples']:>12d}",
             f"{str(r['n_exp_kept']) + '/' + str(r['n_attempted']):>12s}",
         ]
-        for short, idx in HEADLINE.items():
+        for idx in HEADLINE.values():
             cells.append(f"{r.get(METHOD_NAMES[idx] + '.rmse', float('nan')):>12.4g}")
         print("  ".join(cells))
 

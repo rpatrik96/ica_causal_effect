@@ -34,14 +34,20 @@ def load_cells(round_name):
     for f in glob.glob(str(RESULTS / round_name / "**" / "*.npy"), recursive=True):
         d = np.load(f, allow_pickle=True).item()
         cr = {c: d[f"cand_rmse_{c}"] for c in CANDS}
-        cells.append({
-            "feats": {"nonlinearity_score": d["mean_nonlinearity"],
-                      "d_over_n": d["mean_d_over_n"],
-                      "eps_excess_kurtosis": d["mean_eps_kurt"],
-                      "n": int(d["n_samples"]), "d": int(d["n_covariates"])},
-            "cand": cr, "oracle": min(cr.values()),
-            "oracle_name": min(cr, key=cr.get),
-        })
+        cells.append(
+            {
+                "feats": {
+                    "nonlinearity_score": d["mean_nonlinearity"],
+                    "d_over_n": d["mean_d_over_n"],
+                    "eps_excess_kurtosis": d["mean_eps_kurt"],
+                    "n": int(d["n_samples"]),
+                    "d": int(d["n_covariates"]),
+                },
+                "cand": cr,
+                "oracle": min(cr.values()),
+                "oracle_name": min(cr, key=cr.get),
+            }
+        )
     return cells
 
 
@@ -50,11 +56,21 @@ def total_regret(cells, thresholds):
     for c in cells:
         pick = selm.select_estimator_multi(c["feats"], thresholds)
         sel = c["cand"][pick]
-        reg.append(sel - c["oracle"]); sq_sel.append(sel); sq_orc.append(c["oracle"])
-        match += (pick == c["oracle_name"])
-    rms = lambda v: float(np.sqrt(np.nanmean(np.square(v))))
-    return {"rms_sel": rms(sq_sel), "rms_oracle": rms(sq_orc),
-            "regret": rms(sq_sel) - rms(sq_orc), "match": match, "n": len(cells)}
+        reg.append(sel - c["oracle"])
+        sq_sel.append(sel)
+        sq_orc.append(c["oracle"])
+        match += pick == c["oracle_name"]
+
+    def rms(v):
+        return float(np.sqrt(np.nanmean(np.square(v))))
+
+    return {
+        "rms_sel": rms(sq_sel),
+        "rms_oracle": rms(sq_orc),
+        "regret": rms(sq_sel) - rms(sq_orc),
+        "match": match,
+        "n": len(cells),
+    }
 
 
 def calibrate(cells):
@@ -76,8 +92,10 @@ def calibrate(cells):
 
 def _report(name, cells, th):
     r = total_regret(cells, th)
-    print(f"  {name:<18} regret={r['regret']:+.4f}  (sel={r['rms_sel']:.4f} "
-          f"oracle={r['rms_oracle']:.4f})  match={r['match']}/{r['n']}")
+    print(
+        f"  {name:<18} regret={r['regret']:+.4f}  (sel={r['rms_sel']:.4f} "
+        f"oracle={r['rms_oracle']:.4f})  match={r['match']}/{r['n']}"
+    )
 
 
 def main():
@@ -88,7 +106,7 @@ def main():
     args = ap.parse_args()
 
     calib = load_cells(args.calib)
-    th_cal, reg_cal = calibrate(calib)
+    th_cal, _reg_cal = calibrate(calib)
     th_def = selm.DEFAULT_THRESHOLDS
     print(f"calibrated thresholds (on {args.calib}, {len(calib)} cells): {th_cal}")
     print(f"hand-set defaults:                        {dict(th_def)}\n")
