@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-"""WS4 closure chart: the interpretable hand-set rule beats the best fixed
-estimator and a learned tree, on the pooled r13+r14 cells."""
+"""Plot the WS4 closure chart.
+
+The interpretable hand-set rule beats the best fixed estimator and a learned
+tree on the pooled r13+r14 cells.
+"""
 from __future__ import annotations
 
 import matplotlib
@@ -22,12 +25,15 @@ def main():
     X, y = L.featmat(cells)
     # learned-tree LOO regret
     loo = []
-    for i in range(len(cells)):
+    for i, cell in enumerate(cells):
         c = DecisionTreeClassifier(max_depth=3, min_samples_leaf=3, random_state=0).fit(
             np.delete(X, i, 0), np.delete(y, i)
         )
-        loo.append(cells[i]["cand"][c.predict(X[i : i + 1])[0]])
-    rms = lambda v: float(np.sqrt(np.nanmean(np.square(v))))
+        loo.append(cell["cand"][c.predict(X[i : i + 1])[0]])
+
+    def rms(v):
+        return float(np.sqrt(np.nanmean(np.square(v))))
+
     orc = rms([c["oracle"] for c in cells])
     reg_omllin, _ = L.regret(cells, lambda f: "OML_lin")
     reg_tree = rms(loo) - orc

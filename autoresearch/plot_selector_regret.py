@@ -32,14 +32,17 @@ def main():
         orc.append(d["oracle_fixed_rmse"])
         ica.append(rmse[4])
         oml.append(rmse[0])
-    rms = lambda v: float(np.sqrt(np.mean(np.square(v))))
+
+    def rms(v):
+        return float(np.sqrt(np.mean(np.square(v))))
+
     vals = [rms(ica), rms(oml), rms(sel), rms(orc)]
     labels = ["always\nICA", "always\nOML", "Selector\n(ε-kurtosis)", "per-cell\noracle"]
     # muted grey for references, one accent for the Selector, light grey for oracle
     colors = ["#9aa0a6", "#9aa0a6", "#2f6fb0", "#c7ccd1"]
 
     fig, ax = plt.subplots(figsize=(6.6, 4.6))
-    bars = ax.bar(range(4), vals, color=colors, width=0.62, zorder=3)
+    ax.bar(range(4), vals, color=colors, width=0.62, zorder=3)
     ax.set_yscale("log")
     ax.set_ylim(0.004, 0.4)
     ax.set_xticks(range(4))
@@ -77,7 +80,8 @@ def main():
     for ext in ("png", "pdf"):
         fig.savefig(R / f"selector_regret.{ext}", dpi=160, bbox_inches="tight")
     print(
-        f"saved -> {R/'selector_regret.png'}  vals={dict(zip(['ICA','OML','SEL','oracle'],[round(v,4) for v in vals]))}"
+        f"saved -> {R/'selector_regret.png'}  "
+        f"vals={dict(zip(['ICA', 'OML', 'SEL', 'oracle'], [round(v, 4) for v in vals]))}"
     )
 
 

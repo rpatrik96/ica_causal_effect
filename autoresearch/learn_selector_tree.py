@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Close WS4: test the ICA d-gate, and learn a shallow tree to check the rule's
-thresholds are intrinsic.
+"""Close WS4 and test whether the rule's thresholds are intrinsic.
+
+Test the ICA d-gate and learn a shallow tree.
 
 Pools every per-cell record collected by selector_multi_runner across the WS4
 rounds (r13 + r14 splits): features (nonlinearity, d/n, ε-kurtosis, n) + the four
@@ -118,18 +119,19 @@ def main():
     X, y = featmat(cells)
     clf = DecisionTreeClassifier(max_depth=3, min_samples_leaf=3, random_state=0).fit(X, y)
     print(export_text(clf, feature_names=FNAMES))
-    tr_pick = lambda f: clf.predict(
-        [[f["nonlinearity_score"], f["d_over_n"], f["eps_excess_kurtosis"], np.log10(f["n"])]]
-    )[0]
+
+    def tr_pick(f):
+        return clf.predict([[f["nonlinearity_score"], f["d_over_n"], f["eps_excess_kurtosis"], np.log10(f["n"])]])[0]
+
     r_tree, m_tree = regret(cells, tr_pick)
     print(f"tree train regret={r_tree:+.4f} match={m_tree}/{len(cells)}")
     # leave-one-out CV regret (honest generalisation)
     loo_sel = []
-    for i in range(len(cells)):
+    for i, cell in enumerate(cells):
         Xtr = np.delete(X, i, 0)
         ytr = np.delete(y, i)
         c = DecisionTreeClassifier(max_depth=3, min_samples_leaf=3, random_state=0).fit(Xtr, ytr)
-        loo_sel.append(cells[i]["cand"][c.predict(X[i : i + 1])[0]])
+        loo_sel.append(cell["cand"][c.predict(X[i : i + 1])[0]])
     print(f"tree LOO-CV regret={_rms(loo_sel) - _rms([c['oracle'] for c in cells]):+.4f}")
     r_hs, m_hs = regret(cells, rule_handset)
     print(f"(hand-set rule regret={r_hs:+.4f} match={m_hs}/{len(cells)} for reference)")

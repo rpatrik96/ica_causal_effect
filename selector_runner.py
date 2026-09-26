@@ -35,7 +35,7 @@ DENSE = {"housing", "synthetic"}
 
 
 def _one(seed, Zfull, n_samples, theta, coefs, sigma_eps, eta_beta, nuisance, eps_beta, bootstrap, tau):
-    m_coef, g_coef, m_quad, g_quad = coefs
+    m_coef, g_coef, _m_quad, _g_quad = coefs
     rng = np.random.default_rng(seed)
     replace = bool(bootstrap) or n_samples > Zfull.shape[0]
     n = n_samples if replace else min(n_samples, Zfull.shape[0])

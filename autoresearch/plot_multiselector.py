@@ -46,7 +46,10 @@ def main():
             "d": int(d["n_covariates"]),
         }
         v2.append(cr[selm.select_estimator_multi(feats)])
-    rms = lambda v: float(np.sqrt(np.nanmean(np.square(v))))
+
+    def rms(v):
+        return float(np.sqrt(np.nanmean(np.square(v))))
+
     series = [
         ("always\nOLS", rms(ols), "#9aa0a6"),
         ("always\nOML(lin)", rms(omll), "#9aa0a6"),
@@ -59,7 +62,7 @@ def main():
 
     fig, ax = plt.subplots(figsize=(8.6, 4.8))
     vals = [s[1] for s in series]
-    bars = ax.bar(range(len(series)), vals, color=[s[2] for s in series], width=0.66, zorder=3)
+    ax.bar(range(len(series)), vals, color=[s[2] for s in series], width=0.66, zorder=3)
     ax.set_yscale("log")
     ax.set_ylim(0.05, max(vals) * 1.7)
     ax.set_xticks(range(len(series)))
@@ -81,7 +84,7 @@ def main():
         ha="center",
         fontsize=8.2,
         color="#20507f",
-        arrowprops=dict(arrowstyle="->", color="#20507f", lw=1.1),
+        arrowprops={"arrowstyle": "->", "color": "#20507f", "lw": 1.1},
     )
     ax.set_title(
         "Multi-feature selector spans the whole regime map\n"

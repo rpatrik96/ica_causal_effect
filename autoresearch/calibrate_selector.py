@@ -60,7 +60,10 @@ def total_regret(cells, thresholds):
         sq_sel.append(sel)
         sq_orc.append(c["oracle"])
         match += pick == c["oracle_name"]
-    rms = lambda v: float(np.sqrt(np.nanmean(np.square(v))))
+
+    def rms(v):
+        return float(np.sqrt(np.nanmean(np.square(v))))
+
     return {
         "rms_sel": rms(sq_sel),
         "rms_oracle": rms(sq_orc),
@@ -103,7 +106,7 @@ def main():
     args = ap.parse_args()
 
     calib = load_cells(args.calib)
-    th_cal, reg_cal = calibrate(calib)
+    th_cal, _reg_cal = calibrate(calib)
     th_def = selm.DEFAULT_THRESHOLDS
     print(f"calibrated thresholds (on {args.calib}, {len(calib)} cells): {th_cal}")
     print(f"hand-set defaults:                        {dict(th_def)}\n")

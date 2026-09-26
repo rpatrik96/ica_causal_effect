@@ -44,8 +44,10 @@ CANDIDATES = ("OLS", "OML_lin", "OML_gbm", "ICA")
 
 
 def _r2_gain(A, y, seed=0):
-    """Held-out R^2 improvement of GBM over LassoCV predicting y from A — a proxy
-    for how nonlinear the conditional mean is."""
+    """Return held-out R^2 improvement of GBM over LassoCV predicting y from A.
+
+    This provides a proxy for how nonlinear the conditional mean is.
+    """
     Atr, Ate, ytr, yte = train_test_split(A, y, test_size=0.4, random_state=seed)
     lin = LassoCV(max_iter=5000).fit(Atr, ytr)
     gbm = GradientBoostingRegressor(n_estimators=150, max_depth=3, random_state=seed).fit(Atr, ytr)
@@ -53,9 +55,12 @@ def _r2_gain(A, y, seed=0):
 
 
 def multi_features(X, T, Y, max_feat_n=2000, seed=0) -> dict:
-    """Feature vector for the multi-selector. Kurtoses from partialled-out
+    """Return the feature vector for the multi-selector.
+
+    Kurtoses come from partialled-out
     first-stage residuals; nonlinearity from a GBM-vs-linear R^2 gap; d/n from
-    shapes. Heavy parts run on a capped subsample."""
+    shapes. Heavy parts run on a capped subsample.
+    """
     n_full, d = X.shape
     rng = np.random.default_rng(seed)
     if n_full > max_feat_n:
@@ -91,7 +96,8 @@ def select_estimator_multi(features: dict, thresholds: dict | None = None) -> st
     correction from r13: a flexible GBM nuisance only helps when there are enough
     samples to fit it (r08); at small n the simpler estimator wins, so nonlinear/
     high-dim *small-n* cells fall back to OLS (low-dim) or OML_lin (high-dim, where
-    OLS min-norm is poor but regularization helps)."""
+    OLS min-norm is poor but regularization helps).
+    """
     th = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
     nl_ok = features["nonlinearity_score"] > th["nl"]
     high_d = features["d_over_n"] > th["dn"]

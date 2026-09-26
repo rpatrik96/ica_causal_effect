@@ -22,7 +22,6 @@ The r10 frontier is the ground truth used to calibrate τ and to measure regret
 """
 from __future__ import annotations
 
-import numpy as np
 from scipy.stats import kurtosis
 from sklearn.linear_model import LassoCV
 
@@ -30,8 +29,10 @@ DEFAULT_TAU = 1.0  # excess-kurtosis threshold on ε̂; calibrated in r12.
 
 
 def selection_features(X, T, Y, alphas=None) -> dict:
-    """Estimated non-Gaussianity of the treatment/outcome noises from first-stage
-    residuals, plus problem size — the inputs a selector may key on."""
+    """Estimate noise non-Gaussianity from first-stage residuals.
+
+    The result also includes problem size, giving the inputs a selector may key on.
+    """
     mt = LassoCV(alphas=alphas, max_iter=5000).fit(X, T)
     mo = LassoCV(alphas=alphas, max_iter=5000).fit(X, Y)
     eta_hat = T - mt.predict(X)
@@ -54,7 +55,10 @@ def select_estimator(features: dict, tau: float = DEFAULT_TAU) -> str:
 
 
 def choose_estimate(estimates: dict, features: dict, tau: float = DEFAULT_TAU):
-    """Return (chosen_estimator_name, chosen_theta) given a dict of candidate
-    estimates (keys 'ICA', 'OML', ...) and the selection features."""
+    """Return (chosen_estimator_name, chosen_theta) for candidate estimates.
+
+    Candidate estimates use keys such as 'ICA' and 'OML'; the features determine
+    which estimate is selected.
+    """
     name = select_estimator(features, tau)
     return name, estimates[name]

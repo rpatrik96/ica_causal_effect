@@ -54,7 +54,7 @@ def gauss_eta():
         xytext=(1.15, 0.9),
         fontsize=8.2,
         color="#a3384a",
-        arrowprops=dict(arrowstyle="->", color="#a3384a"),
+        arrowprops={"arrowstyle": "->", "color": "#a3384a"},
     )
     fig.suptitle(
         "WS3 — sensitivity to Gaussianising η: OLS/OML flat (robust); "

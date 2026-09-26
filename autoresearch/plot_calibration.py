@@ -69,7 +69,7 @@ def main():
         xytext=(1.4, max(cc) * 0.82),
         fontsize=8.4,
         color="#7a2f2f",
-        arrowprops=dict(arrowstyle="->", color="#7a2f2f", lw=1.1),
+        arrowprops={"arrowstyle": "->", "color": "#7a2f2f", "lw": 1.1},
     )
     ax.set_title(
         "Mechanism-grounded thresholds generalise; tuned ones overfit\n"

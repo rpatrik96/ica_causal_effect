@@ -54,10 +54,10 @@ def main():
     ax.set_xticklabels([f"{e:g}" for e in epss])
     ax.set_yticklabels([f"{e:g}" for e in etas])
     ax.set_xlabel(
-        "outcome-noise non-Gaussianity  ε ~ gennorm(β)\n" "← heavier-tailed        β        lighter →", fontsize=10
+        "outcome-noise non-Gaussianity  ε ~ gennorm(β)\n← heavier-tailed        β        lighter →", fontsize=10
     )
     ax.set_ylabel(
-        "treatment-noise non-Gaussianity  η ~ gennorm(β)\n" "← heavier-tailed        β        lighter →", fontsize=10
+        "treatment-noise non-Gaussianity  η ~ gennorm(β)\n← heavier-tailed        β        lighter →", fontsize=10
     )
 
     # Gaussian reference lines (β=2): the source ICA cannot sharpen on.

@@ -124,7 +124,7 @@ def run(
     rmse_arr = np.array([cand_rmse["OML_lin"], np.nan, np.nan, np.nan, cand_rmse["ICA"], cand_rmse["OLS"], np.nan])
     regime = f"{'NL' if nonlinear else 'lin'}/eps{eps_beta}/d{d}/n{actual_n}"
     print(
-        f"[{regime}] cand={{ {' '.join(f'{c}:{v:.4f}' for c,v in cand_rmse.items())} }} "
+        f"[{regime}] cand={{ {' '.join(f'{c}:{v:.4f}' for c, v in cand_rmse.items())} }} "
         f"| SELECTOR={sel_rmse:.4f} pick={mode_pick} oracle={oracle:.4f}({oracle_name}) "
         f"regret={sel_rmse-oracle:+.4f} | feats nl={mf['nonlinearity_score']:.3f} "
         f"d/n={mf['d_over_n']:.3f} epsk={mf['eps_excess_kurtosis']:.1f}"
